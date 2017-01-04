@@ -79,8 +79,8 @@ endif
 
 LIBS = -L$(libdir) \
 	-lsmartmet-spine \
-	-lsmartmet_macgyver \
-	-lsmartmet_newbase \
+	-lsmartmet-macgyver \
+	-lsmartmet-newbase \
 	-lboost_date_time \
 	-lboost_thread \
 	-ljson_spirit

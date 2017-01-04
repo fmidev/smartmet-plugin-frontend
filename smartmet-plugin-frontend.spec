@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 16.11.30
+Version: 17.1.4
 Release: 1%{?dist}.fmi
 License: FMI
 Group: SmartMet/Plugins
@@ -10,16 +10,16 @@ URL: http://www.weatherproof.fi
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 16.11.29
-BuildRequires: smartmet-engine-sputnik-devel >= 16.11.30
+BuildRequires: smartmet-library-spine-devel >= 17.1.4
+BuildRequires: smartmet-engine-sputnik-devel >= 17.1.4
 BuildRequires: libjson_spirit
 BuildRequires: protobuf-devel
-BuildRequires: libsmartmet-macgyver-devel >= 16.9.30
+BuildRequires: smartmet-library-macgyver-devel >= 16.12.20
 Requires: protobuf
-Requires: libsmartmet-macgyver >= 16.9.30
-Requires: smartmet-server >= 16.11.30
-Requires: smartmet-engine-sputnik >= 16.11.30
-Requires: smartmet-library-spine >= 16.11.29
+Requires: smartmet-library-macgyver >= 16.12.20
+Requires: smartmet-server >= 17.1.4
+Requires: smartmet-engine-sputnik >= 17.1.4
+Requires: smartmet-library-spine >= 17.1.4
 %if 0%{rhel} >= 7
 Requires: boost-date-time
 Requires: boost-thread
@@ -50,6 +50,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Wed Jan  4 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.4-1.fmi
+- Changed to use renamed SmartMet base libraries
+
 * Wed Nov 30 2016 Mika Heiskanen <mika.heiskanen@fmi.fi> - 16.11.30-1.fmi
 - No installation for configuration
 
