@@ -504,7 +504,7 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
       theNames.push_back("MinTime");
       theNames.push_back("MaxTime");
 
-      boost::scoped_ptr<SmartMet::Spine::TableFormatter> formatter(
+      std::unique_ptr<SmartMet::Spine::TableFormatter> formatter(
           SmartMet::Spine::TableFormatterFactory::create(format));
       formatter->format(out, table, theNames, theRequest, SmartMet::Spine::TableFormatterOptions());
 
@@ -608,7 +608,7 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
 
       ostringstream out;
 
-      boost::scoped_ptr<SmartMet::Spine::TableFormatter> formatter(
+      std::unique_ptr<SmartMet::Spine::TableFormatter> formatter(
           SmartMet::Spine::TableFormatterFactory::create(format));
       formatter->format(out, table, theNames, theRequest, SmartMet::Spine::TableFormatterOptions());
 
