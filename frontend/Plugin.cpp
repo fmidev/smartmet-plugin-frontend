@@ -854,7 +854,10 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
       SmartMet::Spine::Exception exception(BCP, "Request processing exception!", NULL);
       exception.addParameter("URI", theRequest.getURI());
 
-      std::cerr << exception.getStackTrace();
+      if (!exception.stackTraceDisabled())
+        std::cerr << exception.getStackTrace();
+      else if (!exception.loggingDisabled())
+        std::cerr << "Error: " << exception.what() << std::endl;
 
       if (isdebug)
       {

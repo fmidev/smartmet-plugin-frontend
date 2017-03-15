@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 17.1.4
+Version: 17.3.15
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -10,16 +10,16 @@ URL: https://github.com/fmidev/smartmet-plugin-frontend
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 17.1.4
-BuildRequires: smartmet-engine-sputnik-devel >= 17.1.4
+BuildRequires: smartmet-library-spine-devel >= 17.3.15
+BuildRequires: smartmet-engine-sputnik-devel >= 17.3.15
 BuildRequires: libjson_spirit
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 16.12.20
+BuildRequires: smartmet-library-macgyver-devel >= 17.3.14
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 16.12.20
-Requires: smartmet-server >= 17.1.4
-Requires: smartmet-engine-sputnik >= 17.1.4
-Requires: smartmet-library-spine >= 17.1.4
+Requires: smartmet-library-macgyver >= 17.3.14
+Requires: smartmet-server >= 17.3.15
+Requires: smartmet-engine-sputnik >= 17.3.15
+Requires: smartmet-library-spine >= 17.3.15
 %if 0%{rhel} >= 7
 Requires: boost-date-time
 Requires: boost-thread
@@ -50,6 +50,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Wed Mar 15 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.3.15-1.fmi
+- Recompiled since Spine::Exception changed
+
 * Wed Jan  4 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.1.4-1.fmi
 - Changed to use renamed SmartMet base libraries
 
