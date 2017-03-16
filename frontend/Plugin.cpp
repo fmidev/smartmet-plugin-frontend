@@ -19,7 +19,7 @@
 
 #include <macgyver/TimeFormatter.h>
 
-#include <json_spirit/json_spirit.h>
+#include <json/json.h>
 
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
@@ -77,16 +77,16 @@ struct QEngineFile
   QEngineFile() : producer(), path(), parameters(), originTime(), minTime(), maxTime() {}
 };
 
-QEngineFile buildQEngineFile(const json_spirit::mObject &jsonObject)
+QEngineFile buildQEngineFile(const Json::Value &jsonObject)
 {
   try
   {
-    std::string producer = jsonObject.find("Producer")->second.get_value<std::string>();
-    std::string path = jsonObject.find("Path")->second.get_value<std::string>();
-    std::string originTime = jsonObject.find("OriginTime")->second.get_value<std::string>();
-    std::string minTime = jsonObject.find("MinTime")->second.get_value<std::string>();
-    std::string maxTime = jsonObject.find("MaxTime")->second.get_value<std::string>();
-    string params = jsonObject.find("Parameters")->second.get_value<std::string>();
+    std::string producer = jsonObject["Producer"].asString();
+    std::string path = jsonObject["Path"].asString();
+    std::string originTime = jsonObject["OriginTime"].asString();
+    std::string minTime = jsonObject["MinTime"].asString();
+    std::string maxTime = jsonObject["MaxTime"].asString();
+    std::string params = jsonObject["Parameters"].asString();
 
     list<string> paramlist;
 
@@ -280,17 +280,17 @@ BackendFiles buildSpineQEngineContents(
       // Individual backend contents
       BackendFiles theseFiles;
 
-      json_spirit::mValue jvalue;
+      Json::Value jvalue;
+      Json::Reader reader;
 
-      if (!read(contentPair.second, jvalue))
+      if (!reader.parse(contentPair.second, jvalue))
       {
         throw SmartMet::Spine::Exception(BCP, "JSON deserialization failed");
       }
 
-      auto toplevelarray = jvalue.get_array();
-      BOOST_FOREACH (auto &producerValue, toplevelarray)
+      for (Json::Value::iterator jit = jvalue.begin(); jit != jvalue.end(); ++jit)
       {
-        auto &jsonObject = producerValue.get_obj();
+        auto &jsonObject = *jit;
 
         QEngineFile thisFile = buildQEngineFile(jsonObject);
 

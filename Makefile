@@ -40,7 +40,8 @@ ifeq ($(CXX), clang++)
 
  INCLUDES = \
 	-isystem $(includedir) \
-	-isystem $(includedir)/smartmet
+	-isystem $(includedir)/smartmet \
+	`pkg-config --cflags jsoncpp`
 
 else
 
@@ -61,7 +62,8 @@ else
 
  INCLUDES = \
 	-I$(includedir) \
-	-I$(includedir)/smartmet
+	-I$(includedir)/smartmet \
+	`pkg-config --cflags jsoncpp`
 
 endif
 
@@ -83,7 +85,8 @@ LIBS = -L$(libdir) \
 	-lsmartmet-newbase \
 	-lboost_date_time \
 	-lboost_thread \
-	-ljson_spirit
+	`pkg-config --libs jsoncpp`
+
 
 # What to install
 

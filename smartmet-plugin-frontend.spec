@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 17.3.15
+Version: 17.3.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -12,7 +12,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel
 BuildRequires: smartmet-library-spine-devel >= 17.3.15
 BuildRequires: smartmet-engine-sputnik-devel >= 17.3.15
-BuildRequires: libjson_spirit
+BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 17.3.14
 Requires: protobuf
@@ -20,6 +20,7 @@ Requires: smartmet-library-macgyver >= 17.3.14
 Requires: smartmet-server >= 17.3.15
 Requires: smartmet-engine-sputnik >= 17.3.15
 Requires: smartmet-library-spine >= 17.3.15
+Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
 Requires: boost-thread
@@ -50,6 +51,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Mar 16 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.3.16-1.fmi
+- Switched from json_spirit to jsoncpp
+
 * Wed Mar 15 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.3.15-1.fmi
 - Recompiled since Spine::Exception changed
 
