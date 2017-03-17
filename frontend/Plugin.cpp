@@ -97,7 +97,7 @@ QEngineFile buildQEngineFile(const Json::Value &jsonObject)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -112,7 +112,7 @@ bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -132,7 +132,7 @@ bool producerHasParam(const QEngineFile &file, const string &param)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -143,18 +143,18 @@ bool producerHasParam(const QEngineFile &file, const string &param)
 // ----------------------------------------------------------------------
 
 // this is the content handler for URL /
-void baseContentHandler(SmartMet::Spine::Reactor & /* theReactor */,
-                        const SmartMet::Spine::HTTP::Request & /* theRequest */,
-                        SmartMet::Spine::HTTP::Response &theResponse)
+void baseContentHandler(Spine::Reactor & /* theReactor */,
+                        const Spine::HTTP::Request & /* theRequest */,
+                        Spine::HTTP::Response &theResponse)
 {
   try
   {
-    theResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+    theResponse.setStatus(Spine::HTTP::Status::ok);
     theResponse.setContent("SmartMet Server\n");
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -165,23 +165,23 @@ void baseContentHandler(SmartMet::Spine::Reactor & /* theReactor */,
 // ----------------------------------------------------------------------
 
 #ifndef NDEBUG
-void sleep(SmartMet::Spine::Reactor & /* theReactor */,
-           const SmartMet::Spine::HTTP::Request &theRequest,
-           SmartMet::Spine::HTTP::Response &theResponse)
+void sleep(Spine::Reactor & /* theReactor */,
+           const Spine::HTTP::Request &theRequest,
+           Spine::HTTP::Response &theResponse)
 {
   try
   {
-    unsigned long t = SmartMet::Spine::optional_unsigned_long(theRequest.getParameter("t"), 1);
+    unsigned long t = Spine::optional_unsigned_long(theRequest.getParameter("t"), 1);
 
     if (t > 0)
       ::sleep(t);
 
-    theResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+    theResponse.setStatus(Spine::HTTP::Status::ok);
     theResponse.setContent("SmartMet Server\n");
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 #endif
@@ -192,9 +192,9 @@ void sleep(SmartMet::Spine::Reactor & /* theReactor */,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestClusterInfo(SmartMet::Spine::Reactor &theReactor,
-                                      const SmartMet::Spine::HTTP::Request & /* theRequest */,
-                                      SmartMet::Spine::HTTP::Response & /* theResponse */)
+pair<string, bool> requestClusterInfo(Spine::Reactor &theReactor,
+                                      const Spine::HTTP::Request & /* theRequest */,
+                                      Spine::HTTP::Response & /* theResponse */)
 {
   try
   {
@@ -207,13 +207,13 @@ pair<string, bool> requestClusterInfo(SmartMet::Spine::Reactor &theReactor,
       return make_pair(out.str(), false);
     }
 
-    auto *sputnik = reinterpret_cast<SmartMet::Engine::Sputnik::Engine *>(engine);
+    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
     sputnik->status(out);
     return make_pair(out.str(), true);
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -223,14 +223,14 @@ pair<string, bool> requestClusterInfo(SmartMet::Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestBackendInfo(SmartMet::Spine::Reactor &theReactor,
-                                      const SmartMet::Spine::HTTP::Request &theRequest,
-                                      SmartMet::Spine::HTTP::Response & /* theResponse */)
+pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
+                                      const Spine::HTTP::Request &theRequest,
+                                      Spine::HTTP::Response & /* theResponse */)
 {
   try
   {
-    string service = SmartMet::Spine::optional_string(theRequest.getParameter("service"), "");
-    string format = SmartMet::Spine::optional_string(theRequest.getParameter("format"), "debug");
+    string service = Spine::optional_string(theRequest.getParameter("service"), "");
+    string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
     ostringstream out;
 
@@ -241,24 +241,24 @@ pair<string, bool> requestBackendInfo(SmartMet::Spine::Reactor &theReactor,
       return make_pair(out.str(), false);
     }
 
-    auto *sputnik = reinterpret_cast<SmartMet::Engine::Sputnik::Engine *>(engine);
+    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
 
-    boost::shared_ptr<SmartMet::Spine::Table> table = sputnik->backends(service);
+    boost::shared_ptr<Spine::Table> table = sputnik->backends(service);
 
-    boost::shared_ptr<SmartMet::Spine::TableFormatter> formatter(
-        SmartMet::Spine::TableFormatterFactory::create(format));
-    SmartMet::Spine::TableFormatter::Names names;
+    boost::shared_ptr<Spine::TableFormatter> formatter(
+        Spine::TableFormatterFactory::create(format));
+    Spine::TableFormatter::Names names;
     names.push_back("Backend");
     names.push_back("IP");
     names.push_back("Port");
 
-    formatter->format(out, *table, names, theRequest, SmartMet::Spine::TableFormatterOptions());
+    formatter->format(out, *table, names, theRequest, Spine::TableFormatterOptions());
 
     return make_pair(out.str(), true);
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -285,7 +285,7 @@ BackendFiles buildSpineQEngineContents(
 
       if (!reader.parse(contentPair.second, jvalue))
       {
-        throw SmartMet::Spine::Exception(BCP, "JSON deserialization failed");
+        throw Spine::Exception(BCP, "JSON deserialization failed");
       }
 
       for (Json::Value::iterator jit = jvalue.begin(); jit != jvalue.end(); ++jit)
@@ -351,7 +351,7 @@ BackendFiles buildSpineQEngineContents(
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -361,7 +361,7 @@ BackendFiles buildSpineQEngineContents(
  */
 // ----------------------------------------------------------------------
 
-list<pair<string, string> > getBackendQEngineStatuses(SmartMet::Spine::Reactor &theReactor)
+list<pair<string, string> > getBackendQEngineStatuses(Spine::Reactor &theReactor)
 {
   try
   {
@@ -371,13 +371,13 @@ list<pair<string, string> > getBackendQEngineStatuses(SmartMet::Spine::Reactor &
     auto engine = theReactor.getSingleton("Sputnik", NULL);
     if (!engine)
     {
-      throw SmartMet::Spine::Exception(BCP, "Sputnik service discovery not available");
+      throw Spine::Exception(BCP, "Sputnik service discovery not available");
     }
 
-    auto *sputnik = reinterpret_cast<SmartMet::Engine::Sputnik::Engine *>(engine);
+    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
 
     // Get the backends which provide the requested service
-    auto backendList = sputnik->getBackendList(service);  // type is SmartMet::Services::BackendList
+    auto backendList = sputnik->getBackendList(service);  // type is Services::BackendList
 
     // Get Qengine status from backends
     boost::asio::io_service io_service;
@@ -431,7 +431,7 @@ list<pair<string, string> > getBackendQEngineStatuses(SmartMet::Spine::Reactor &
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -441,18 +441,18 @@ list<pair<string, string> > getBackendQEngineStatuses(SmartMet::Spine::Reactor &
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
-                                        const SmartMet::Spine::HTTP::Request &theRequest,
-                                        SmartMet::Spine::HTTP::Response & /* theResponse */)
+pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
+                                        const Spine::HTTP::Request &theRequest,
+                                        Spine::HTTP::Response & /* theResponse */)
 {
   try
   {
-    string inputType = SmartMet::Spine::optional_string(theRequest.getParameter("type"), "name");
-    string format = SmartMet::Spine::optional_string(theRequest.getParameter("format"), "debug");
+    string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
+    string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
     // This contains the found producers
     list<QEngineFile> iHasAllParameters;
-    string input = SmartMet::Spine::optional_string(theRequest.getParameter("param"), "");
+    string input = Spine::optional_string(theRequest.getParameter("param"), "");
 
     std::size_t tokens = 0;
     vector<string> paramTokens;
@@ -474,7 +474,7 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
       // Zero parameter tokens, print list of all spine producers
       // Build the result table
       ostringstream out;
-      SmartMet::Spine::Table table;
+      Spine::Table table;
       std::size_t row = 0;
       BOOST_FOREACH (auto &pair, result)
       {
@@ -497,16 +497,16 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
         ++row;
       }
 
-      SmartMet::Spine::TableFormatter::Names theNames;
+      Spine::TableFormatter::Names theNames;
       theNames.push_back("Producer");
       theNames.push_back("Path");
       theNames.push_back("OriginTime");
       theNames.push_back("MinTime");
       theNames.push_back("MaxTime");
 
-      std::unique_ptr<SmartMet::Spine::TableFormatter> formatter(
-          SmartMet::Spine::TableFormatterFactory::create(format));
-      formatter->format(out, table, theNames, theRequest, SmartMet::Spine::TableFormatterOptions());
+      std::unique_ptr<Spine::TableFormatter> formatter(
+          Spine::TableFormatterFactory::create(format));
+      formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
 
       return make_pair(out.str(), true);
     }
@@ -558,7 +558,7 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
               ++matches;
               continue;
             }
-            std::string paramString = SmartMet::Spine::ParameterFactory::instance().name(paramId);
+            std::string paramString = Spine::ParameterFactory::instance().name(paramId);
             if (producerHasParam(latest, paramString))
             {
               ++matches;
@@ -576,14 +576,14 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
       {
         ostringstream oss;
         oss << "Invalid input type " << inputType;
-        throw SmartMet::Spine::Exception(BCP, oss.str());
+        throw Spine::Exception(BCP, oss.str());
       }
 
       // Sort results by origintime
       iHasAllParameters.sort(boost::bind(qEngineSort, _2, _1));
 
       // Build result table
-      SmartMet::Spine::Table table;
+      Spine::Table table;
       std::size_t row = 0;
       BOOST_FOREACH (auto &file, iHasAllParameters)
       {
@@ -601,23 +601,23 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
         ++row;
       }
 
-      SmartMet::Spine::TableFormatter::Names theNames;
+      Spine::TableFormatter::Names theNames;
       theNames.push_back("Producer");
       theNames.push_back("Path");
       theNames.push_back("OriginTime");
 
       ostringstream out;
 
-      std::unique_ptr<SmartMet::Spine::TableFormatter> formatter(
-          SmartMet::Spine::TableFormatterFactory::create(format));
-      formatter->format(out, table, theNames, theRequest, SmartMet::Spine::TableFormatterOptions());
+      std::unique_ptr<Spine::TableFormatter> formatter(
+          Spine::TableFormatterFactory::create(format));
+      formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
 
       return make_pair(out.str(), true);
     }
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -627,15 +627,15 @@ pair<string, bool> requestQEngineStatus(SmartMet::Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> Plugin::request(SmartMet::Spine::Reactor &theReactor,
-                                   const SmartMet::Spine::HTTP::Request &theRequest,
-                                   SmartMet::Spine::HTTP::Response &theResponse)
+pair<string, bool> Plugin::request(Spine::Reactor &theReactor,
+                                   const Spine::HTTP::Request &theRequest,
+                                   Spine::HTTP::Response &theResponse)
 {
   try
   {
     // Check that incoming IP is in the whitelist
 
-    string what = SmartMet::Spine::optional_string(theRequest.getParameter("what"), "");
+    string what = Spine::optional_string(theRequest.getParameter("what"), "");
 
     if (what.empty())
       return make_pair("No request specified", false);
@@ -653,7 +653,7 @@ pair<string, bool> Plugin::request(SmartMet::Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -663,31 +663,31 @@ pair<string, bool> Plugin::request(SmartMet::Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-Plugin::Plugin(SmartMet::Spine::Reactor *theReactor, const char *theConfig)
+Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     : SmartMetPlugin(), itsModuleName("Frontend")
 {
   try
   {
     if (theReactor->getRequiredAPIVersion() != SMARTMET_API_VERSION)
-      throw SmartMet::Spine::Exception(BCP, "Frontend and Server API version mismatch");
+      throw Spine::Exception(BCP, "Frontend and Server API version mismatch");
 
-    itsHTTP = new SmartMet::Plugin::Frontend::HTTP(theReactor, theConfig);
+    itsHTTP = new HTTP(theReactor, theConfig);
 
     if (!theReactor->addContentHandler(
             this, "/admin", boost::bind(&Plugin::callRequestHandler, this, _1, _2, _3)))
-      throw SmartMet::Spine::Exception(BCP, "Failed to register admin content handler");
+      throw Spine::Exception(BCP, "Failed to register admin content handler");
 
     if (!theReactor->addContentHandler(this, "/", boost::bind(&baseContentHandler, _1, _2, _3)))
-      throw SmartMet::Spine::Exception(BCP, "Failed to register base content handler");
+      throw Spine::Exception(BCP, "Failed to register base content handler");
 
 #ifndef NDEBUG
     if (!theReactor->addContentHandler(this, "/sleep", boost::bind(&sleep, _1, _2, _3)))
-      throw SmartMet::Spine::Exception(BCP, "Failed to register sleep content handler");
+      throw Spine::Exception(BCP, "Failed to register sleep content handler");
 #endif
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -705,7 +705,7 @@ Plugin::~Plugin()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -734,7 +734,7 @@ void Plugin::shutdown()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -766,9 +766,9 @@ int Plugin::getRequiredAPIVersion() const
  */
 // ----------------------------------------------------------------------
 
-void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
-                            const SmartMet::Spine::HTTP::Request &theRequest,
-                            SmartMet::Spine::HTTP::Response &theResponse)
+void Plugin::requestHandler(Spine::Reactor &theReactor,
+                            const Spine::HTTP::Request &theRequest,
+                            Spine::HTTP::Response &theResponse)
 {
   try
   {
@@ -787,16 +787,16 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
 
       if (response.second)
       {
-        theResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+        theResponse.setStatus(Spine::HTTP::Status::ok);
       }
       else
       {
-        theResponse.setStatus(SmartMet::Spine::HTTP::Status::not_implemented);
+        theResponse.setStatus(Spine::HTTP::Status::not_implemented);
       }
 
       // Make the response HTML in debug mode
 
-      string format = SmartMet::Spine::optional_string(theRequest.getParameter("format"), "debug");
+      string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
       string ret = response.first;
       if (format == "debug")
@@ -806,8 +806,8 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
       }
       theResponse.setContent(ret);
 
-      boost::shared_ptr<SmartMet::Spine::TableFormatter> formatter(
-          SmartMet::Spine::TableFormatterFactory::create(format));
+      boost::shared_ptr<Spine::TableFormatter> formatter(
+          Spine::TableFormatterFactory::create(format));
       theResponse.setHeader("Content-Type", formatter->mimetype().c_str());
 
       // Build cache expiration time info
@@ -838,10 +838,10 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
     }
     /*
      * Cannot find a source that is actually throwing this exception
-    catch (SmartMet::Spine::Exceptions::NotAuthorizedError &)
+    catch (Spine::Exceptions::NotAuthorizedError &)
     {
       // Blocked by ip filter, masquerade as bad request
-      theResponse.setStatus(SmartMet::Spine::HTTP::Status::bad_request, true);
+      theResponse.setStatus(Spine::HTTP::Status::bad_request, true);
       cerr << boost::posix_time::second_clock::local_time()
            << " Attempt to access frontend admin from " << theRequest.getClientIP()
            << ". Not in whitelist." << endl;
@@ -851,7 +851,7 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
     {
       // Catching all exceptions
 
-      SmartMet::Spine::Exception exception(BCP, "Request processing exception!", NULL);
+      Spine::Exception exception(BCP, "Request processing exception!", NULL);
       exception.addParameter("URI", theRequest.getURI());
 
       if (!exception.stackTraceDisabled())
@@ -864,11 +864,11 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
         // Delivering the exception information as HTTP content
         std::string fullMessage = exception.getHtmlStackTrace();
         theResponse.setContent(fullMessage);
-        theResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+        theResponse.setStatus(Spine::HTTP::Status::ok);
       }
       else
       {
-        theResponse.setStatus(SmartMet::Spine::HTTP::Status::bad_request);
+        theResponse.setStatus(Spine::HTTP::Status::bad_request);
       }
 
       // Adding the first exception information into the response header
@@ -886,7 +886,7 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
 
       string msg = string("Error: ") + e.what();
       theResponse.setContent(msg);
-      theResponse.setStatus(SmartMet::Spine::HTTP::Status::internal_server_error);
+      theResponse.setStatus(Spine::HTTP::Status::internal_server_error);
       // Remove newlines, make sure length is reasonable
       boost::algorithm::replace_all(msg, "\n", " ");
       msg = msg.substr(0, 100);
@@ -901,13 +901,13 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
       theResponse.setHeader("X-Admin-Error", "Unknown exception");
       string msg = "Error: Unknown exception";
       theResponse.setContent(msg);
-      theResponse.setStatus(SmartMet::Spine::HTTP::Status::internal_server_error);
+      theResponse.setStatus(Spine::HTTP::Status::internal_server_error);
     }
 #endif
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -919,7 +919,7 @@ void Plugin::requestHandler(SmartMet::Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-bool Plugin::queryIsFast(const SmartMet::Spine::HTTP::Request & /* theRequest */) const
+bool Plugin::queryIsFast(const Spine::HTTP::Request & /* theRequest */) const
 {
   return true;
 }

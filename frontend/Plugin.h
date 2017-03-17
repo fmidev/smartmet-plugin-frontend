@@ -24,27 +24,27 @@ namespace Frontend
 class Plugin : public SmartMetPlugin
 {
  public:
-  Plugin(SmartMet::Spine::Reactor* theReactor, const char* theConfig);
+  Plugin(Spine::Reactor* theReactor, const char* theConfig);
   virtual ~Plugin();
 
   const std::string& getPluginName() const;
   int getRequiredAPIVersion() const;
-  bool queryIsFast(const SmartMet::Spine::HTTP::Request& theRequest) const;
+  bool queryIsFast(const Spine::HTTP::Request& theRequest) const;
 
  protected:
   void init();
   void shutdown();
-  void requestHandler(SmartMet::Spine::Reactor& theReactor,
-                      const SmartMet::Spine::HTTP::Request& theRequest,
-                      SmartMet::Spine::HTTP::Response& theResponse);
+  void requestHandler(Spine::Reactor& theReactor,
+                      const Spine::HTTP::Request& theRequest,
+                      Spine::HTTP::Response& theResponse);
 
  private:
   HTTP* itsHTTP;
   const std::string itsModuleName;
 
-  std::pair<std::string, bool> request(SmartMet::Spine::Reactor& theReactor,
-                                       const SmartMet::Spine::HTTP::Request& theRequest,
-                                       SmartMet::Spine::HTTP::Response& theResponse);
+  std::pair<std::string, bool> request(Spine::Reactor& theReactor,
+                                       const Spine::HTTP::Request& theRequest,
+                                       Spine::HTTP::Response& theResponse);
 
 };  // class Plugin
 

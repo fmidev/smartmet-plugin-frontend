@@ -44,7 +44,7 @@ std::string makeDateString()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -64,13 +64,12 @@ std::string contentEnumToString(ResponseCache::ContentEncodingType type)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
 // Return the most applicable content encoding for this request
-ResponseCache::ContentEncodingType clientAcceptsContentEncoding(
-    const SmartMet::Spine::HTTP::Request& request)
+ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTTP::Request& request)
 {
   try
   {
@@ -96,18 +95,17 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
-SmartMet::Spine::HTTP::Response buildClientResponse(
-    const SmartMet::Spine::HTTP::Request& originalRequest,
-    boost::shared_ptr<std::string> cachedBuffer,
-    const ResponseCache::CachedResponseMetaData& metadata)
+Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRequest,
+                                          boost::shared_ptr<std::string> cachedBuffer,
+                                          const ResponseCache::CachedResponseMetaData& metadata)
 {
   try
   {
-    SmartMet::Spine::HTTP::Response clientResponse;
+    Spine::HTTP::Response clientResponse;
 
     clientResponse.setHeader("Date", makeDateString());
     clientResponse.setHeader("Server", "SmartMet Synapse (" __TIME__ " " __DATE__ ")");
@@ -141,7 +139,7 @@ SmartMet::Spine::HTTP::Response buildClientResponse(
       std::string presented_etag = *if_none_match;
       if (presented_etag == metadata.etag)
       {
-        clientResponse.setStatus(SmartMet::Spine::HTTP::Status::not_modified);
+        clientResponse.setStatus(Spine::HTTP::Status::not_modified);
       }
       else
       {
@@ -155,7 +153,7 @@ SmartMet::Spine::HTTP::Response buildClientResponse(
 
         clientResponse.setHeader("X-Frontend-Cache-Hit", "true");
 
-        clientResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+        clientResponse.setStatus(Spine::HTTP::Status::ok);
         clientResponse.setContent(cachedBuffer);
       }
     }
@@ -164,7 +162,7 @@ SmartMet::Spine::HTTP::Response buildClientResponse(
       if (if_modified_since)
       {
         // Send Not modified
-        clientResponse.setStatus(SmartMet::Spine::HTTP::Status::not_modified);
+        clientResponse.setStatus(Spine::HTTP::Status::not_modified);
       }
       else
       {
@@ -178,7 +176,7 @@ SmartMet::Spine::HTTP::Response buildClientResponse(
 
         clientResponse.setHeader("X-Frontend-Cache-Hit", "true");
 
-        clientResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+        clientResponse.setStatus(Spine::HTTP::Status::ok);
         clientResponse.setContent(cachedBuffer);
       }
     }
@@ -187,12 +185,12 @@ SmartMet::Spine::HTTP::Response buildClientResponse(
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 }
 
-class LowLatencyGatewayStreamer : public SmartMet::Spine::HTTP::ContentStreamer,
+class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
                                   public boost::enable_shared_from_this<LowLatencyGatewayStreamer>
 {
  public:
@@ -203,10 +201,10 @@ class LowLatencyGatewayStreamer : public SmartMet::Spine::HTTP::ContentStreamer,
     FAILED
   };
 
-  LowLatencyGatewayStreamer(boost::shared_ptr<SmartMet::Proxy> theProxy,
+  LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
                             const std::string& theIP,
                             unsigned short thePort,
-                            const SmartMet::Spine::HTTP::Request& theOriginalRequest);
+                            const Spine::HTTP::Request& theOriginalRequest);
   virtual ~LowLatencyGatewayStreamer();
 
   // Begin backend operations
@@ -242,7 +240,7 @@ class LowLatencyGatewayStreamer : public SmartMet::Spine::HTTP::ContentStreamer,
   bool itsBackendBufferFull = false;
 
   // Saved request originating from the client
-  SmartMet::Spine::HTTP::Request itsOriginalRequest;
+  Spine::HTTP::Request itsOriginalRequest;
 
   // Buffer for socket operations
   boost::array<char, 8192> itsSocketBuffer;
@@ -284,17 +282,16 @@ class LowLatencyGatewayStreamer : public SmartMet::Spine::HTTP::ContentStreamer,
   bool itsHasTimedOut;
 
   // Handle to the proxy (contains caches, etc)
-  boost::shared_ptr<SmartMet::Proxy> itsProxy;
+  boost::shared_ptr<Proxy> itsProxy;
 };
 
 LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
 {
 }
-LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(
-    boost::shared_ptr<SmartMet::Proxy> theProxy,
-    const std::string& theIP,
-    unsigned short thePort,
-    const SmartMet::Spine::HTTP::Request& theOriginalRequest)
+LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
+                                                     const std::string& theIP,
+                                                     unsigned short thePort,
+                                                     const Spine::HTTP::Request& theOriginalRequest)
     : ContentStreamer(),
       itsOriginalRequest(theOriginalRequest),
       itsGatewayStatus(GatewayStatus::ONGOING),
@@ -365,7 +362,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -417,7 +414,7 @@ std::string LowLatencyGatewayStreamer::getChunk()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -453,7 +450,7 @@ std::string LowLatencyGatewayStreamer::getPeekString(int pos, int len)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -469,10 +466,10 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
       itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
       // Attempt to parse the response headers
-      auto ret = SmartMet::Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+      auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
       switch (std::get<0>(ret))
       {
-        case SmartMet::Spine::HTTP::ParsingStatus::FAILED:
+        case Spine::HTTP::ParsingStatus::FAILED:
           // Garbled response, handle error
           std::cout << boost::posix_time::second_clock::local_time()
                     << " Cache query to backend at " << itsIP << ":" << itsPort
@@ -485,7 +482,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           itsGatewayStatus = GatewayStatus::FAILED;
           break;
 
-        case SmartMet::Spine::HTTP::ParsingStatus::INCOMPLETE:
+        case Spine::HTTP::ParsingStatus::INCOMPLETE:
           // Partial response, read more data
 
           itsBackendSocket.async_read_some(
@@ -498,7 +495,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
           break;
 
-        case SmartMet::Spine::HTTP::ParsingStatus::COMPLETE:
+        case Spine::HTTP::ParsingStatus::COMPLETE:
 
           // Successfull parse.
           auto&& responsePtr = std::get<1>(ret);
@@ -667,7 +664,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -683,10 +680,10 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
     {
       itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
-      auto ret = SmartMet::Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+      auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
       switch (std::get<0>(ret))
       {
-        case SmartMet::Spine::HTTP::ParsingStatus::FAILED:
+        case Spine::HTTP::ParsingStatus::FAILED:
           // Garbled response, handle error
           std::cout << boost::posix_time::second_clock::local_time() << " Data query to backend at "
                     << itsIP << ":" << itsPort << " return garbled response" << std::endl;
@@ -694,7 +691,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           itsGatewayStatus = GatewayStatus::FAILED;
           return;
 
-        case SmartMet::Spine::HTTP::ParsingStatus::INCOMPLETE:
+        case Spine::HTTP::ParsingStatus::INCOMPLETE:
           // Partial response, read more data
 
           itsBackendSocket.async_read_some(
@@ -707,7 +704,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
 
           return;
 
-        case SmartMet::Spine::HTTP::ParsingStatus::COMPLETE:
+        case Spine::HTTP::ParsingStatus::COMPLETE:
 
           // Headers parsed, determine if we should attempt cache insertion
           auto&& responsePtr = std::get<1>(ret);
@@ -723,7 +720,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             auto transfer_encoding = responsePtr->getHeader("Transfer-Encoding");
             auto status = responsePtr->getStatus();
 
-            if (!mime || transfer_encoding || status != SmartMet::Spine::HTTP::Status::ok)
+            if (!mime || transfer_encoding || status != Spine::HTTP::Status::ok)
             {
               // No MIME, or has transfer-encoding.
               // MIME is required, and transfer-encoded responses are typically large (and not
@@ -939,7 +936,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -966,7 +963,7 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -986,7 +983,7 @@ ResponseCache& Proxy::getCache(ResponseCache::ContentEncodingType type)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -999,12 +996,12 @@ void Proxy::shutdown()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
-Proxy::ProxyStatus Proxy::HTTPForward(const SmartMet::Spine::HTTP::Request& theRequest,
-                                      SmartMet::Spine::HTTP::Response& theResponse,
+Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
+                                      Spine::HTTP::Response& theResponse,
                                       std::string& theBackendIP,
                                       int theBackendPort,
                                       std::string& theBackendURI,
@@ -1027,7 +1024,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(const SmartMet::Spine::HTTP::Request& theR
 
     // Clone the incoming request
 
-    SmartMet::Spine::HTTP::Request fwdRequest = theRequest;
+    Spine::HTTP::Request fwdRequest = theRequest;
 
     // Add frontend-related stuff
 
@@ -1050,7 +1047,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(const SmartMet::Spine::HTTP::Request& theR
     // This is a gateway response. So the only way to find out the HTTP message
     // status is to read it from the byte stream.
 
-    // Note 1: SmartMet::Spine::HTTP::Status::shutdown = 3210
+    // Note 1: Spine::HTTP::Status::shutdown = 3210
     // Note 2: "HTTP/1.x " is 9 characters long
 
     std::string httpStatus = responseStreamer->getPeekString(9, 4);
@@ -1064,7 +1061,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(const SmartMet::Spine::HTTP::Request& theR
     theResponse.setContent(responseStreamer);
     theResponse.isGatewayResponse =
         true;  // This response is gateway response, it will be sent as a byte stream
-    theResponse.setStatus(SmartMet::Spine::HTTP::Status::ok);
+    theResponse.setStatus(Spine::HTTP::Status::ok);
 
     // Set the originating backend information
     theResponse.itsOriginatingBackend = theHostName;
@@ -1074,7 +1071,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(const SmartMet::Spine::HTTP::Request& theR
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 

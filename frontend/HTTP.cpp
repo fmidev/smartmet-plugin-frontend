@@ -21,8 +21,8 @@ namespace Plugin
 {
 namespace Frontend
 {
-Proxy::ProxyStatus HTTP::transport(const SmartMet::Spine::HTTP::Request &theRequest,
-                                   SmartMet::Spine::HTTP::Response &theResponse)
+Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
+                                   Spine::HTTP::Response &theResponse)
 {
   try
   {
@@ -34,7 +34,7 @@ Proxy::ProxyStatus HTTP::transport(const SmartMet::Spine::HTTP::Request &theRequ
     if (theService.get() == 0)
     {
       // 404 Service Not Found
-      theResponse.setStatus(SmartMet::Spine::HTTP::Status::not_found, true);
+      theResponse.setStatus(Spine::HTTP::Status::not_found, true);
 
       return Proxy::ProxyStatus::PROXY_FAIL_SERVICE;
     }
@@ -48,7 +48,7 @@ Proxy::ProxyStatus HTTP::transport(const SmartMet::Spine::HTTP::Request &theRequ
                 << std::endl;
 
       // 502 Service Not Found
-      theResponse.setStatus(SmartMet::Spine::HTTP::Status::bad_gateway, true);
+      theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
       return Proxy::ProxyStatus::PROXY_FAIL_SERVICE;
     }
 
@@ -91,13 +91,13 @@ Proxy::ProxyStatus HTTP::transport(const SmartMet::Spine::HTTP::Request &theRequ
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
-void HTTP::requestHandler(SmartMet::Spine::Reactor & /* theReactor */,
-                          const SmartMet::Spine::HTTP::Request &theRequest,
-                          SmartMet::Spine::HTTP::Response &theResponse)
+void HTTP::requestHandler(Spine::Reactor & /* theReactor */,
+                          const Spine::HTTP::Request &theRequest,
+                          Spine::HTTP::Response &theResponse)
 {
   try
   {
@@ -118,11 +118,11 @@ void HTTP::requestHandler(SmartMet::Spine::Reactor & /* theReactor */,
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
-HTTP::HTTP(SmartMet::Spine::Reactor *theReactor, const char *theConfig)
+HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 {
   try
   {
@@ -131,15 +131,15 @@ HTTP::HTTP(SmartMet::Spine::Reactor *theReactor, const char *theConfig)
               << "(compiled on " __DATE__ " " __TIME__ ")" << std::endl;
 
     // Launch a new instance of Sputnik on network ItsNetworkAddress
-    itsSputnikProcess = reinterpret_cast<SmartMet::Engine::Sputnik::Engine *>(
+    itsSputnikProcess = reinterpret_cast<Engine::Sputnik::Engine *>(
         theReactor->getSingleton("Sputnik", (void *)NULL));
 
     // Throw error if instance could not be created
     if (itsSputnikProcess == NULL)
-      throw SmartMet::Spine::Exception(BCP, "HTTP plugin could not find Sputnik instance");
+      throw Spine::Exception(BCP, "HTTP plugin could not find Sputnik instance");
 
     // Start Sputnik in frontend mode with call-back function
-    itsSputnikProcess->launch(SmartMet::Engine::Sputnik::Frontend, theReactor);
+    itsSputnikProcess->launch(Engine::Sputnik::Frontend, theReactor);
 
     // Start the "Catcher in the Rye" process in SmartMet core
     theReactor->setNoMatchHandler(boost::bind(&HTTP::requestHandler, this, _1, _2, _3));
@@ -164,18 +164,17 @@ HTTP::HTTP(SmartMet::Spine::Reactor *theReactor, const char *theConfig)
     }
     catch (libconfig::ParseException &e)
     {
-      throw SmartMet::Spine::Exception(BCP,
-                                       std::string("Configuration error ' ") + e.getError() +
-                                           "' on line " +
-                                           boost::lexical_cast<std::string>(e.getLine()));
+      throw Spine::Exception(BCP,
+                             std::string("Configuration error ' ") + e.getError() + "' on line " +
+                                 boost::lexical_cast<std::string>(e.getLine()));
     }
     catch (libconfig::ConfigException &)
     {
-      throw SmartMet::Spine::Exception(BCP, "Configuration error");
+      throw Spine::Exception(BCP, "Configuration error");
     }
     catch (...)
     {
-      throw SmartMet::Spine::Exception(BCP, "Configuration error!", NULL);
+      throw Spine::Exception(BCP, "Configuration error!", NULL);
     }
 
     itsProxy = boost::make_shared<Proxy>(memorySize,
@@ -187,7 +186,7 @@ HTTP::HTTP(SmartMet::Spine::Reactor *theReactor, const char *theConfig)
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -207,7 +206,7 @@ HTTP::~HTTP()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 
@@ -220,7 +219,7 @@ void HTTP::shutdown()
   }
   catch (...)
   {
-    throw SmartMet::Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
   }
 }
 

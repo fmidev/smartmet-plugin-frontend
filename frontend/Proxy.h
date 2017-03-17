@@ -50,7 +50,7 @@ class ResponseCache
   typedef Fmi::Cache::Cache<std::string, CachedResponseMetaData> MetaDataCache;
 
   // Cache Bufferhash -> Buffer
-  typedef SmartMet::Spine::SmartMetCache BufferCache;
+  typedef Spine::SmartMetCache BufferCache;
 
   MetaDataCache itsMetaDataCache;
 
@@ -82,8 +82,8 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
 
   // Method to do HTTP transfer between requesting client and abackend
   // at the provided IP address - with optional port (defaults to 80)
-  ProxyStatus HTTPForward(const SmartMet::Spine::HTTP::Request& theRequest,
-                          SmartMet::Spine::HTTP::Response& TheResponse,
+  ProxyStatus HTTPForward(const Spine::HTTP::Request& theRequest,
+                          Spine::HTTP::Response& TheResponse,
                           std::string& theBackendIP,
                           int theBackendPort,
                           std::string& theBackendURI,
