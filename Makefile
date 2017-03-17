@@ -129,7 +129,7 @@ clean:
 	rm -rf obj
 
 format:
-	clang-format -i -style=file include/*.h source/*.cpp
+	clang-format -i -style=file frontend/*.h frontend/*.cpp
 
 install:
 	@mkdir -p $(plugindir)
