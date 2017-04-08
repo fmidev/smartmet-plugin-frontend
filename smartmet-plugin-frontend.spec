@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 17.3.16
+Version: 17.4.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -10,16 +10,16 @@ URL: https://github.com/fmidev/smartmet-plugin-frontend
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 17.3.15
+BuildRequires: smartmet-library-spine-devel >= 17.4.8
 BuildRequires: smartmet-engine-sputnik-devel >= 17.3.15
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 17.3.14
+BuildRequires: smartmet-library-macgyver-devel >= 17.3.16
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 17.3.14
-Requires: smartmet-server >= 17.3.15
+Requires: smartmet-library-macgyver >= 17.3.16
+Requires: smartmet-server >= 17.4.7
 Requires: smartmet-engine-sputnik >= 17.3.15
-Requires: smartmet-library-spine >= 17.3.15
+Requires: smartmet-library-spine >= 17.4.8
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -51,6 +51,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Sat Apr  8 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.4.8-1.fmi
+- Simplified error reporting
+
 * Thu Mar 16 2017 Mika Heiskanen <mika.heiskanen@fmi.fi> - 17.3.16-1.fmi
 - Switched from json_spirit to jsoncpp
 

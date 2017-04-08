@@ -10,21 +10,21 @@
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
 #include <spine/Convenience.h>
+#include <spine/Exception.h>
+#include <spine/ParameterFactory.h>
+#include <spine/SmartMet.h>
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
-#include <spine/ParameterFactory.h>
-#include <spine/SmartMet.h>
-#include <spine/Exception.h>
 
 #include <macgyver/TimeFormatter.h>
 
 #include <json/json.h>
 
-#include <boost/bind.hpp>
-#include <boost/asio.hpp>
-#include <boost/foreach.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+#include <boost/foreach.hpp>
 
 #include <sstream>
 #include <stdexcept>
@@ -853,11 +853,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       Spine::Exception exception(BCP, "Request processing exception!", NULL);
       exception.addParameter("URI", theRequest.getURI());
-
-      if (!exception.stackTraceDisabled())
-        std::cerr << exception.getStackTrace();
-      else if (!exception.loggingDisabled())
-        std::cerr << "Error: " << exception.what() << std::endl;
+      exception.printError();
 
       if (isdebug)
       {
