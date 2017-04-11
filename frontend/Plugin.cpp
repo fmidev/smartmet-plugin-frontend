@@ -783,6 +783,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
     try
     {
+      // We allow JSON requests, hence we should enable CORS
+      theResponse.setHeader("Access-Control-Allow-Origin", "*");
+
       pair<string, bool> response = request(theReactor, theRequest, theResponse);
 
       if (response.second)
