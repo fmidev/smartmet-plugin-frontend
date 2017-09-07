@@ -1,7 +1,6 @@
 #pragma once
 
 #include <boost/filesystem.hpp>
-#include <boost/shared_ptr.hpp>
 #include <macgyver/Cache.h>
 #include <spine/SmartMetCache.h>
 #include <string>

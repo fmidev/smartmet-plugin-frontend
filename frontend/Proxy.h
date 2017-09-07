@@ -9,7 +9,6 @@
 #include <boost/thread/condition.hpp>
 #include <boost/thread/thread.hpp>
 
-#include <engines/sputnik/Engine.h>
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
 
