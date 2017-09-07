@@ -103,6 +103,7 @@ Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRe
     clientResponse.setHeader("Vary", "Accept-Encoding");
     clientResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     clientResponse.setHeader("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
+    clientResponse.setHeader("X-Frontend-Server", boost::asio::ip::host_name());
 
     if (clientResponse.getVersion() == "1.1")
     {
