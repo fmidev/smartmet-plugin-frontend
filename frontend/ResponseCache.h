@@ -21,6 +21,8 @@ class ResponseCache
     std::size_t buffer_hash;
     std::string mime_type;
     std::string etag;
+    std::string cache_control;
+    std::string expires;
     ContentEncodingType content_encoding;
   };
 
@@ -33,6 +35,8 @@ class ResponseCache
 
   void insertCachedBuffer(const std::string& etag,
                           const std::string& mime_type,
+                          const std::string& cache_control,
+                          const std::string& expires,
                           ContentEncodingType content_encoding,
                           boost::shared_ptr<std::string> buffer);
 

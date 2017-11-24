@@ -101,8 +101,6 @@ Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRe
     clientResponse.setHeader("Date", makeDateString());
     clientResponse.setHeader("Server", "SmartMet Synapse (" __TIME__ " " __DATE__ ")");
     clientResponse.setHeader("Vary", "Accept-Encoding");
-    clientResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    clientResponse.setHeader("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
     clientResponse.setHeader("X-Frontend-Server", boost::asio::ip::host_name());
 
     if (clientResponse.getVersion() == "1.1")
@@ -160,6 +158,21 @@ Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRe
       {
         // No cache headers, send response with the cached content
         // Set content metadata headers
+
+        if (!metadata.expires.empty())
+          clientResponse.setHeader("Expires", metadata.expires);
+        else
+          clientResponse.setHeader("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
+
+        if (!metadata.cache_control.empty())
+          clientResponse.setHeader("Cache-Control", metadata.cache_control);
+        else
+        {
+          clientResponse.setHeader("Cache-Control", "must-revalidate");
+          // Old version before headers were cached:
+          // clientResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+
         clientResponse.setHeader("Content-Type", metadata.mime_type);
         if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
           clientResponse.setHeader("Content-Encoding",
@@ -181,11 +194,9 @@ Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRe
   }
 }
 
-}  // namespace anonymous
+}  // namespace
 
-LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
-{
-}
+LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer() {}
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
                                                      const std::string& theIP,
@@ -635,6 +646,14 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
               meta.mime_type = *mime;
               meta.etag = *etag;
 
+              auto expires = responsePtr->getHeader("Expires");
+              if (expires)
+                meta.expires = *expires;
+
+              auto cache_control = responsePtr->getHeader("Cache-Control");
+              if (cache_control)
+                meta.cache_control = *cache_control;
+
               auto content_encoding = responsePtr->getHeader("Content-Encoding");
 
               if (!content_encoding)
@@ -802,6 +821,8 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
         auto& cache = itsProxy->getCache(itsBackendMetadata.content_encoding);
         cache.insertCachedBuffer(itsBackendMetadata.etag,
                                  itsBackendMetadata.mime_type,
+                                 itsBackendMetadata.cache_control,
+                                 itsBackendMetadata.expires,
                                  itsBackendMetadata.content_encoding,
                                  boost::make_shared<std::string>(itsCachedContent));
       }

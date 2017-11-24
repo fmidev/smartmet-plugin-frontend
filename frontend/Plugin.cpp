@@ -715,9 +715,7 @@ Plugin::~Plugin()
  */
 // ----------------------------------------------------------------------
 
-void Plugin::init()
-{
-}
+void Plugin::init() {}
 
 // ----------------------------------------------------------------------
 /*!
@@ -774,7 +772,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
   {
     // Default expiration time
 
-    const int expires_seconds = 1;
+    const int expires_seconds = 60;
     bool isdebug = false;
 
     // Now
