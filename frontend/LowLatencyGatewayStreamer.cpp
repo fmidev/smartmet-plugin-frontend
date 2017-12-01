@@ -90,98 +90,70 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTT
   }
 }
 
-Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRequest,
-                                          boost::shared_ptr<std::string> cachedBuffer,
-                                          const ResponseCache::CachedResponseMetaData& metadata)
+Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalRequest,
+                                         boost::shared_ptr<std::string> cachedBuffer,
+                                         const ResponseCache::CachedResponseMetaData& metadata)
 {
   try
   {
-    Spine::HTTP::Response clientResponse;
+    Spine::HTTP::Response response;
 
-    clientResponse.setHeader("Date", makeDateString());
-    clientResponse.setHeader("Server", "SmartMet Synapse (" __TIME__ " " __DATE__ ")");
-    clientResponse.setHeader("Vary", "Accept-Encoding");
-    clientResponse.setHeader("X-Frontend-Server", boost::asio::ip::host_name());
+    response.setHeader("Date", makeDateString());
+    response.setHeader("Server", "SmartMet Synapse (" __TIME__ " " __DATE__ ")");
+    response.setHeader("X-Frontend-Server", boost::asio::ip::host_name());
 
-    if (clientResponse.getVersion() == "1.1")
+    if (response.getVersion() == "1.1")
     {
-      clientResponse.setHeader("Connection",
-                               "close");  // Current implementation is one-request-per-Connection
+      response.setHeader("Connection",
+                         "close");  // Current implementation is one-request-per-Connection
     }
 
-    // Cache-related headers
+    // The cache related response headers should be the same for 200 OK responses
+    // and 304 Not Modified responses. RFC7232: "The server generating a 304 response MUST generate
+    // any of the following header fields that would have been sent in a 200 (OK) response to the
+    // same request: Cache-Control, Content-Location, Date, ETag, Expires, and Vary."
+
+    if (!metadata.expires.empty())
+      response.setHeader("Expires", metadata.expires);
+    else
+      response.setHeader("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
+
+    if (!metadata.cache_control.empty())
+      response.setHeader("Cache-Control", metadata.cache_control);
+    else
+      response.setHeader("Cache-Control", "must-revalidate");
+
+    if (!metadata.vary.empty())
+      response.setHeader("Vary", metadata.vary);
+    else
+      response.setHeader("Vary", "Accept-Encoding");
 
     // If client sent If-Modified-Since or If-None-Match - headers, respond with Not Modified.
+
     auto if_none_match = originalRequest.getHeader("If-None-Match");
     auto if_modified_since = originalRequest.getHeader("If-Modified-Since");
 
     // This block prepares the client response
-    if (if_none_match)
+    if ((if_none_match && *if_none_match == metadata.etag) || if_modified_since)
     {
-      std::string presented_etag = *if_none_match;
-      if (presented_etag == metadata.etag)
-      {
-        clientResponse.setStatus(Spine::HTTP::Status::not_modified);
-      }
-      else
-      {
-        // Mismatched ETag, send response with the cached content
-        // Set content metadata headers
-        clientResponse.setHeader("Content-Type", metadata.mime_type);
-        if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
-          clientResponse.setHeader("Content-Encoding",
-                                   contentEnumToString(metadata.content_encoding));
-        clientResponse.setHeader("Content-Length", std::to_string(cachedBuffer->size()));
-
-        clientResponse.setHeader("X-Frontend-Cache-Hit", "true");
-
-        clientResponse.setStatus(Spine::HTTP::Status::ok);
-        clientResponse.setContent(cachedBuffer);
-      }
+      response.setStatus(Spine::HTTP::Status::not_modified);
     }
     else
     {
-      if (if_modified_since)
-      {
-        // Send Not modified
-        clientResponse.setStatus(Spine::HTTP::Status::not_modified);
-      }
-      else
-      {
-        // No cache headers, send response with the cached content
-        // Set content metadata headers
+      // No If-None_match, If-Modified-Since or ETag mismatched
 
-        if (!metadata.expires.empty())
-          clientResponse.setHeader("Expires", metadata.expires);
-        else
-          clientResponse.setHeader("Expires", "Thu, 01 Jan 1970 00:00:00 GMT");
+      response.setHeader("Content-Type", metadata.mime_type);
+      if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
+        response.setHeader("Content-Encoding", contentEnumToString(metadata.content_encoding));
+      response.setHeader("Content-Length", std::to_string(cachedBuffer->size()));
 
-        if (!metadata.cache_control.empty())
-          clientResponse.setHeader("Cache-Control", metadata.cache_control);
-        else
-        {
-          clientResponse.setHeader("Cache-Control", "must-revalidate");
-          // Old version before headers were cached:
-          // clientResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        }
+      response.setHeader("X-Frontend-Cache-Hit", "true");
 
-        if (!metadata.vary.empty())
-          clientResponse.setHeader("Vary", metadata.vary);
-
-        clientResponse.setHeader("Content-Type", metadata.mime_type);
-        if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
-          clientResponse.setHeader("Content-Encoding",
-                                   contentEnumToString(metadata.content_encoding));
-        clientResponse.setHeader("Content-Length", std::to_string(cachedBuffer->size()));
-
-        clientResponse.setHeader("X-Frontend-Cache-Hit", "true");
-
-        clientResponse.setStatus(Spine::HTTP::Status::ok);
-        clientResponse.setContent(cachedBuffer);
-      }
+      response.setStatus(Spine::HTTP::Status::ok);
+      response.setContent(cachedBuffer);
     }
 
-    return clientResponse;
+    return response;
   }
   catch (...)
   {
@@ -406,8 +378,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           auto&& responsePtr = std::get<1>(ret);
 
           // See if backend responded with ETag
-          auto cacheHeader = responsePtr->getHeader("ETag");
-          if (!cacheHeader)
+          auto etagHeader = responsePtr->getHeader("ETag");
+          if (!etagHeader)
           {
             // Backend responded without the ETag-header, this plugin doesn't support frontend
             // caching
@@ -430,7 +402,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           }
           else
           {
-            std::string etag = *cacheHeader;
+            std::string etag = *etagHeader;
 
             // See if we should send content-encoded response
             auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
@@ -482,8 +454,17 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
             auto metadata = result.second;
             auto response_buffer = result.first;
 
-            auto clientResponse =
-                buildClientResponse(itsOriginalRequest, response_buffer, metadata);
+            // Note: The back end may update expiration times in its "not modified" responses. Hence
+            // we must update the cached response too. Note that we do not modify the cached object
+            // itself, only this particular response. We do not expect plugins to modify
+            // their cache_control flags, since we expect plugins to use Expires instead
+            // of Cache-Control: max-age
+
+            auto expiresHeader = responsePtr->getHeader("Expires");
+            if (expiresHeader)
+              metadata.expires = *expiresHeader;
+
+            auto clientResponse = buildCacheResponse(itsOriginalRequest, response_buffer, metadata);
 
             itsClientDataBuffer = clientResponse.toString();
 
