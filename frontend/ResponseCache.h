@@ -23,6 +23,7 @@ class ResponseCache
     std::string etag;
     std::string cache_control;
     std::string expires;
+    std::string vary;
     ContentEncodingType content_encoding;
   };
 
@@ -37,6 +38,7 @@ class ResponseCache
                           const std::string& mime_type,
                           const std::string& cache_control,
                           const std::string& expires,
+                          const std::string& vary,
                           ContentEncodingType content_encoding,
                           boost::shared_ptr<std::string> buffer);
 

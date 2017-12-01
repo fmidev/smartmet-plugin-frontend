@@ -110,14 +110,6 @@ Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRe
     }
 
     // Cache-related headers
-    //#############################################################
-    // std::unique_ptr<Fmi::TimeFormatter> fmt(Fmi::TimeFormatter::create("http"));
-    // const int expires_seconds = 60;
-    // auto now = boost::posix_time::second_clock::universal_time();
-    // std::string expires = fmt->format(now + boost::posix_time::seconds(expires_seconds));
-
-    // clientResponse.setHeader("Expires", expires);
-    //#############################################################
 
     // If client sent If-Modified-Since or If-None-Match - headers, respond with Not Modified.
     auto if_none_match = originalRequest.getHeader("If-None-Match");
@@ -172,6 +164,9 @@ Spine::HTTP::Response buildClientResponse(const Spine::HTTP::Request& originalRe
           // Old version before headers were cached:
           // clientResponse.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         }
+
+        if (!metadata.vary.empty())
+          clientResponse.setHeader("Vary", metadata.vary);
 
         clientResponse.setHeader("Content-Type", metadata.mime_type);
         if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
@@ -654,6 +649,10 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
               if (cache_control)
                 meta.cache_control = *cache_control;
 
+              auto vary = responsePtr->getHeader("Vary");
+              if (vary)
+                meta.vary = *vary;
+
               auto content_encoding = responsePtr->getHeader("Content-Encoding");
 
               if (!content_encoding)
@@ -823,6 +822,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
                                  itsBackendMetadata.mime_type,
                                  itsBackendMetadata.cache_control,
                                  itsBackendMetadata.expires,
+                                 itsBackendMetadata.vary,
                                  itsBackendMetadata.content_encoding,
                                  boost::make_shared<std::string>(itsCachedContent));
       }

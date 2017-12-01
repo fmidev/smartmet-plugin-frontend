@@ -35,6 +35,7 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
                                        const std::string& mime_type,
                                        const std::string& cache_control,
                                        const std::string& expires,
+                                       const std::string& vary,
                                        ResponseCache::ContentEncodingType content_encoding,
                                        boost::shared_ptr<std::string> buffer)
 {
@@ -42,8 +43,8 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
 
   std::size_t buffer_hash = string_hash(*buffer);
 
-  itsMetaDataCache.insert(etag,
-                          {buffer_hash, mime_type, etag, cache_control, expires, content_encoding});
+  itsMetaDataCache.insert(
+      etag, {buffer_hash, mime_type, etag, cache_control, expires, vary, content_encoding});
 
   itsBufferCache.insert(buffer_hash, buffer);
 }
