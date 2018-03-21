@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.3.20
+Version: 18.3.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -12,7 +12,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.3.7
+BuildRequires: smartmet-library-spine-devel >= 18.3.21
 BuildRequires: smartmet-engine-sputnik-devel >= 18.3.20
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
@@ -21,7 +21,7 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 18.2.12
 Requires: smartmet-server >= 17.11.10
 Requires: smartmet-engine-sputnik >= 18.3.20
-Requires: smartmet-library-spine >= 18.3.7
+Requires: smartmet-library-spine >= 18.3.21
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -53,6 +53,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Wed Mar 21 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.3.21-1.fmi
+- SmartMetCache ABI changed
+
 * Tue Mar 20 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.3.20-1.fmi
 - Full recompile of all server plugins
 
