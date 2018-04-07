@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.3.21
+Version: 18.4.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -12,16 +12,16 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.3.21
-BuildRequires: smartmet-engine-sputnik-devel >= 18.3.20
+BuildRequires: smartmet-library-spine-devel >= 18.4.7
+BuildRequires: smartmet-engine-sputnik-devel >= 18.4.7
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.2.12
+BuildRequires: smartmet-library-macgyver-devel >= 18.4.7
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.2.12
-Requires: smartmet-server >= 17.11.10
-Requires: smartmet-engine-sputnik >= 18.3.20
-Requires: smartmet-library-spine >= 18.3.21
+Requires: smartmet-library-macgyver >= 18.4.7
+Requires: smartmet-server >= 18.4.7
+Requires: smartmet-engine-sputnik >= 18.4.7
+Requires: smartmet-library-spine >= 18.4.7
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -53,6 +53,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Sat Apr  7 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.4.7-1.fmi
+- Upgrade to boost 1.66
+
 * Wed Mar 21 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.3.21-1.fmi
 - SmartMetCache ABI changed
 
