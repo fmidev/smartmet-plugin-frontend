@@ -2,10 +2,10 @@
 #include <iostream>
 #include <stdexcept>
 
-#include <boost/shared_ptr.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/shared_ptr.hpp>
 
 #include <spine/Exception.h>
 #include <spine/Reactor.h>
