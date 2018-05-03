@@ -162,13 +162,13 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.lookupValue("uncompressed_cache.filesystem_bytes", uncomFilesystemSize);
       config.lookupValue("uncompressed_cache.directory", uncomFilesystemCachePath);
     }
-    catch (libconfig::ParseException &e)
+    catch (const libconfig::ParseException &e)
     {
       throw Spine::Exception(BCP,
                              std::string("Configuration error ' ") + e.getError() + "' on line " +
                                  boost::lexical_cast<std::string>(e.getLine()));
     }
-    catch (libconfig::ConfigException &)
+    catch (const libconfig::ConfigException &)
     {
       throw Spine::Exception(BCP, "Configuration error");
     }

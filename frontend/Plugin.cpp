@@ -553,7 +553,7 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
             {
               paramId = boost::lexical_cast<int>(param);
             }
-            catch (bad_cast &)
+            catch (const bad_cast &)
             {
               ++matches;
               continue;
@@ -839,7 +839,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     }
     /*
      * Cannot find a source that is actually throwing this exception
-    catch (Spine::Exceptions::NotAuthorizedError &)
+    catch (const Spine::Exceptions::NotAuthorizedError &)
     {
       // Blocked by ip filter, masquerade as bad request
       theResponse.setStatus(Spine::HTTP::Status::bad_request, true);
