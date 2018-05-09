@@ -264,6 +264,67 @@ pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Perform an active requests query
+ */
+// ----------------------------------------------------------------------
+
+pair<string, bool> requestActiveRequests(Spine::Reactor &theReactor,
+                                         const Spine::HTTP::Request &theRequest,
+                                         Spine::HTTP::Response &theResponse)
+{
+  try
+  {
+    ostringstream out;
+    Spine::Table reqTable;
+    string format = SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
+    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
+
+    // Obtain logging information
+    auto requests = theReactor.getActiveRequests();
+
+    auto now = boost::posix_time::microsec_clock::universal_time();
+
+    std::stringstream timeFormatter;
+    boost::posix_time::time_facet *facet = new time_facet("%H:%M:%S.%f");
+    timeFormatter.imbue(std::locale(timeFormatter.getloc(), facet));
+
+    std::size_t row = 0;
+    for (const auto &id_request : requests)
+    {
+      const auto id = id_request.first;
+      const auto &request = id_request.second;
+
+      timeFormatter << request.time;
+      std::string stime = timeFormatter.str();
+      timeFormatter.str("");
+
+      auto duration = now - request.time;
+
+      std::size_t column = 0;
+      reqTable.set(column++, row, Fmi::to_string(id));
+      reqTable.set(column++, row, stime);
+      reqTable.set(column++, row, Fmi::to_string(duration.total_milliseconds() / 1000.0));
+      reqTable.set(column++, row, request.uri);
+      ++row;
+    }
+
+    vector<string> headers = {"Id", "Time", "Duration", "RequestString"};
+    formatter->format(out, reqTable, headers, theRequest, Spine::TableFormatterOptions());
+
+    // Set MIME
+    std::string mime = formatter->mimetype() + "; charset=UTF-8";
+    theResponse.setHeader("Content-Type", mime);
+
+    return make_pair(out.str(), true);
+  }
+  catch (...)
+  {
+    throw Spine::Exception(BCP, "Operation failed!", NULL);
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Find latest spine QEngine contents and build output
  */
 // ----------------------------------------------------------------------
@@ -649,6 +710,9 @@ pair<string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "qengine")
       return requestQEngineStatus(theReactor, theRequest, theResponse);
 
+    if (what == "activerequests")
+      return requestActiveRequests(theReactor, theRequest, theResponse);
+
     return make_pair("Unknown request: '" + what + "'", false);
   }
   catch (...)
@@ -787,13 +851,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       pair<string, bool> response = request(theReactor, theRequest, theResponse);
 
       if (response.second)
-      {
         theResponse.setStatus(Spine::HTTP::Status::ok);
-      }
       else
-      {
         theResponse.setStatus(Spine::HTTP::Status::not_implemented);
-      }
 
       // Make the response HTML in debug mode
 
