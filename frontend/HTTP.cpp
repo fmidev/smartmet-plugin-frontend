@@ -110,9 +110,9 @@ void HTTP::requestHandler(Spine::Reactor & /* theReactor */,
     {
       theStatus = transport(theRequest, theResponse);
 
-      if (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_SHUTDOWN)
+      if (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
         std::cout << "####### RESENDING ########\n";
-    } while (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_SHUTDOWN);
+    } while (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED);
 
     return;
   }

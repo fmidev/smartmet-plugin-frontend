@@ -123,14 +123,20 @@ Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
     // status is to read it from the byte stream.
 
     // Note 1: Spine::HTTP::Status::shutdown = 3210
-    // Note 2: "HTTP/1.x " is 9 characters long
+    // Note 2: Spine::HTTP::Status::highload = 1234
+    // Note 3: "HTTP/1.x " is 9 characters long
 
     std::string httpStatus = responseStreamer->getPeekString(9, 4);
     if (httpStatus == "3210")
     {
-      // The backend is shutting down.
       std::cout << "*** Remote shutting down, resending to another backend\n";
-      return ProxyStatus::PROXY_FAIL_REMOTE_SHUTDOWN;
+      return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
+    }
+
+    if (httpStatus == "1234")
+    {
+      std::cout << "*** Remote has high load, resending to another backend\n";
+      return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
     }
 
     theResponse.setContent(responseStreamer);
