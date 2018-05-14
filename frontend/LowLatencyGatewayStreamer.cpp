@@ -35,7 +35,7 @@ std::string makeDateString()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -55,7 +55,7 @@ std::string contentEnumToString(ResponseCache::ContentEncodingType type)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -86,7 +86,7 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTT
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -157,7 +157,7 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -239,7 +239,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -291,7 +291,7 @@ std::string LowLatencyGatewayStreamer::getChunk()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -327,7 +327,7 @@ std::string LowLatencyGatewayStreamer::getPeekString(int pos, int len)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -550,7 +550,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -837,7 +837,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

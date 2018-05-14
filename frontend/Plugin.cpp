@@ -97,7 +97,7 @@ QEngineFile buildQEngineFile(const Json::Value &jsonObject)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -112,7 +112,7 @@ bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -132,7 +132,7 @@ bool producerHasParam(const QEngineFile &file, const string &param)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -154,7 +154,7 @@ void baseContentHandler(Spine::Reactor & /* theReactor */,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -181,7 +181,7 @@ void sleep(Spine::Reactor & /* theReactor */,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 #endif
@@ -200,7 +200,7 @@ pair<string, bool> requestClusterInfo(Spine::Reactor &theReactor,
   {
     ostringstream out;
 
-    auto engine = theReactor.getSingleton("Sputnik", NULL);
+    auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
       out << "Sputnik engine is not available" << endl;
@@ -213,7 +213,7 @@ pair<string, bool> requestClusterInfo(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -234,7 +234,7 @@ pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
 
     ostringstream out;
 
-    auto engine = theReactor.getSingleton("Sputnik", NULL);
+    auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
       out << "Sputnik engine is not available" << endl;
@@ -258,7 +258,7 @@ pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -319,7 +319,7 @@ pair<string, bool> requestActiveRequests(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -412,7 +412,7 @@ BackendFiles buildSpineQEngineContents(
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -429,7 +429,7 @@ list<pair<string, string> > getBackendQEngineStatuses(Spine::Reactor &theReactor
     // The presence of pointforecast means QEngine is running
     string service = "pointforecast";
 
-    auto engine = theReactor.getSingleton("Sputnik", NULL);
+    auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
       throw Spine::Exception(BCP, "Sputnik service discovery not available");
@@ -492,7 +492,7 @@ list<pair<string, string> > getBackendQEngineStatuses(Spine::Reactor &theReactor
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -678,7 +678,7 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -717,7 +717,7 @@ pair<string, bool> Plugin::request(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -751,7 +751,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -769,7 +769,7 @@ Plugin::~Plugin()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -796,7 +796,7 @@ void Plugin::shutdown()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -912,7 +912,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     {
       // Catching all exceptions
 
-      Spine::Exception exception(BCP, "Request processing exception!", NULL);
+      Spine::Exception exception(BCP, "Request processing exception!", nullptr);
       exception.addParameter("URI", theRequest.getURI());
       exception.printError();
 
@@ -964,7 +964,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

@@ -91,7 +91,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -118,7 +118,7 @@ void HTTP::requestHandler(Spine::Reactor & /* theReactor */,
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -131,11 +131,11 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
               << "(compiled on " __DATE__ " " __TIME__ ")" << std::endl;
 
     // Launch a new instance of Sputnik on network ItsNetworkAddress
-    itsSputnikProcess = reinterpret_cast<Engine::Sputnik::Engine *>(
-        theReactor->getSingleton("Sputnik", (void *)NULL));
+    itsSputnikProcess =
+        reinterpret_cast<Engine::Sputnik::Engine *>(theReactor->getSingleton("Sputnik", nullptr));
 
     // Throw error if instance could not be created
-    if (itsSputnikProcess == NULL)
+    if (itsSputnikProcess == nullptr)
       throw Spine::Exception(BCP, "HTTP plugin could not find Sputnik instance");
 
     // Start Sputnik in frontend mode with call-back function
@@ -174,7 +174,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     }
     catch (...)
     {
-      throw Spine::Exception(BCP, "Configuration error!", NULL);
+      throw Spine::Exception::Trace(BCP, "Configuration error!");
     }
 
     itsProxy = boost::make_shared<Proxy>(memorySize,
@@ -186,7 +186,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -206,7 +206,7 @@ HTTP::~HTTP()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -219,7 +219,7 @@ void HTTP::shutdown()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Operation failed!", NULL);
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
