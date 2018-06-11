@@ -22,6 +22,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
                             const std::string& theIP,
                             unsigned short thePort,
+                            int theBackendTimeoutInSeconds,
                             const Spine::HTTP::Request& theOriginalRequest);
   virtual ~LowLatencyGatewayStreamer();
 
@@ -76,7 +77,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   ResponseCache::CachedResponseMetaData itsBackendMetadata;
 
   // Gateway stream status
-  GatewayStatus itsGatewayStatus;
+  GatewayStatus itsGatewayStatus = GatewayStatus::ONGOING;
 
   // Backend IP
   std::string itsIP;
@@ -96,8 +97,11 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Timer for backend timeouts
   boost::shared_ptr<boost::asio::deadline_timer> itsTimeoutTimer;
 
-  // Flag to signal backend connection has timed tou
-  bool itsHasTimedOut;
+  // Flag to signal backend connection has timed out
+  bool itsHasTimedOut = false;
+
+  // Backend timeout in seconds
+  int itsBackendTimeoutInSeconds;
 
   // Handle to the proxy (contains caches, etc)
   boost::shared_ptr<Proxy> itsProxy;

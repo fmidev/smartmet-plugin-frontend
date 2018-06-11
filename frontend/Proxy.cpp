@@ -20,17 +20,22 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
              const boost::filesystem::path& uncompressedFileCachePath,
              std::size_t compressedMemoryCacheSize,
              std::size_t compressedFilesystemCacheSize,
-             const boost::filesystem::path& compressedFileCachePath)
+             const boost::filesystem::path& compressedFileCachePath,
+             int theBackendThreadCount,
+             int theBackendTimeoutInSeconds)
     : itsUncompressedResponseCache(
           uncompressedMemoryCacheSize, uncompressedFilesystemCacheSize, uncompressedFileCachePath),
       itsCompressedResponseCache(
           compressedMemoryCacheSize, compressedFilesystemCacheSize, compressedFileCachePath),
-      backendIoService(20),
-      idler(backendIoService)
+      backendIoService(theBackendThreadCount),
+      idler(backendIoService),
+      itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds)
 {
+  std::cout << "Backend ASIO pool size = " << theBackendThreadCount << std::endl;
+  std::cout << "Backend timeout = " << itsBackendTimeoutInSeconds << " seconds" << std::endl;
   try
   {
-    for (int i = 0; i < 20; ++i)
+    for (int i = 0; i < theBackendThreadCount; ++i)
     {
       itsBackendThreads.add_thread(
           new boost::thread(boost::bind(&boost::asio::io_service::run, &backendIoService)));
@@ -109,8 +114,12 @@ Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
 
     fwdRequest.setHeader("Connection", "close");
 
-    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(new LowLatencyGatewayStreamer(
-        shared_from_this(), theBackendIP, static_cast<unsigned short>(theBackendPort), fwdRequest));
+    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
+        new LowLatencyGatewayStreamer(shared_from_this(),
+                                      theBackendIP,
+                                      static_cast<unsigned short>(theBackendPort),
+                                      itsBackendTimeoutInSeconds,
+                                      fwdRequest));
 
     // Begin backend negotiation
     bool success = responseStreamer->sendAndListen();

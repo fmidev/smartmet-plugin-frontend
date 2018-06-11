@@ -18,10 +18,6 @@ namespace
 #define PROXY_MAX_CACHED_BUFFER_SIZE 20971520  // 20 MB
 #endif
 
-#ifndef BACKEND_TIMEOUT_SECONDS
-#define BACKEND_TIMEOUT_SECONDS 600
-#endif
-
 std::string makeDateString()
 {
   try
@@ -168,14 +164,14 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer() {}
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
                                                      const std::string& theIP,
                                                      unsigned short thePort,
+                                                     int theBackendTimeoutInSeconds,
                                                      const Spine::HTTP::Request& theOriginalRequest)
     : ContentStreamer(),
       itsOriginalRequest(theOriginalRequest),
-      itsGatewayStatus(GatewayStatus::ONGOING),
       itsIP(theIP),
       itsPort(thePort),
       itsBackendSocket(theProxy->backendIoService),
-      itsHasTimedOut(false),
+      itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds),
       itsProxy(theProxy)
 {
 }
@@ -223,7 +219,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
 
     // Start the timeout timer
     itsTimeoutTimer.reset(new boost::asio::deadline_timer(
-        itsProxy->backendIoService, boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS)));
+        itsProxy->backendIoService, boost::posix_time::seconds(itsBackendTimeoutInSeconds)));
 
     itsTimeoutTimer->async_wait(
         boost::bind(&LowLatencyGatewayStreamer::handleTimeout, shared_from_this(), _1));
@@ -284,7 +280,7 @@ std::string LowLatencyGatewayStreamer::getChunk()
           boost::bind(&LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
 
       // Reset timeout timer
-      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
     }
 
     return returnedBuffer;
@@ -368,7 +364,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
                   &LowLatencyGatewayStreamer::readCacheResponse, shared_from_this(), _1, _2));
 
           // Reset timeout timer
-          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
           break;
 
@@ -396,7 +392,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
                     &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
 
             // Reset timeout timer
-            itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+            itsTimeoutTimer->expires_from_now(
+                boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
             itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
           }
@@ -538,7 +535,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
                       _2));  // Headers not yet received
 
       // Reset timeout timer
-      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
     }
     else
     {
@@ -586,7 +583,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
                   &LowLatencyGatewayStreamer::readDataResponseHeaders, shared_from_this(), _1, _2));
 
           // Reset timeout timer
-          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
           return;
 
@@ -684,7 +681,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           }
 
           // Reset timeout timer
-          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
           itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
 
@@ -742,7 +739,7 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
             boost::bind(&LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
 
         // Reset timeout timer
-        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(BACKEND_TIMEOUT_SECONDS));
+        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
       }
     }
     else
@@ -816,7 +813,8 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
       if (itsHasTimedOut)
       {
         std::cout << boost::posix_time::second_clock::local_time() << " Connection to backend at "
-                  << itsIP << ":" << itsPort << " timed out" << std::endl;
+                  << itsIP << ":" << itsPort << " timed out in " << itsBackendTimeoutInSeconds
+                  << " seconds" << std::endl;
 
         itsGatewayStatus = GatewayStatus::FAILED;
       }

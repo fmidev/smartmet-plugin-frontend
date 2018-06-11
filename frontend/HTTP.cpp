@@ -151,6 +151,9 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     unsigned long long memorySize, filesystemSize, uncomMemorySize, uncomFilesystemSize;
     const char *filesystemCachePath, *uncomFilesystemCachePath;
 
+    int backendTimeoutInSeconds = 600;
+    int backendThreadCount = 20;
+
     try
     {
       config.readFile(theConfig);
@@ -161,6 +164,8 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.lookupValue("uncompressed_cache.memory_bytes", uncomMemorySize);
       config.lookupValue("uncompressed_cache.filesystem_bytes", uncomFilesystemSize);
       config.lookupValue("uncompressed_cache.directory", uncomFilesystemCachePath);
+      config.lookupValue("backend.timeout", backendTimeoutInSeconds);
+      config.lookupValue("backend.threads", backendThreadCount);
     }
     catch (const libconfig::ParseException &e)
     {
@@ -182,7 +187,9 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
                                          boost::filesystem::path(filesystemCachePath),
                                          uncomMemorySize,
                                          uncomFilesystemSize,
-                                         boost::filesystem::path(uncomFilesystemCachePath));
+                                         boost::filesystem::path(uncomFilesystemCachePath),
+                                         backendThreadCount,
+                                         backendTimeoutInSeconds);
   }
   catch (...)
   {

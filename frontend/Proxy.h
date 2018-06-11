@@ -37,7 +37,9 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
         const boost::filesystem::path& uncompressedFileCachePath,
         std::size_t compressedMemoryCacheSize,
         std::size_t compressedFilesystemCacheSize,
-        const boost::filesystem::path& compressedFileCachePath);
+        const boost::filesystem::path& compressedFileCachePath,
+        int theBackendThreadCount,
+        int theBackendTimeoutInSeconds);
 
   // Method to do HTTP transfer between requesting client and abackend
   // at the provided IP address - with optional port (defaults to 80)
@@ -54,13 +56,12 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
 
  private:
   ResponseCache itsUncompressedResponseCache;
-
   ResponseCache itsCompressedResponseCache;
 
   boost::asio::io_service backendIoService;
-
   boost::asio::io_service::work idler;
-
   boost::thread_group itsBackendThreads;
+
+  int itsBackendTimeoutInSeconds;
 };
 }  // namespace SmartMet
