@@ -539,6 +539,12 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       std::size_t row = 0;
       BOOST_FOREACH (auto &pair, result)
       {
+        if (pair.second.empty())
+        {
+          std::cerr << "Warning: producer " << pair.first << " has no content" << std::endl;
+          continue;
+        }
+
         std::size_t column = 0;
 
         table.set(column, row, pair.first);
