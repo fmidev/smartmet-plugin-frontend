@@ -1,5 +1,6 @@
 #include "LowLatencyGatewayStreamer.h"
 #include "Proxy.h"
+#include <macgyver/StringConversion.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -18,20 +19,17 @@ namespace
 #define PROXY_MAX_CACHED_BUFFER_SIZE 20971520  // 20 MB
 #endif
 
+// Format response header date as in "Fri, 27 Jul 2018 11:26:04 GMT"
+
 std::string makeDateString()
 {
   try
   {
-    boost::posix_time::time_facet* lf(
-        new boost::posix_time::time_facet("%a, %d %b %Y %H:%M:%S GMT"));
-    std::stringstream ss;
-    ss.imbue(std::locale(ss.getloc(), lf));
-    ss << boost::posix_time::second_clock::universal_time();
-    return ss.str();
+    return Fmi::to_http_string(boost::posix_time::second_clock::universal_time());
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Spine::Exception(BCP, "Failed to build HTTP response date");
   }
 }
 

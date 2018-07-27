@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.6.19
+Version: 18.7.27
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.5.11
-BuildRequires: smartmet-engine-sputnik-devel >= 18.4.7
+BuildRequires: smartmet-library-spine-devel >= 18.7.26
+BuildRequires: smartmet-engine-sputnik-devel >= 18.7.25
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.4.11
+BuildRequires: smartmet-library-macgyver-devel >= 18.7.27
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.4.11
-Requires: smartmet-server >= 18.4.9
-Requires: smartmet-engine-sputnik >= 18.4.7
-Requires: smartmet-library-spine >= 18.5.11
+Requires: smartmet-library-macgyver >= 18.7.27
+Requires: smartmet-server >= 18.7.25
+Requires: smartmet-engine-sputnik >= 18.7.25
+Requires: smartmet-library-spine >= 18.7.26
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Fri Jul 27 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.7.27-1.fmi
+- Faster formatting of response header dates
+
 * Tue Jun 19 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.6.19-1.fmi
 - Prevent crashes if common content for some producer is empty
 

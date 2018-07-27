@@ -6,9 +6,14 @@
 
 #include "Plugin.h"
 #include "HTTP.h"
-
+#include <boost/algorithm/string.hpp>
+#include <boost/asio.hpp>
+#include <boost/bind.hpp>
+#include <boost/foreach.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
+#include <json/json.h>
+#include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
 #include <spine/Exception.h>
 #include <spine/ParameterFactory.h>
@@ -16,16 +21,6 @@
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
-
-#include <macgyver/TimeFormatter.h>
-
-#include <json/json.h>
-
-#include <boost/algorithm/string.hpp>
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/foreach.hpp>
-
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -284,25 +279,17 @@ pair<string, bool> requestActiveRequests(Spine::Reactor &theReactor,
 
     auto now = boost::posix_time::microsec_clock::universal_time();
 
-    std::stringstream timeFormatter;
-    boost::posix_time::time_facet *facet = new time_facet("%H:%M:%S.%f");
-    timeFormatter.imbue(std::locale(timeFormatter.getloc(), facet));
-
     std::size_t row = 0;
     for (const auto &id_request : requests)
     {
       const auto id = id_request.first;
       const auto &request = id_request.second;
 
-      timeFormatter << request.time;
-      std::string stime = timeFormatter.str();
-      timeFormatter.str("");
-
       auto duration = now - request.time;
 
       std::size_t column = 0;
       reqTable.set(column++, row, Fmi::to_string(id));
-      reqTable.set(column++, row, stime);
+      reqTable.set(column++, row, Fmi::to_iso_string(request.time.time_of_day()));
       reqTable.set(column++, row, Fmi::to_string(duration.total_milliseconds() / 1000.0));
       reqTable.set(column++, row, request.uri);
       ++row;
@@ -883,11 +870,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       // The headers themselves
 
-      boost::shared_ptr<Fmi::TimeFormatter> tformat(Fmi::TimeFormatter::create("http"));
-
       string cachecontrol = "public, max-age=" + boost::lexical_cast<std::string>(expires_seconds);
-      string expiration = tformat->format(t_expires);
-      string modification = tformat->format(t_now);
+      string expiration = Fmi::to_http_string(t_expires);
+      string modification = Fmi::to_http_string(t_now);
 
       theResponse.setHeader("Cache-Control", cachecontrol.c_str());
       theResponse.setHeader("Expires", expiration.c_str());
