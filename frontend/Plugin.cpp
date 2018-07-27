@@ -289,7 +289,7 @@ pair<string, bool> requestActiveRequests(Spine::Reactor &theReactor,
 
       std::size_t column = 0;
       reqTable.set(column++, row, Fmi::to_string(id));
-      reqTable.set(column++, row, Fmi::to_iso_string(request.time.time_of_day()));
+      reqTable.set(column++, row, Fmi::to_iso_extended_string(request.time.time_of_day()));
       reqTable.set(column++, row, Fmi::to_string(duration.total_milliseconds() / 1000.0));
       reqTable.set(column++, row, request.uri);
       ++row;
