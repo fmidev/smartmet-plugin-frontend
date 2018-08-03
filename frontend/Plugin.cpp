@@ -25,8 +25,10 @@
 #include <stdexcept>
 #include <utility>
 
-using namespace std;
-using namespace boost::posix_time;
+using boost::posix_time::ptime;
+using boost::posix_time::second_clock;
+using boost::posix_time::seconds;
+
 namespace bip = boost::asio::ip;
 
 namespace SmartMet
@@ -44,22 +46,22 @@ using AllFiles = std::map<std::string, BackendFiles>;
 
 struct QEngineFile
 {
-  string producer;
-  list<string> aliases;
-  string refreshInterval;
-  string path;
-  list<string> parameters;
-  string projection;
-  string originTime;
-  string minTime;
-  string maxTime;
+  std::string producer;
+  std::list<std::string> aliases;
+  std::string refreshInterval;
+  std::string path;
+  std::list<std::string> parameters;
+  std::string projection;
+  std::string originTime;
+  std::string minTime;
+  std::string maxTime;
 
-  QEngineFile(const string &theProducer,
-              const string thePath,
-              const list<string> &theParameters,
-              const string &theOriginTime,
-              const string &theMinTime,
-              const string &theMaxTime)
+  QEngineFile(const std::string &theProducer,
+              const std::string thePath,
+              const std::list<std::string> &theParameters,
+              const std::string &theOriginTime,
+              const std::string &theMinTime,
+              const std::string &theMaxTime)
       : producer(theProducer),
         path(thePath),
         parameters(theParameters),
@@ -83,7 +85,7 @@ QEngineFile buildQEngineFile(const Json::Value &jsonObject)
     std::string maxTime = jsonObject["MaxTime"].asString();
     std::string params = jsonObject["Parameters"].asString();
 
-    list<string> paramlist;
+    std::list<std::string> paramlist;
 
     boost::algorithm::split(
         paramlist, params, boost::algorithm::is_any_of(" ,"), boost::token_compress_on);
@@ -111,7 +113,7 @@ bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
   }
 }
 
-bool producerHasParam(const QEngineFile &file, const string &param)
+bool producerHasParam(const QEngineFile &file, const std::string &param)
 {
   try
   {
@@ -187,24 +189,24 @@ void sleep(Spine::Reactor & /* theReactor */,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestClusterInfo(Spine::Reactor &theReactor,
-                                      const Spine::HTTP::Request & /* theRequest */,
-                                      Spine::HTTP::Response & /* theResponse */)
+std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor,
+                                                const Spine::HTTP::Request & /* theRequest */,
+                                                Spine::HTTP::Response & /* theResponse */)
 {
   try
   {
-    ostringstream out;
+    std::ostringstream out;
 
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
-      out << "Sputnik engine is not available" << endl;
-      return make_pair(out.str(), false);
+      out << "Sputnik engine is not available" << std::endl;
+      return std::make_pair(out.str(), false);
     }
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
     sputnik->status(out);
-    return make_pair(out.str(), true);
+    return std::make_pair(out.str(), true);
   }
   catch (...)
   {
@@ -218,22 +220,22 @@ pair<string, bool> requestClusterInfo(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
-                                      const Spine::HTTP::Request &theRequest,
-                                      Spine::HTTP::Response & /* theResponse */)
+std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
+                                                const Spine::HTTP::Request &theRequest,
+                                                Spine::HTTP::Response & /* theResponse */)
 {
   try
   {
-    string service = Spine::optional_string(theRequest.getParameter("service"), "");
-    string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
+    std::string service = Spine::optional_string(theRequest.getParameter("service"), "");
+    std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
-    ostringstream out;
+    std::ostringstream out;
 
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
-      out << "Sputnik engine is not available" << endl;
-      return make_pair(out.str(), false);
+      out << "Sputnik engine is not available" << std::endl;
+      return std::make_pair(out.str(), false);
     }
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
@@ -249,7 +251,7 @@ pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
 
     formatter->format(out, *table, names, theRequest, Spine::TableFormatterOptions());
 
-    return make_pair(out.str(), true);
+    return std::make_pair(out.str(), true);
   }
   catch (...)
   {
@@ -263,15 +265,16 @@ pair<string, bool> requestBackendInfo(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestActiveRequests(Spine::Reactor &theReactor,
-                                         const Spine::HTTP::Request &theRequest,
-                                         Spine::HTTP::Response &theResponse)
+std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
+                                                   const Spine::HTTP::Request &theRequest,
+                                                   Spine::HTTP::Response &theResponse)
 {
   try
   {
-    ostringstream out;
+    std::ostringstream out;
     Spine::Table reqTable;
-    string format = SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
+    std::string format =
+        SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
     std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
 
     // Obtain logging information
@@ -295,14 +298,14 @@ pair<string, bool> requestActiveRequests(Spine::Reactor &theReactor,
       ++row;
     }
 
-    vector<string> headers = {"Id", "Time", "Duration", "RequestString"};
+    std::vector<std::string> headers = {"Id", "Time", "Duration", "RequestString"};
     formatter->format(out, reqTable, headers, theRequest, Spine::TableFormatterOptions());
 
     // Set MIME
     std::string mime = formatter->mimetype() + "; charset=UTF-8";
     theResponse.setHeader("Content-Type", mime);
 
-    return make_pair(out.str(), true);
+    return std::make_pair(out.str(), true);
   }
   catch (...)
   {
@@ -347,7 +350,7 @@ BackendFiles buildSpineQEngineContents(
         {
           ProducerFiles thisProducer;
           thisProducer.push_back(thisFile);
-          theseFiles.insert(make_pair(thisFile.producer, thisProducer));
+          theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
         }
         else
         {
@@ -379,7 +382,7 @@ BackendFiles buildSpineQEngineContents(
         BackendFiles::iterator outputIt = spineFiles.find(producerIt->first);
         if (outputIt == spineFiles.end())
         {
-          spineFiles.insert(make_pair(producerIt->first, producerIt->second));
+          spineFiles.insert(std::make_pair(producerIt->first, producerIt->second));
         }
         else
         {
@@ -409,12 +412,13 @@ BackendFiles buildSpineQEngineContents(
  */
 // ----------------------------------------------------------------------
 
-list<pair<string, string> > getBackendQEngineStatuses(Spine::Reactor &theReactor)
+std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
+    Spine::Reactor &theReactor)
 {
   try
   {
     // The presence of pointforecast means QEngine is running
-    string service = "pointforecast";
+    std::string service = "pointforecast";
 
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
@@ -468,9 +472,9 @@ list<pair<string, string> > getBackendQEngineStatuses(Spine::Reactor &theReactor
       std::stringstream responseStream;
       responseStream << &response;
 
-      string rawResponse = responseStream.str();
+      std::string rawResponse = responseStream.str();
       size_t bodyStart = rawResponse.find("\r\n\r\n");
-      string body = rawResponse.substr(bodyStart);
+      std::string body = rawResponse.substr(bodyStart);
 
       qEngineContentList.push_back(std::make_pair(backend.get<0>(), body));
     }
@@ -489,21 +493,21 @@ list<pair<string, string> > getBackendQEngineStatuses(Spine::Reactor &theReactor
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
-                                        const Spine::HTTP::Request &theRequest,
-                                        Spine::HTTP::Response & /* theResponse */)
+std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
+                                                  const Spine::HTTP::Request &theRequest,
+                                                  Spine::HTTP::Response & /* theResponse */)
 {
   try
   {
-    string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
-    string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
+    std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
+    std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
     // This contains the found producers
-    list<QEngineFile> iHasAllParameters;
-    string input = Spine::optional_string(theRequest.getParameter("param"), "");
+    std::list<QEngineFile> iHasAllParameters;
+    std::string input = Spine::optional_string(theRequest.getParameter("param"), "");
 
     std::size_t tokens = 0;
-    vector<string> paramTokens;
+    std::vector<std::string> paramTokens;
 
     if (input != "")
     {
@@ -514,14 +518,15 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     }
 
     // Obtain backend QEngine statuses
-    list<pair<string, string> > qEngineContentList = getBackendQEngineStatuses(theReactor);
+    std::list<std::pair<std::string, std::string> > qEngineContentList =
+        getBackendQEngineStatuses(theReactor);
     BackendFiles result = buildSpineQEngineContents(qEngineContentList);
 
     if (tokens == 0)
     {
       // Zero parameter tokens, print list of all spine producers
       // Build the result table
-      ostringstream out;
+      std::ostringstream out;
       Spine::Table table;
       std::size_t row = 0;
       BOOST_FOREACH (auto &pair, result)
@@ -562,7 +567,7 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
           Spine::TableFormatterFactory::create(format));
       formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return make_pair(out.str(), true);
+      return std::make_pair(out.str(), true);
     }
 
     else
@@ -607,7 +612,7 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
             {
               paramId = boost::lexical_cast<int>(param);
             }
-            catch (const bad_cast &)
+            catch (const std::bad_cast &)
             {
               ++matches;
               continue;
@@ -628,7 +633,7 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       }
       else
       {
-        ostringstream oss;
+        std::ostringstream oss;
         oss << "Invalid input type " << inputType;
         throw Spine::Exception(BCP, oss.str());
       }
@@ -660,13 +665,13 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       theNames.push_back("Path");
       theNames.push_back("OriginTime");
 
-      ostringstream out;
+      std::ostringstream out;
 
       std::unique_ptr<Spine::TableFormatter> formatter(
           Spine::TableFormatterFactory::create(format));
       formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return make_pair(out.str(), true);
+      return std::make_pair(out.str(), true);
     }
   }
   catch (...)
@@ -681,18 +686,18 @@ pair<string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-pair<string, bool> Plugin::request(Spine::Reactor &theReactor,
-                                   const Spine::HTTP::Request &theRequest,
-                                   Spine::HTTP::Response &theResponse)
+std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
+                                             const Spine::HTTP::Request &theRequest,
+                                             Spine::HTTP::Response &theResponse)
 {
   try
   {
     // Check that incoming IP is in the whitelist
 
-    string what = Spine::optional_string(theRequest.getParameter("what"), "");
+    std::string what = Spine::optional_string(theRequest.getParameter("what"), "");
 
     if (what.empty())
-      return make_pair("No request specified", false);
+      return std::make_pair("No request specified", false);
 
     if (what == "clusterinfo")
       return requestClusterInfo(theReactor, theRequest, theResponse);
@@ -706,7 +711,7 @@ pair<string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "activerequests")
       return requestActiveRequests(theReactor, theRequest, theResponse);
 
-    return make_pair("Unknown request: '" + what + "'", false);
+    return std::make_pair("Unknown request: '" + what + "'", false);
   }
   catch (...)
   {
@@ -799,7 +804,7 @@ void Plugin::shutdown()
  */
 // ----------------------------------------------------------------------
 
-const string &Plugin::getPluginName() const
+const std::string &Plugin::getPluginName() const
 {
   return itsModuleName;
 }
@@ -841,7 +846,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       // We allow JSON requests, hence we should enable CORS
       theResponse.setHeader("Access-Control-Allow-Origin", "*");
 
-      pair<string, bool> response = request(theReactor, theRequest, theResponse);
+      std::pair<std::string, bool> response = request(theReactor, theRequest, theResponse);
 
       if (response.second)
         theResponse.setStatus(Spine::HTTP::Status::ok);
@@ -850,9 +855,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       // Make the response HTML in debug mode
 
-      string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
+      std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
-      string ret = response.first;
+      std::string ret = response.first;
       if (format == "debug")
       {
         isdebug = true;
@@ -870,9 +875,10 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       // The headers themselves
 
-      string cachecontrol = "public, max-age=" + boost::lexical_cast<std::string>(expires_seconds);
-      string expiration = Fmi::to_http_string(t_expires);
-      string modification = Fmi::to_http_string(t_now);
+      std::string cachecontrol =
+          "public, max-age=" + boost::lexical_cast<std::string>(expires_seconds);
+      std::string expiration = Fmi::to_http_string(t_expires);
+      std::string modification = Fmi::to_http_string(t_now);
 
       theResponse.setHeader("Cache-Control", cachecontrol.c_str());
       theResponse.setHeader("Expires", expiration.c_str());
@@ -880,12 +886,12 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       if (response.first.size() == 0)
       {
-        cerr << "Warning: Empty input for request " << theRequest.getQueryString() << " from "
-             << theRequest.getClientIP() << endl;
+        std::cerr << "Warning: Empty input for request " << theRequest.getQueryString() << " from "
+                  << theRequest.getClientIP() << std::endl;
       }
 
 #ifdef MYDEBUG
-      cout << "Output:" << endl << response << endl;
+      std::cout << "Output:" << std::endl << response << std::endl;
 #endif
     }
     /*
@@ -894,9 +900,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     {
       // Blocked by ip filter, masquerade as bad request
       theResponse.setStatus(Spine::HTTP::Status::bad_request, true);
-      cerr << boost::posix_time::second_clock::local_time()
+      std::cerr << boost::posix_time::second_clock::local_time()
            << " Attempt to access frontend admin from " << theRequest.getClientIP()
-           << ". Not in whitelist." << endl;
+           << ". Not in whitelista." << std::endl;
     }
     */
     catch (...)
@@ -929,10 +935,10 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 #if 0
     catch (...)
     {
-      cerr << boost::posix_time::second_clock::local_time() << " error: " << e.what() << endl
-           << "Query: " << theRequest.getURI() << endl;
+      cerr << boost::posix_time::second_clock::local_time() << " error: " << e.what() << std::endl
+           << "Query: " << theRequest.getURI() << std::endl;
 
-      string msg = string("Error: ") + e.what();
+      std::string msg = std::string("Error: ") + e.what();
       theResponse.setContent(msg);
       theResponse.setStatus(Spine::HTTP::Status::internal_server_error);
       // Remove newlines, make sure length is reasonable
@@ -943,11 +949,11 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     catch (...)
     {
       cerr << boost::posix_time::second_clock::local_time() << " error: "
-           << "Unknown exception" << endl
-           << "Query: " << theRequest.getURI() << endl;
+           << "Unknown exception" << std::endl
+           << "Query: " << theRequest.getURI() << std::endl;
 
       theResponse.setHeader("X-Admin-Error", "Unknown exception");
-      string msg = "Error: Unknown exception";
+      std::string msg = "Error: Unknown exception";
       theResponse.setContent(msg);
       theResponse.setStatus(Spine::HTTP::Status::internal_server_error);
     }
