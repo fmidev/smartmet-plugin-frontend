@@ -37,7 +37,7 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
                                        const std::string& expires,
                                        const std::string& vary,
                                        ResponseCache::ContentEncodingType content_encoding,
-                                       boost::shared_ptr<std::string> buffer)
+                                       const boost::shared_ptr<std::string>& buffer)
 {
   boost::hash<std::string> string_hash;
 

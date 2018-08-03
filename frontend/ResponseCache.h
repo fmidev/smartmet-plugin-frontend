@@ -40,7 +40,7 @@ class ResponseCache
                           const std::string& expires,
                           const std::string& vary,
                           ContentEncodingType content_encoding,
-                          boost::shared_ptr<std::string> buffer);
+                          const boost::shared_ptr<std::string>& buffer);
 
  private:
   // Cache ETag -> Bufferhash
