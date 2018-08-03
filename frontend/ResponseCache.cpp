@@ -25,10 +25,8 @@ ResponseCache::getCachedBuffer(const std::string& etag)
 
     return std::make_pair(buffer, *mdata);
   }
-  else
-  {
-    return {};
-  }
+
+  return {};
 }
 
 void ResponseCache::insertCachedBuffer(const std::string& etag,
