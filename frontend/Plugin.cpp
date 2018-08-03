@@ -37,10 +37,10 @@ namespace Frontend
 {
 struct QEngineFile;
 
-// QEngine reporting typedefs
-typedef std::list<QEngineFile> ProducerFiles;               // list of files per producer
-typedef std::map<std::string, ProducerFiles> BackendFiles;  // key is producer
-typedef std::map<std::string, BackendFiles> AllFiles;
+// QEngine reporting types
+using ProducerFiles = std::list<QEngineFile>;               // list of files per producer
+using BackendFiles = std::map<std::string, ProducerFiles>;  // key is producer
+using AllFiles = std::map<std::string, BackendFiles>;
 
 struct QEngineFile
 {

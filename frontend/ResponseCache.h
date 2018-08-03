@@ -44,10 +44,10 @@ class ResponseCache
 
  private:
   // Cache ETag -> Bufferhash
-  typedef Fmi::Cache::Cache<std::string, CachedResponseMetaData> MetaDataCache;
+  using MetaDataCache = Fmi::Cache::Cache<std::string, CachedResponseMetaData>;
 
   // Cache Bufferhash -> Buffer
-  typedef Spine::SmartMetCache BufferCache;
+  using BufferCache = Spine::SmartMetCache;
 
   MetaDataCache itsMetaDataCache;
 
