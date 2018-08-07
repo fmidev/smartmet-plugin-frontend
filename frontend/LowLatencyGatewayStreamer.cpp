@@ -153,8 +153,8 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Pro
                                                      std::string theIP,
                                                      unsigned short thePort,
                                                      int theBackendTimeoutInSeconds,
-                                                     Spine::HTTP::Request theOriginalRequest)
-    : itsOriginalRequest(std::move(theOriginalRequest)),
+                                                     const Spine::HTTP::Request& theOriginalRequest)
+    : itsOriginalRequest(theOriginalRequest),
       itsIP(std::move(theIP)),
       itsPort(thePort),
       itsBackendSocket(theProxy->backendIoService),
@@ -172,7 +172,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     boost::system::error_code err;
     itsBackendSocket.connect(theEnd, err);
 
-    if (err)
+    if (!!err)
     {
       std::cout << boost::posix_time::second_clock::local_time() << " Backend connection to "
                 << itsIP << " failed with message '" << err.message() << "'" << std::endl;
@@ -191,7 +191,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
 
     std::string content = itsOriginalRequest.toString();
     boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
-    if (err)
+    if (!!err)
     {
       std::cout << boost::posix_time::second_clock::local_time() << " Backend write to " << itsIP
                 << " failed with message '" << err.message() << "'" << std::endl;
@@ -495,7 +495,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
 
     itsBackendSocket.connect(theEnd, err);
 
-    if (err)
+    if (!!err)
     {
       std::cout << boost::posix_time::second_clock::local_time() << " Backend connection to "
                 << itsIP << " failed with message '" << err.message() << "'" << std::endl;
@@ -692,7 +692,11 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
   {
     boost::unique_lock<boost::mutex> lock(itsMutex);
 
-    if (!error)
+    if (!!error)
+    {
+      handleError(error);
+    }
+    else
     {
       itsClientDataBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
@@ -716,20 +720,13 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
         itsTimeoutTimer->cancel();
         return;
       }
-      else
-      {
-        // Go back to listen the socket
-        itsBackendSocket.async_read_some(
-            boost::asio::buffer(itsSocketBuffer),
-            boost::bind(&LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
+      // Go back to listen the socket
+      itsBackendSocket.async_read_some(
+          boost::asio::buffer(itsSocketBuffer),
+          boost::bind(&LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
 
-        // Reset timeout timer
-        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
-      }
-    }
-    else
-    {
-      handleError(error);
+      // Reset timeout timer
+      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
     }
 
     itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed

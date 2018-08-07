@@ -23,7 +23,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
                             std::string theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,
-                            Spine::HTTP::Request theOriginalRequest);
+                            const Spine::HTTP::Request& theOriginalRequest);
 
   virtual ~LowLatencyGatewayStreamer() = default;
 
