@@ -31,7 +31,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
 
     BackendServicePtr theService = itsSputnikProcess->itsServices.getService(theResource);
 
-    if (theService.get() == 0)
+    if (theService.get() == nullptr)
     {
       // 404 Service Not Found
       theResponse.setStatus(Spine::HTTP::Status::not_found, true);
@@ -42,7 +42,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
     // BackendServer where we're connecting to
     const boost::shared_ptr<BackendServer> theHost = theService->Backend();
 
-    if (theHost.get() == 0)
+    if (theHost.get() == nullptr)
     {
       std::cout << boost::posix_time::second_clock::local_time() << " Service backend value is null"
                 << std::endl;
@@ -206,7 +206,7 @@ HTTP::~HTTP()
 
     // Must remove the Catcher in the Rye hook from SmartMet core
     // to avoid calling unloaded code.
-    this->itsReactor->setNoMatchHandler(0);
+    this->itsReactor->setNoMatchHandler(nullptr);
 
     // Close Sputnik instance
     // delete itsSputnikProcess;
