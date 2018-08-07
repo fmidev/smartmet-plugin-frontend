@@ -13,8 +13,6 @@
 
 namespace SmartMet
 {
-namespace ip = boost::asio::ip;
-
 Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
              std::size_t uncompressedFilesystemCacheSize,
              const boost::filesystem::path& uncompressedFileCachePath,
