@@ -157,8 +157,6 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 
 }  // namespace
 
-LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer() {}
-
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                                                      const std::string& theIP,
                                                      unsigned short thePort,

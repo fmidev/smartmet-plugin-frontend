@@ -24,7 +24,8 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,
                             const Spine::HTTP::Request& theOriginalRequest);
-  virtual ~LowLatencyGatewayStreamer();
+
+  virtual ~LowLatencyGatewayStreamer() = default;
 
   // Begin backend operations
   bool sendAndListen();
