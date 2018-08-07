@@ -65,18 +65,10 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTT
         return ResponseCache::ContentEncodingType::GZIP;  // Accepts everything, send zipped
 
       if (boost::algorithm::contains(*accept_encoding, "gzip"))
-      {
         return ResponseCache::ContentEncodingType::GZIP;
-      }
-      else
-      {
-        return ResponseCache::ContentEncodingType::NONE;
-      }
-    }
-    else
-    {
       return ResponseCache::ContentEncodingType::NONE;
     }
+    return ResponseCache::ContentEncodingType::NONE;
   }
   catch (...)
   {
@@ -158,13 +150,12 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 }  // namespace
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
-                                                     const std::string& theIP,
+                                                     std::string theIP,
                                                      unsigned short thePort,
                                                      int theBackendTimeoutInSeconds,
-                                                     const Spine::HTTP::Request& theOriginalRequest)
-    : ContentStreamer(),
-      itsOriginalRequest(theOriginalRequest),
-      itsIP(theIP),
+                                                     Spine::HTTP::Request theOriginalRequest)
+    : itsOriginalRequest(std::move(theOriginalRequest)),
+      itsIP(std::move(theIP)),
       itsPort(thePort),
       itsBackendSocket(theProxy->backendIoService),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds),
@@ -188,34 +179,32 @@ bool LowLatencyGatewayStreamer::sendAndListen()
 
       return false;
     }
-    else
+
+    // We have determined that this option significantly improves frontend latency
+    boost::asio::ip::tcp::no_delay no_delay_option(true);
+    itsBackendSocket.set_option(no_delay_option);
+
+    // Attempt to write to the socket
+
+    // This header signals we query ETag from the backend
+    itsOriginalRequest.setHeader("X-Request-ETag", "true");
+
+    std::string content = itsOriginalRequest.toString();
+    boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
+    if (err)
     {
-      // We have determined that this option significantly improves frontend latency
-      boost::asio::ip::tcp::no_delay no_delay_option(true);
-      itsBackendSocket.set_option(no_delay_option);
+      std::cout << boost::posix_time::second_clock::local_time() << " Backend write to " << itsIP
+                << " failed with message '" << err.message() << "'" << std::endl;
 
-      // Attempt to write to the socket
-
-      // This header signals we query ETag from the backend
-      itsOriginalRequest.setHeader("X-Request-ETag", "true");
-
-      std::string content = itsOriginalRequest.toString();
-      boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
-      if (err)
-      {
-        std::cout << boost::posix_time::second_clock::local_time() << " Backend write to " << itsIP
-                  << " failed with message '" << err.message() << "'" << std::endl;
-
-        return false;
-      }
-
-      // Remove cache query header, it is no longer needed
-      itsOriginalRequest.removeHeader("X-Request-ETag");
+      return false;
     }
 
+    // Remove cache query header, it is no longer needed
+    itsOriginalRequest.removeHeader("X-Request-ETag");
+
     // Start the timeout timer
-    itsTimeoutTimer.reset(new boost::asio::deadline_timer(
-        itsProxy->backendIoService, boost::posix_time::seconds(itsBackendTimeoutInSeconds)));
+    itsTimeoutTimer = boost::make_shared<boost::asio::deadline_timer>(
+        itsProxy->backendIoService, boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
     itsTimeoutTimer->async_wait(
         boost::bind(&LowLatencyGatewayStreamer::handleTimeout, shared_from_this(), _1));

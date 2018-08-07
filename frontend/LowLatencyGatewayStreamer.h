@@ -20,10 +20,10 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   };
 
   LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
-                            const std::string& theIP,
+                            std::string theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,
-                            const Spine::HTTP::Request& theOriginalRequest);
+                            Spine::HTTP::Request theOriginalRequest);
 
   virtual ~LowLatencyGatewayStreamer() = default;
 

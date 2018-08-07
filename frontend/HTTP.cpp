@@ -1,19 +1,16 @@
+#include "HTTP.h"
+#include "Proxy.h"
 #include <boost/bind.hpp>
-#include <iostream>
-#include <stdexcept>
-
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
-
+#include <engines/sputnik/Engine.h>
+#include <macgyver/StringConversion.h>
 #include <spine/Exception.h>
 #include <spine/Reactor.h>
-
-#include <engines/sputnik/Engine.h>
-
-#include "HTTP.h"
-#include "Proxy.h"
+#include <iostream>
+#include <stdexcept>
 
 namespace SmartMet
 {
@@ -171,7 +168,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     {
       throw Spine::Exception(BCP,
                              std::string("Configuration error ' ") + e.getError() + "' on line " +
-                                 boost::lexical_cast<std::string>(e.getLine()));
+                                 Fmi::to_string(e.getLine()));
     }
     catch (const libconfig::ConfigException &)
     {
@@ -199,22 +196,15 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 
 HTTP::~HTTP()
 {
-  try
-  {
-    // Banner
-    std::cout << "\t+ HTTP plugin shutting down" << std::endl;
+  // Banner
+  std::cout << "\t+ HTTP plugin shutting down" << std::endl;
 
-    // Must remove the Catcher in the Rye hook from SmartMet core
-    // to avoid calling unloaded code.
-    this->itsReactor->setNoMatchHandler(nullptr);
+  // Must remove the Catcher in the Rye hook from SmartMet core
+  // to avoid calling unloaded code.
+  this->itsReactor->setNoMatchHandler(0);
 
-    // Close Sputnik instance
-    // delete itsSputnikProcess;
-  }
-  catch (...)
-  {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
-  }
+  // Close Sputnik instance
+  // delete itsSputnikProcess;
 }
 
 void HTTP::shutdown()
