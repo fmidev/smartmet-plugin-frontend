@@ -19,7 +19,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
     FAILED
   };
 
-  LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
+  LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                             const std::string& theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,

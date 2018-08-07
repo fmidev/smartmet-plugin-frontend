@@ -85,7 +85,7 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTT
 }
 
 Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalRequest,
-                                         boost::shared_ptr<std::string> cachedBuffer,
+                                         const boost::shared_ptr<std::string>& cachedBuffer,
                                          const ResponseCache::CachedResponseMetaData& metadata)
 {
   try
@@ -159,7 +159,7 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 
 LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer() {}
 
-LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(boost::shared_ptr<Proxy> theProxy,
+LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                                                      const std::string& theIP,
                                                      unsigned short thePort,
                                                      int theBackendTimeoutInSeconds,
