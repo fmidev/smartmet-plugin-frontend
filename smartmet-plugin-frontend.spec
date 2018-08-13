@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.8.8
+Version: 18.8.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.7.26
+BuildRequires: smartmet-library-spine-devel >= 18.8.13
 BuildRequires: smartmet-engine-sputnik-devel >= 18.7.25
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.7.27
+BuildRequires: smartmet-library-macgyver-devel >= 18.8.4
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.7.27
-Requires: smartmet-server >= 18.7.25
+Requires: smartmet-library-macgyver >= 18.8.4
+Requires: smartmet-server >= 18.8.8
 Requires: smartmet-engine-sputnik >= 18.7.25
-Requires: smartmet-library-spine >= 18.7.26
+Requires: smartmet-library-spine >= 18.8.13
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Mon Aug 13 2018 Pertti Kinnia <pertti.kinnia@fmi.fi> - 18.8.13-1.fmi
+- Use 'admin' as service name for qengine backend detection; pointforecast -plugin is not necessarily enabled (BS-1268)
+
 * Wed Aug  8 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.8.8-1.fmi
 - Silenced more CodeChecker warnings
 
