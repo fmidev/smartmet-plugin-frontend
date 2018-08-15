@@ -319,155 +319,137 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
   {
     boost::unique_lock<boost::mutex> lock(itsMutex);
 
-    if (!error)
+    if (!!error)
     {
-      itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
+      handleError(error);
+      return;
+    }
 
-      // Attempt to parse the response headers
-      auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
-      switch (std::get<0>(ret))
+    itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
+
+    // Attempt to parse the response headers
+    auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+    switch (std::get<0>(ret))
+    {
+      case Spine::HTTP::ParsingStatus::FAILED:
       {
-        case Spine::HTTP::ParsingStatus::FAILED:
-          // Garbled response, handle error
-          std::cout << boost::posix_time::second_clock::local_time()
-                    << " Cache query to backend at " << itsIP << ":" << itsPort
-                    << " returned garbled response." << std::endl
-                    << "Query: " << std::endl
-                    << itsOriginalRequest.getQueryString() << std::endl
-                    << "Response buffer: " << std::endl
-                    << itsResponseHeaderBuffer << std::endl;
+        // Garbled response, handle error
+        std::cout << boost::posix_time::second_clock::local_time() << " Cache query to backend at "
+                  << itsIP << ":" << itsPort << " returned garbled response." << std::endl
+                  << "Query: " << std::endl
+                  << itsOriginalRequest.getQueryString() << std::endl
+                  << "Response buffer: " << std::endl
+                  << itsResponseHeaderBuffer << std::endl;
 
-          itsGatewayStatus = GatewayStatus::FAILED;
-          break;
+        itsGatewayStatus = GatewayStatus::FAILED;
 
-        case Spine::HTTP::ParsingStatus::INCOMPLETE:
-          // Partial response, read more data
+        break;
+      }
+      case Spine::HTTP::ParsingStatus::INCOMPLETE:
+      {
+        // Partial response, read more data
 
+        itsBackendSocket.async_read_some(
+            boost::asio::buffer(itsSocketBuffer),
+            boost::bind(&LowLatencyGatewayStreamer::readCacheResponse, shared_from_this(), _1, _2));
+
+        // Reset timeout timer
+        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+
+        break;
+      }
+      case Spine::HTTP::ParsingStatus::COMPLETE:
+      {
+        // Successfull parse.
+        auto&& responsePtr = std::get<1>(ret);
+
+        // See if backend responded with ETag
+        auto etagHeader = responsePtr->getHeader("ETag");
+        if (!etagHeader)
+        {
+          // Backend responded without the ETag-header, this plugin doesn't support frontend
+          // caching. Pass response through as before
+
+          itsResponseIsCacheable = false;
+
+          itsClientDataBuffer = itsResponseHeaderBuffer;
+
+          // Go to data response loop
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               boost::bind(
-                  &LowLatencyGatewayStreamer::readCacheResponse, shared_from_this(), _1, _2));
+                  &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
 
           // Reset timeout timer
           itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
-          break;
+          itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
+        }
+        else
+        {
+          std::string etag = *etagHeader;
 
-        case Spine::HTTP::ParsingStatus::COMPLETE:
+          // See if we should send content-encoded response
+          auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
 
-          // Successfull parse.
-          auto&& responsePtr = std::get<1>(ret);
+          std::pair<boost::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
 
-          // See if backend responded with ETag
-          auto etagHeader = responsePtr->getHeader("ETag");
-          if (!etagHeader)
+          // Try compressed cache first if allowed
+          if (accepted_content_type == ResponseCache::ContentEncodingType::GZIP)
           {
-            // Backend responded without the ETag-header, this plugin doesn't support frontend
-            // caching
-            // Pass response through as before
-
-            itsResponseIsCacheable = false;
-
-            itsClientDataBuffer = itsResponseHeaderBuffer;
-
-            // Go to data response loop
-            itsBackendSocket.async_read_some(
-                boost::asio::buffer(itsSocketBuffer),
-                boost::bind(
-                    &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
-
-            // Reset timeout timer
-            itsTimeoutTimer->expires_from_now(
-                boost::posix_time::seconds(itsBackendTimeoutInSeconds));
-
-            itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
-          }
-          else
-          {
-            std::string etag = *etagHeader;
-
-            // See if we should send content-encoded response
-            auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
-
-            std::pair<boost::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
-
-            switch (accepted_content_type)
-            {
-              case ResponseCache::ContentEncodingType::GZIP:
-              {
-                // We can try both compressed and uncompressed caches
-                auto& c_cache = itsProxy->getCache(ResponseCache::ContentEncodingType::GZIP);
-                result = c_cache.getCachedBuffer(etag);
-                if (!result.first)
-                {
-                  // No match from compressed cache
-                  auto& u_cache = itsProxy->getCache(ResponseCache::ContentEncodingType::NONE);
-                  result = u_cache.getCachedBuffer(etag);
-                  if (!result.first)
-                  {
-                    // No match from either cache, request the data
-                    sendContentRequest();
-                    return;
-                  }
-                }
-              }
-              break;
-
-              case ResponseCache::ContentEncodingType::NONE:
-              {
-                // Client not accepting compressed data, only check uncompressed cache
-                auto& cache = itsProxy->getCache(ResponseCache::ContentEncodingType::NONE);
-                result = cache.getCachedBuffer(etag);
-                if (!result.first)
-                {
-                  // No match from either cache, request the data
-                  sendContentRequest();
-                  return;
-                }
-              }
-              break;
-            }
-
-            // Found from the buffer cache
-
-            // Make sure cached responses are not re-cached
-            itsResponseIsCacheable = false;
-
-            auto metadata = result.second;
-            auto response_buffer = result.first;
-
-            // Note: The back end may update expiration times in its "not modified" responses. Hence
-            // we must update the cached response too. Note that we do not modify the cached object
-            // itself, only this particular response. We do not expect plugins to modify
-            // their cache_control flags, since we expect plugins to use Expires instead
-            // of Cache-Control: max-age
-
-            auto expiresHeader = responsePtr->getHeader("Expires");
-            if (expiresHeader)
-              metadata.expires = *expiresHeader;
-
-            auto clientResponse = buildCacheResponse(itsOriginalRequest, response_buffer, metadata);
-
-            itsClientDataBuffer = clientResponse.toString();
-
-            itsGatewayStatus =
-                GatewayStatus::FINISHED;  // Entire response content generated, we are done!
-
-            // Explicitly close the socket here, since ASIO doesn't know the backend conversation is
-            // finished
-            // Backend socket will leak without this
-            boost::system::error_code err;
-            itsBackendSocket.close(err);
-
-            itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
+            auto& c_cache = itsProxy->getCache(ResponseCache::ContentEncodingType::GZIP);
+            result = c_cache.getCachedBuffer(etag);
           }
 
-          break;
+          // Next try uncompressed cache if we found no compressed match
+          if (!result.first)
+          {
+            auto& u_cache = itsProxy->getCache(ResponseCache::ContentEncodingType::NONE);
+            result = u_cache.getCachedBuffer(etag);
+          }
+
+          if (!result.first)
+          {
+            // No match from either cache, request the data
+            sendContentRequest();
+            return;
+          }
+
+          // Found from the buffer cache
+
+          // Make sure cached responses are not re-cached
+          itsResponseIsCacheable = false;
+
+          auto metadata = result.second;
+          auto response_buffer = result.first;
+
+          // Note: The back end may update expiration times in its "not modified" responses. Hence
+          // we must update the cached response too. Note that we do not modify the cached object
+          // itself, only this particular response. We do not expect plugins to modify
+          // their cache_control flags, since we expect plugins to use Expires instead
+          // of Cache-Control: max-age
+
+          auto expiresHeader = responsePtr->getHeader("Expires");
+          if (expiresHeader)
+            metadata.expires = *expiresHeader;
+
+          auto clientResponse = buildCacheResponse(itsOriginalRequest, response_buffer, metadata);
+
+          itsClientDataBuffer = clientResponse.toString();
+
+          itsGatewayStatus =
+              GatewayStatus::FINISHED;  // Entire response content generated, we are done!
+
+          // Explicitly close the socket here, since ASIO doesn't know the backend conversation is
+          // finished
+          // Backend socket will leak without this
+          boost::system::error_code ignored_error;
+          itsBackendSocket.close(ignored_error);
+
+          itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
+        }
       }
-    }
-    else
-    {
-      handleError(error);
+      break;
     }
   }
   catch (...)
@@ -544,138 +526,132 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
     // Parse response headers for possible cache insertion
     boost::unique_lock<boost::mutex> lock(itsMutex);
 
-    if (!error)
+    if (!!error)
     {
-      itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
+      handleError(error);
+      return;
+    }
 
-      auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
-      switch (std::get<0>(ret))
+    itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
+
+    auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+    switch (std::get<0>(ret))
+    {
+      case Spine::HTTP::ParsingStatus::FAILED:
       {
-        case Spine::HTTP::ParsingStatus::FAILED:
-          // Garbled response, handle error
-          std::cout << boost::posix_time::second_clock::local_time() << " Data query to backend at "
-                    << itsIP << ":" << itsPort << " return garbled response" << std::endl;
+        // Garbled response, handle error
+        std::cout << boost::posix_time::second_clock::local_time() << " Data query to backend at "
+                  << itsIP << ":" << itsPort << " return garbled response" << std::endl;
 
-          itsGatewayStatus = GatewayStatus::FAILED;
-          return;
+        itsGatewayStatus = GatewayStatus::FAILED;
+        return;
+      }
 
-        case Spine::HTTP::ParsingStatus::INCOMPLETE:
-          // Partial response, read more data
+      case Spine::HTTP::ParsingStatus::INCOMPLETE:
+      {
+        // Partial response, read more data
+
+        itsBackendSocket.async_read_some(
+            boost::asio::buffer(itsSocketBuffer),
+            boost::bind(
+                &LowLatencyGatewayStreamer::readDataResponseHeaders, shared_from_this(), _1, _2));
+
+        // Reset timeout timer
+        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+
+        return;
+      }
+      case Spine::HTTP::ParsingStatus::COMPLETE:
+      {
+        // Headers parsed, determine if we should attempt cache insertion
+        auto&& responsePtr = std::get<1>(ret);
+
+        auto etag = responsePtr->getHeader("ETag");
+
+        if (etag)
+        {
+          // ETag received, this response may be cacheable
+
+          // Determine cacheability
+          auto mime = responsePtr->getHeader("Content-Type");
+          auto transfer_encoding = responsePtr->getHeader("Transfer-Encoding");
+          auto status = responsePtr->getStatus();
+
+          if (!mime || transfer_encoding || status != Spine::HTTP::Status::ok)
+          {
+            // No MIME, or has transfer-encoding.
+            // MIME is required, and transfer-encoded responses are typically large (and not
+            // necessarily supported by clients). Do not cache these
+            // Also, do not cache non-ok responses
+            itsResponseIsCacheable = false;
+          }
+          else
+          {
+            // Cacheable response, build cache metadata
+
+            ResponseCache::CachedResponseMetaData meta;
+            meta.mime_type = *mime;
+            meta.etag = *etag;
+
+            auto expires = responsePtr->getHeader("Expires");
+            if (expires)
+              meta.expires = *expires;
+
+            auto cache_control = responsePtr->getHeader("Cache-Control");
+            if (cache_control)
+              meta.cache_control = *cache_control;
+
+            auto vary = responsePtr->getHeader("Vary");
+            if (vary)
+              meta.vary = *vary;
+
+            auto content_encoding = responsePtr->getHeader("Content-Encoding");
+
+            if (!content_encoding)
+              meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
+            else if (boost::algorithm::contains(*content_encoding, "gzip"))
+              meta.content_encoding = ResponseCache::ContentEncodingType::GZIP;
+            else
+              meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
+
+            // Store for later use when writing to cache
+            itsBackendMetadata = meta;
+
+            auto parse_end_iter = std::get<2>(ret);
+
+            std::string bodyThusFar = std::string(parse_end_iter, itsResponseHeaderBuffer.cend());
+
+            // Content to be cached is stored separately from the entire stream
+            itsCachedContent = bodyThusFar;
+          }
+
+          // This data is ready to be sent to client
+          itsClientDataBuffer = itsResponseHeaderBuffer;
 
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               boost::bind(
-                  &LowLatencyGatewayStreamer::readDataResponseHeaders, shared_from_this(), _1, _2));
+                  &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
+        }
+        else
+        {
+          // No ETag, response is not cacheable
+          itsResponseIsCacheable = false;
 
-          // Reset timeout timer
-          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+          itsClientDataBuffer = itsResponseHeaderBuffer;
+          itsBackendSocket.async_read_some(
+              boost::asio::buffer(itsSocketBuffer),
+              boost::bind(
+                  &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
+        }
 
-          return;
+        // Reset timeout timer
+        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
-        case Spine::HTTP::ParsingStatus::COMPLETE:
+        itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
 
-          // Headers parsed, determine if we should attempt cache insertion
-          auto&& responsePtr = std::get<1>(ret);
-
-          auto etag = responsePtr->getHeader("ETag");
-
-          if (etag)
-          {
-            // ETag received, this response may be cacheable
-
-            // Determine cacheability
-            auto mime = responsePtr->getHeader("Content-Type");
-            auto transfer_encoding = responsePtr->getHeader("Transfer-Encoding");
-            auto status = responsePtr->getStatus();
-
-            if (!mime || transfer_encoding || status != Spine::HTTP::Status::ok)
-            {
-              // No MIME, or has transfer-encoding.
-              // MIME is required, and transfer-encoded responses are typically large (and not
-              // necessarily supported by clients). Do not cache these
-              // Also, do not cache non-ok responses
-              itsResponseIsCacheable = false;
-            }
-            else
-            {
-              // Cacheable response, build cache metadata
-
-              ResponseCache::CachedResponseMetaData meta;
-              meta.mime_type = *mime;
-              meta.etag = *etag;
-
-              auto expires = responsePtr->getHeader("Expires");
-              if (expires)
-                meta.expires = *expires;
-
-              auto cache_control = responsePtr->getHeader("Cache-Control");
-              if (cache_control)
-                meta.cache_control = *cache_control;
-
-              auto vary = responsePtr->getHeader("Vary");
-              if (vary)
-                meta.vary = *vary;
-
-              auto content_encoding = responsePtr->getHeader("Content-Encoding");
-
-              if (!content_encoding)
-              {
-                meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
-              }
-              else
-              {
-                if (boost::algorithm::contains(*content_encoding, "gzip"))
-                {
-                  meta.content_encoding = ResponseCache::ContentEncodingType::GZIP;
-                }
-                else
-                {
-                  meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
-                }
-              }
-
-              // Store for later use when writing to cache
-              itsBackendMetadata = meta;
-
-              auto parse_end_iter = std::get<2>(ret);
-
-              std::string bodyThusFar = std::string(parse_end_iter, itsResponseHeaderBuffer.cend());
-
-              // Content to be cached is stored separately from the entire stream
-              itsCachedContent = bodyThusFar;
-            }
-
-            // This data is ready to be sent to client
-            itsClientDataBuffer = itsResponseHeaderBuffer;
-
-            itsBackendSocket.async_read_some(
-                boost::asio::buffer(itsSocketBuffer),
-                boost::bind(
-                    &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
-          }
-          else
-          {
-            // No ETag, response is not cacheable
-            itsResponseIsCacheable = false;
-
-            itsClientDataBuffer = itsResponseHeaderBuffer;
-            itsBackendSocket.async_read_some(
-                boost::asio::buffer(itsSocketBuffer),
-                boost::bind(
-                    &LowLatencyGatewayStreamer::readDataResponse, shared_from_this(), _1, _2));
-          }
-
-          // Reset timeout timer
-          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
-
-          itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
-
-          break;
+        break;
       }
-    }
-    else
-    {
-      handleError(error);
     }
   }
   catch (...)
@@ -749,8 +725,6 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
       // Cancel pending async tasks
       // This means readSocket will be called with operation_aborted - error
       itsHasTimedOut = true;
-      boost::system::error_code ignored_error;
-      itsBackendSocket.cancel(ignored_error);
       itsResponseIsCacheable = false;
     }
 
