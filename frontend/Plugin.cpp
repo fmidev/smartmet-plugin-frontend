@@ -417,8 +417,8 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
 {
   try
   {
-    // The presence of pointforecast means QEngine is running
-    std::string service = "pointforecast";
+    // The presence of admin means QEngine is running
+    std::string service = "admin";
 
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
