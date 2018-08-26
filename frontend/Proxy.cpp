@@ -35,8 +35,9 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
   {
     for (int i = 0; i < theBackendThreadCount; ++i)
     {
-      itsBackendThreads.add_thread(
-          new boost::thread(boost::bind(&boost::asio::io_service::run, &backendIoService)));
+      itsBackendThreads.add_thread(new boost::thread(
+          boost::bind(&boost::asio::io_service::run,
+                      &backendIoService)));  // NOLINT(cppcoreguidelines-owning-memory)
     }
   }
   catch (...)
@@ -112,12 +113,8 @@ Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
 
     fwdRequest.setHeader("Connection", "close");
 
-    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
-        new LowLatencyGatewayStreamer(shared_from_this(),
-                                      theBackendIP,
-                                      static_cast<unsigned short>(theBackendPort),
-                                      itsBackendTimeoutInSeconds,
-                                      fwdRequest));
+    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(new LowLatencyGatewayStreamer(
+        shared_from_this(), theBackendIP, theBackendPort, itsBackendTimeoutInSeconds, fwdRequest));
 
     // Begin backend negotiation
     bool success = responseStreamer->sendAndListen();
