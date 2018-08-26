@@ -155,6 +155,7 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Pro
                                                      int theBackendTimeoutInSeconds,
                                                      const Spine::HTTP::Request& theOriginalRequest)
     : itsOriginalRequest(theOriginalRequest),
+      itsSocketBuffer(),
       itsIP(std::move(theIP)),
       itsPort(thePort),
       itsBackendSocket(theProxy->backendIoService),
