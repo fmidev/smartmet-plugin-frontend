@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.8.16
+Version: 18.8.26
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.8.13
-BuildRequires: smartmet-engine-sputnik-devel >= 18.7.25
+BuildRequires: smartmet-library-spine-devel >= 18.8.20
+BuildRequires: smartmet-engine-sputnik-devel >= 18.8.26
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.8.4
+BuildRequires: smartmet-library-macgyver-devel >= 18.8.20
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.8.4
-Requires: smartmet-server >= 18.8.8
-Requires: smartmet-engine-sputnik >= 18.7.25
-Requires: smartmet-library-spine >= 18.8.13
+Requires: smartmet-library-macgyver >= 18.8.20
+Requires: smartmet-server >= 18.8.22
+Requires: smartmet-engine-sputnik >= 18.8.26
+Requires: smartmet-library-spine >= 18.8.20
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Sun Aug 26 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.8.26-1.fmi
+- Silenced CodeChecker warnings
+
 * Thu Aug 16 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.8.16-1.fmi
 - Code cleanup
 
