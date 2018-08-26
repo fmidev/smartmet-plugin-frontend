@@ -201,7 +201,7 @@ HTTP::~HTTP()
 
   // Must remove the Catcher in the Rye hook from SmartMet core
   // to avoid calling unloaded code.
-  this->itsReactor->setNoMatchHandler(0);
+  this->itsReactor->setNoMatchHandler(nullptr);
 
   // Close Sputnik instance
   // delete itsSputnikProcess;
