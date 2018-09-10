@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.8.20
+BuildRequires: smartmet-library-spine-devel >= 18.9.5
 BuildRequires: smartmet-engine-sputnik-devel >= 18.8.26
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.8.20
+BuildRequires: smartmet-library-macgyver-devel >= 18.9.5
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.8.20
+Requires: smartmet-library-macgyver >= 18.9.5
 Requires: smartmet-server >= 18.8.22
 Requires: smartmet-engine-sputnik >= 18.8.26
-Requires: smartmet-library-spine >= 18.8.20
+Requires: smartmet-library-spine >= 18.9.5
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
