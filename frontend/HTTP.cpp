@@ -201,7 +201,7 @@ HTTP::~HTTP()
 
   // Must remove the Catcher in the Rye hook from SmartMet core
   // to avoid calling unloaded code.
-  this->itsReactor->setNoMatchHandler(nullptr);
+  this->itsReactor->setNoMatchHandler(0);  // NOLINT can't use nullptr in a boost function
 }
 
 void HTTP::shutdown()
