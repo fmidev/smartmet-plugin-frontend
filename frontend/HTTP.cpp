@@ -146,7 +146,10 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 
     libconfig::Config config;
     unsigned long long memorySize, filesystemSize, uncomMemorySize, uncomFilesystemSize;
-    const char *filesystemCachePath, *uncomFilesystemCachePath;
+
+    // do not use nullptr here or path construction throws
+    const char *filesystemCachePath = "";
+    const char *uncomFilesystemCachePath = "";
 
     int backendTimeoutInSeconds = 600;
     int backendThreadCount = 20;

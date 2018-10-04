@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.9.10
+Version: 18.10.4
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.9.5
+BuildRequires: smartmet-library-spine-devel >= 18.9.29
 BuildRequires: smartmet-engine-sputnik-devel >= 18.8.26
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.9.5
+BuildRequires: smartmet-library-macgyver-devel >= 18.9.29
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.9.5
-Requires: smartmet-server >= 18.8.22
+Requires: smartmet-library-macgyver >= 18.9.29
+Requires: smartmet-server >= 18.9.29
 Requires: smartmet-engine-sputnik >= 18.8.26
-Requires: smartmet-library-spine >= 18.9.5
+Requires: smartmet-library-spine >= 18.9.29
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Oct  4 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.10.4-1.fmi
+- Filesystem cache directory setting can now be unset if the configured size is zero
+
 * Mon Sep 10 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.9.10-1.fmi
 - Silenced last CodeChecker warnings
 
