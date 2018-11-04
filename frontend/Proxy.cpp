@@ -6,6 +6,7 @@
 #include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
 #include <macgyver/TimeFormatter.h>
+#include <spine/Convenience.h>
 #include <spine/Exception.h>
 #include <iostream>
 #include <sstream>
@@ -70,7 +71,7 @@ void Proxy::shutdown()
 {
   try
   {
-    std::cout << "  -- Shutdown requested (Proxy)\n";
+    std::cout << Spine::log_time_str() << "  -- Shutdown requested (Proxy)" << std::endl;
     itsBackendThreads.interrupt_all();
   }
   catch (...)
@@ -133,13 +134,15 @@ Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
     std::string httpStatus = responseStreamer->getPeekString(9, 4);
     if (httpStatus == "3210")
     {
-      std::cout << "*** Remote shutting down, resending to another backend\n";
+      std::cout << Spine::log_time_str() << " *** Remote " << theHostName << ':' << theBackendPort
+                << " shutting down, resending to another backend" << std::endl;
       return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
     }
 
     if (httpStatus == "1234")
     {
-      std::cout << "*** Remote has high load, resending to another backend\n";
+      std::cout << Spine::log_time_str() << " *** Remote " << theHostName << ':' << theBackendPort
+                << " has high load, resending to another backend" << std::endl;
       return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
     }
 

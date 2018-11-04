@@ -455,8 +455,9 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
   }
   catch (...)
   {
-    std::cerr << "Operation failed! LowLatencyGatewayStreamer::readCacheResponse aborted"
-              << std::endl;
+    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::readCacheResponse aborted", nullptr);
+    ex.printError();
+    // Must not throw or execution will terminate
   }
 }
 
@@ -657,8 +658,9 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
   }
   catch (...)
   {
-    std::cerr << "Operation failed! LowLatencyGatewayStreamer::readDataResponseHeaders aborted"
-              << std::endl;
+    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::readDataResponseHeaders aborted", nullptr);
+    ex.printError();
+    // Must not throw or execution will terminate
   }
 }
 
@@ -710,8 +712,9 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
   }
   catch (...)
   {
-    std::cerr << "Operation failed! LowLatencyGatewayStreamer::readDataResponse aborted"
-              << std::endl;
+    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::readDataResponse aborted", nullptr);
+    ex.printError();
+    // Must not throw or execution will terminate
   }
 }
 
@@ -733,7 +736,9 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
   }
   catch (...)
   {
-    std::cerr << "Operation failed! LowLatencyGatewayStreamer::handleTimeout aborted" << std::endl;
+    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::handleTimeout aborted", nullptr);
+    ex.printError();
+    // Must not throw or execution will terminate
   }
 }
 
@@ -775,6 +780,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
 
         itsGatewayStatus = GatewayStatus::FAILED;
       }
+
       // If operation_aborted is fired but itHasTimedOut is not set,
       // the client has disconnected and the connection is destructing.
       // Gatewaystatus does not matter in this case

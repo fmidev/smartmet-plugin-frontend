@@ -7,6 +7,7 @@
 #include <boost/shared_ptr.hpp>
 #include <engines/sputnik/Engine.h>
 #include <macgyver/StringConversion.h>
+#include <spine/Convenience.h>
 #include <spine/Exception.h>
 #include <spine/Reactor.h>
 #include <iostream>
@@ -41,8 +42,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
 
     if (theHost.get() == nullptr)
     {
-      std::cout << boost::posix_time::second_clock::local_time() << " Service backend value is null"
-                << std::endl;
+      std::cout << Spine::log_time_str() << " Service backend value is null" << std::endl;
 
       // 502 Service Not Found
       theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
@@ -54,7 +54,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
     {
       itsSputnikProcess->itsServices.removeBackend(theHost->Name(), theHost->Port());
 
-      std::cout << boost::posix_time::second_clock::local_time() << " Backend " << theHost->Name()
+      std::cout << Spine::log_time_str() << " Backend " << theHost->Name() << ':' << theHost->Port()
                 << " is marked as dead. Retiring backend server." << std::endl;
 
       return Proxy::ProxyStatus::PROXY_FAIL_REMOTE_HOST;
@@ -73,8 +73,8 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
     {
       // Immediately remove the backend server from the service providing pool
       // if there was a problem connecting to backend server.
-      std::cout << boost::posix_time::second_clock::local_time()
-                << " Backend Server connection failed, retiring the backend server." << std::endl;
+      std::cout << Spine::log_time_str() << " Backend Server connection to " << theHost->Name()
+                << ':' << theHost->Port() << " failed, retiring the backend server." << std::endl;
 
       itsSputnikProcess->itsServices.removeBackend(theHost->Name(), theHost->Port());
     }
@@ -108,7 +108,7 @@ void HTTP::requestHandler(Spine::Reactor & /* theReactor */,
       theStatus = transport(theRequest, theResponse);
 
       if (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
-        std::cout << "####### RESENDING ########\n";
+        std::cout << Spine::log_time_str() << " Resending URI " << theRequest.getURI() << std::endl;
     } while (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED);
 
     return;
@@ -211,7 +211,7 @@ void HTTP::shutdown()
 {
   try
   {
-    std::cout << "  -- Shutdown requested (HTTP)\n";
+    std::cout << "  -- Shutdown requested (HTTP)" << std::endl;
     itsProxy->shutdown();
   }
   catch (...)
