@@ -315,6 +315,59 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Perform an active backends query
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
+                                                   const Spine::HTTP::Request &theRequest,
+                                                   Spine::HTTP::Response &theResponse)
+{
+  try
+  {
+    std::ostringstream out;
+    Spine::Table reqTable;
+    std::string format =
+        SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
+    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
+
+    // Obtain logging information
+    auto backends = theReactor.getBackendRequestStatus();
+
+    std::size_t row = 0;
+    for (const auto &backend_port : backends)
+    {
+      const auto &host = backend_port.first;
+      for (const auto &port_count : backend_port.second)
+      {
+        auto port = port_count.first;
+        auto count = port_count.second;
+
+        std::size_t column = 0;
+        reqTable.set(column++, row, host);
+        reqTable.set(column++, row, Fmi::to_string(port));
+        reqTable.set(column++, row, Fmi::to_string(count));
+        ++row;
+      }
+    }
+
+    std::vector<std::string> headers = {"Host", "Port", "Count"};
+    formatter->format(out, reqTable, headers, theRequest, Spine::TableFormatterOptions());
+
+    // Set MIME
+    std::string mime = formatter->mimetype() + "; charset=UTF-8";
+    theResponse.setHeader("Content-Type", mime);
+
+    return std::make_pair(out.str(), true);
+  }
+  catch (...)
+  {
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Find latest spine QEngine contents and build output
  */
 // ----------------------------------------------------------------------
@@ -710,6 +763,9 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
 
     if (what == "activerequests")
       return requestActiveRequests(theReactor, theRequest, theResponse);
+
+    if (what == "activebackends")
+      return requestActiveBackends(theReactor, theRequest, theResponse);
 
     return std::make_pair("Unknown request: '" + what + "'", false);
   }

@@ -19,7 +19,8 @@ namespace Plugin
 {
 namespace Frontend
 {
-Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
+Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
+                                   const Spine::HTTP::Request &theRequest,
                                    Spine::HTTP::Response &theResponse)
 {
   try
@@ -27,7 +28,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
     // Choose the backend host by URI
     std::string theResource(theRequest.getResource());
 
-    BackendServicePtr theService = itsSputnikProcess->itsServices.getService(theResource);
+    BackendServicePtr theService = itsSputnikProcess->getServices().getService(theResource);
 
     if (theService.get() == nullptr)
     {
@@ -50,9 +51,9 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
     }
 
     // See if this backend is set as 'temporarily unconscious'
-    if (!itsSputnikProcess->itsServices.queryBackendAlive(theHost->Name(), theHost->Port()))
+    if (!itsSputnikProcess->getServices().queryBackendAlive(theHost->Name(), theHost->Port()))
     {
-      itsSputnikProcess->itsServices.removeBackend(theHost->Name(), theHost->Port());
+      itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
 
       std::cout << Spine::log_time_str() << " Backend " << theHost->Name() << ':' << theHost->Port()
                 << " is marked as dead. Retiring backend server." << std::endl;
@@ -60,13 +61,20 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
       return Proxy::ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
 
+    // Forward the request keeping account of how many active requests each backend has.
+    // The destructor of the streamer created by the proxy will decrement the count.
+
+    Proxy::ProxyStatus proxyStatus = Proxy::ProxyStatus::PROXY_SUCCESS;
+    theReactor.startBackendRequest(theHost->Name(), theHost->Port());
+
     // Use Proxy class to forward the request to backend server
-    Proxy::ProxyStatus proxyStatus = itsProxy->HTTPForward(theRequest,
-                                                           theResponse,
-                                                           theHost->IP(),
-                                                           theHost->Port(),
-                                                           theService->URI(),
-                                                           theHost->Name());
+    proxyStatus = itsProxy->HTTPForward(theReactor,
+                                        theRequest,
+                                        theResponse,
+                                        theHost->IP(),
+                                        theHost->Port(),
+                                        theService->URI(),
+                                        theHost->Name());
 
     // Check the Proxy status
     if (proxyStatus != Proxy::ProxyStatus::PROXY_SUCCESS)
@@ -76,12 +84,12 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
       std::cout << Spine::log_time_str() << " Backend Server connection to " << theHost->Name()
                 << ':' << theHost->Port() << " failed, retiring the backend server." << std::endl;
 
-      itsSputnikProcess->itsServices.removeBackend(theHost->Name(), theHost->Port());
+      itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
     }
     else
     {
       // Signal that a connection has been sent to the backend (for throttle bookkeeping)
-      itsSputnikProcess->itsServices.signalBackendConnection(theHost->Name(), theHost->Port());
+      itsSputnikProcess->getServices().signalBackendConnection(theHost->Name(), theHost->Port());
     }
 
     return proxyStatus;
@@ -92,7 +100,7 @@ Proxy::ProxyStatus HTTP::transport(const Spine::HTTP::Request &theRequest,
   }
 }
 
-void HTTP::requestHandler(Spine::Reactor & /* theReactor */,
+void HTTP::requestHandler(Spine::Reactor &theReactor,
                           const Spine::HTTP::Request &theRequest,
                           Spine::HTTP::Response &theResponse)
 {
@@ -105,7 +113,7 @@ void HTTP::requestHandler(Spine::Reactor & /* theReactor */,
     // may have crashed the backend.
     do
     {
-      theStatus = transport(theRequest, theResponse);
+      theStatus = transport(theReactor, theRequest, theResponse);
 
       if (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
         std::cout << Spine::log_time_str() << " Resending URI " << theRequest.getURI() << std::endl;

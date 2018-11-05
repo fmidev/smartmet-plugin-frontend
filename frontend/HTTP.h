@@ -16,19 +16,6 @@ namespace Frontend
 {
 class HTTP
 {
- private:
-  // Pointer to Sputnik instance
-  Engine::Sputnik::Engine* itsSputnikProcess;
-
-  // Non-owning
-  boost::shared_ptr<Proxy> itsProxy;
-
-  // Access to the Reactor object (non-owning)
-  Spine::Reactor* itsReactor;
-
-  Proxy::ProxyStatus transport(const Spine::HTTP::Request& theRequest,
-                               Spine::HTTP::Response& theResponse);
-
  public:
   // Transport
   //
@@ -51,6 +38,20 @@ class HTTP
   ~HTTP();
 
   void shutdown();
+
+ private:
+  // Pointer to Sputnik instance
+  Engine::Sputnik::Engine* itsSputnikProcess;
+
+  // Non-owning
+  boost::shared_ptr<Proxy> itsProxy;
+
+  // Access to the Reactor object (non-owning)
+  Spine::Reactor* itsReactor;
+
+  Proxy::ProxyStatus transport(Spine::Reactor& theReactor,
+                               const Spine::HTTP::Request& theRequest,
+                               Spine::HTTP::Response& theResponse);
 };
 
 }  // namespace Frontend

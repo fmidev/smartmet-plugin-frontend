@@ -80,7 +80,8 @@ void Proxy::shutdown()
   }
 }
 
-Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
+Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
+                                      const Spine::HTTP::Request& theRequest,
                                       Spine::HTTP::Response& theResponse,
                                       std::string& theBackendIP,
                                       int theBackendPort,
@@ -114,8 +115,14 @@ Proxy::ProxyStatus Proxy::HTTPForward(const Spine::HTTP::Request& theRequest,
 
     fwdRequest.setHeader("Connection", "close");
 
-    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(new LowLatencyGatewayStreamer(
-        shared_from_this(), theBackendIP, theBackendPort, itsBackendTimeoutInSeconds, fwdRequest));
+    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
+        new LowLatencyGatewayStreamer(shared_from_this(),
+                                      theReactor,
+                                      theHostName,
+                                      theBackendIP,
+                                      theBackendPort,
+                                      itsBackendTimeoutInSeconds,
+                                      fwdRequest));
 
     // Begin backend negotiation
     bool success = responseStreamer->sendAndListen();

@@ -43,7 +43,8 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
 
   // Method to do HTTP transfer between requesting client and abackend
   // at the provided IP address - with optional port (defaults to 80)
-  ProxyStatus HTTPForward(const Spine::HTTP::Request& theRequest,
+  ProxyStatus HTTPForward(Spine::Reactor& theReactor,
+                          const Spine::HTTP::Request& theRequest,
                           Spine::HTTP::Response& TheResponse,
                           std::string& theBackendIP,
                           int theBackendPort,

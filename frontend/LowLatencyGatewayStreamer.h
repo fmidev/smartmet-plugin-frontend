@@ -3,6 +3,7 @@
 #include "ResponseCache.h"
 #include <boost/shared_ptr.hpp>
 #include <spine/HTTP.h>
+#include <spine/Reactor.h>
 
 namespace SmartMet
 {
@@ -20,12 +21,14 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   };
 
   LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
+                            Spine::Reactor& theReactor,
+                            const std::string& theHostName,
                             std::string theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,
                             const Spine::HTTP::Request& theOriginalRequest);
 
-  virtual ~LowLatencyGatewayStreamer() = default;
+  virtual ~LowLatencyGatewayStreamer();
 
   // Begin backend operations
   bool sendAndListen();
@@ -80,6 +83,9 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Gateway stream status
   GatewayStatus itsGatewayStatus = GatewayStatus::ONGOING;
 
+  // Backend name
+  std::string itsHostName;
+
   // Backend IP
   std::string itsIP;
 
@@ -106,6 +112,9 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   // Handle to the proxy (contains caches, etc)
   boost::shared_ptr<Proxy> itsProxy;
+
+  // Reference to the reactor for decrementing backend activity count when done
+  Spine::Reactor& itsReactor;
 };
 
 }  // namespace SmartMet

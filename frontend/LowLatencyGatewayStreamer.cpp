@@ -149,18 +149,27 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 
 }  // namespace
 
+LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
+{
+  itsReactor.stopBackendRequest(itsHostName, itsPort);
+}
+
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
+                                                     Spine::Reactor& theReactor,
+                                                     const std::string& theHostName,
                                                      std::string theIP,
                                                      unsigned short thePort,
                                                      int theBackendTimeoutInSeconds,
                                                      const Spine::HTTP::Request& theOriginalRequest)
     : itsOriginalRequest(theOriginalRequest),
       itsSocketBuffer(),
+      itsHostName(theHostName),
       itsIP(std::move(theIP)),
       itsPort(thePort),
       itsBackendSocket(theProxy->backendIoService),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds),
-      itsProxy(theProxy)
+      itsProxy(theProxy),
+      itsReactor(theReactor)
 {
 }
 
