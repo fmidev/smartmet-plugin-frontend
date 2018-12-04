@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.11.5
+Version: 18.12.4
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.11.5
-BuildRequires: smartmet-engine-sputnik-devel >= 18.11.5
+BuildRequires: smartmet-library-spine-devel >= 18.12.4
+BuildRequires: smartmet-engine-sputnik-devel >= 18.12.4
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 18.9.29
+BuildRequires: smartmet-library-macgyver-devel >= 18.11.24
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 18.9.29
-Requires: smartmet-server >= 18.11.5
-Requires: smartmet-engine-sputnik >= 18.11.5
-Requires: smartmet-library-spine >= 18.11.5
+Requires: smartmet-library-macgyver >= 18.11.24
+Requires: smartmet-server >= 18.11.8
+Requires: smartmet-engine-sputnik >= 18.12.4
+Requires: smartmet-library-spine >= 18.12.4
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Tue Dec  4 2018 Pertti Kinnia <pertti.kinnia@fmi.fi> - 18.12.4-1.fmi
+- Repackaged since Spine::Table size changed
+
 * Mon Nov  5 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.11.5-1.fmi
 - Improved error handling
 - Added tracking of the number of active requests to each backend
