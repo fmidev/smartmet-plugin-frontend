@@ -140,14 +140,25 @@ bool producerHasParam(const QEngineFile &file, const std::string &param)
 // ----------------------------------------------------------------------
 
 // this is the content handler for URL /
-void baseContentHandler(Spine::Reactor & /* theReactor */,
-                        const Spine::HTTP::Request & /* theRequest */,
-                        Spine::HTTP::Response &theResponse)
+void Plugin::baseContentHandler(Spine::Reactor & /* theReactor */,
+                                const Spine::HTTP::Request & /* theRequest */,
+                                Spine::HTTP::Response &theResponse)
 {
   try
   {
+    // Must not use word "SmartMet" in paused state, which F5 uses for pattern matching
+
     theResponse.setStatus(Spine::HTTP::Status::ok);
-    theResponse.setContent("SmartMet Server\n");
+    if (!isPaused())
+      theResponse.setContent("SmartMet Server\n");
+    else
+    {
+      Spine::ReadLock lock(itsPauseMutex);
+      if (!itsPauseDeadLine)
+        theResponse.setContent("Frontend Paused\n");
+      else
+        theResponse.setContent("Frontend Paused until " + Fmi::to_iso_string(*itsPauseDeadLine));
+    }
   }
   catch (...)
   {
@@ -189,9 +200,7 @@ void sleep(Spine::Reactor & /* theReactor */,
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor,
-                                                const Spine::HTTP::Request & /* theRequest */,
-                                                Spine::HTTP::Response & /* theResponse */)
+std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
 {
   try
   {
@@ -221,8 +230,7 @@ std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor,
 // ----------------------------------------------------------------------
 
 std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
-                                                const Spine::HTTP::Request &theRequest,
-                                                Spine::HTTP::Response & /* theResponse */)
+                                                const Spine::HTTP::Request &theRequest)
 {
   try
   {
@@ -547,8 +555,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
 // ----------------------------------------------------------------------
 
 std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
-                                                  const Spine::HTTP::Request &theRequest,
-                                                  Spine::HTTP::Response & /* theResponse */)
+                                                  const Spine::HTTP::Request &theRequest)
 {
   try
   {
@@ -753,13 +760,13 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
       return std::make_pair("No request specified", false);
 
     if (what == "clusterinfo")
-      return requestClusterInfo(theReactor, theRequest, theResponse);
+      return requestClusterInfo(theReactor);
 
     if (what == "backends")
-      return requestBackendInfo(theReactor, theRequest, theResponse);
+      return requestBackendInfo(theReactor, theRequest);
 
     if (what == "qengine")
-      return requestQEngineStatus(theReactor, theRequest, theResponse);
+      return requestQEngineStatus(theReactor, theRequest);
 
     if (what == "activerequests")
       return requestActiveRequests(theReactor, theRequest, theResponse);
@@ -767,12 +774,126 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "activebackends")
       return requestActiveBackends(theReactor, theRequest, theResponse);
 
+    if (what == "pause")
+      return requestPause(theReactor, theRequest);
+
+    if (what == "continue")
+      return requestContinue(theReactor, theRequest);
+
     return std::make_pair("Unknown request: '" + what + "'", false);
   }
   catch (...)
   {
     throw Spine::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Request a pause in F5 responses
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor &theReactor,
+                                                  const Spine::HTTP::Request &theRequest)
+{
+  try
+  {
+    // Optional deadline or duration:
+
+    auto time_opt = theRequest.getParameter("time");
+
+    if (time_opt)
+    {
+      auto deadline = Fmi::TimeParser::parse(*time_opt);
+      auto timestr = Fmi::to_iso_string(deadline);
+      std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
+
+      Spine::WriteLock lock(itsPauseMutex);
+      itsPaused = true;
+      itsPauseDeadLine = deadline;
+      return std::make_pair("Paused Frontend until " + timestr, true);
+    }
+
+    std::cout << Spine::log_time_str() << " *** Frontend paused" << std::endl;
+    Spine::WriteLock lock(itsPauseMutex);
+    itsPaused = true;
+    itsPauseDeadLine = boost::none;
+    return std::make_pair("Paused Frontend", true);
+  }
+  catch (...)
+  {
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Request a continue
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor &theReactor,
+                                                     const Spine::HTTP::Request &theRequest)
+{
+  try
+  {
+    // Optional deadline or duration:
+
+    auto time_opt = theRequest.getParameter("time");
+
+    if (time_opt)
+    {
+      auto deadline = Fmi::TimeParser::parse(*time_opt);
+      auto timestr = Fmi::to_iso_string(deadline);
+      std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
+
+      Spine::WriteLock lock(itsPauseMutex);
+      itsPaused = true;
+      itsPauseDeadLine = deadline;
+      return std::make_pair("Paused Frontend until " + timestr, true);
+    }
+
+    std::cout << Spine::log_time_str() << " *** Frontend continues" << std::endl;
+    Spine::WriteLock lock(itsPauseMutex);
+    itsPaused = false;
+    itsPauseDeadLine = boost::none;
+    return std::make_pair("Frontend continues", true);
+  }
+  catch (...)
+  {
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Return true if Frontend is paused
+ */
+// ----------------------------------------------------------------------
+
+bool Plugin::isPaused() const
+{
+  Spine::UpgradeReadLock readlock(itsPauseMutex);
+  if (!itsPaused)
+    return false;
+
+  if (!itsPauseDeadLine)
+    return true;
+
+  auto now = boost::posix_time::microsec_clock::universal_time();
+
+  if (now < itsPauseDeadLine)
+    return true;
+
+  // deadline expired, continue
+  std::cout << Spine::log_time_str() << " *** Frontend pause deadline expired, continuing"
+            << std::endl;
+  Spine::UpgradeWriteLock writelock(readlock);
+  itsPaused = false;
+  itsPauseDeadLine = boost::none;
+
+  return false;
 }
 
 // ----------------------------------------------------------------------
@@ -795,7 +916,8 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
             this, "/admin", boost::bind(&Plugin::callRequestHandler, this, _1, _2, _3)))
       throw Spine::Exception(BCP, "Failed to register admin content handler");
 
-    if (!theReactor->addContentHandler(this, "/", boost::bind(&baseContentHandler, _1, _2, _3)))
+    if (!theReactor->addContentHandler(
+            this, "/", boost::bind(&Plugin::baseContentHandler, this, _1, _2, _3)))
       throw Spine::Exception(BCP, "Failed to register base content handler");
 
 #ifndef NDEBUG

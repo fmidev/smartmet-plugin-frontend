@@ -38,13 +38,29 @@ class Plugin : public SmartMetPlugin
                       const Spine::HTTP::Request& theRequest,
                       Spine::HTTP::Response& theResponse);
 
+  void baseContentHandler(Spine::Reactor& theReactor,
+                          const Spine::HTTP::Request& theRequest,
+                          Spine::HTTP::Response& theResponse);
+
  private:
   HTTP* itsHTTP;
   const std::string itsModuleName;
 
+  mutable Spine::MutexType itsPauseMutex;
+  mutable bool itsPaused{false};
+  mutable boost::optional<boost::posix_time::ptime> itsPauseDeadLine{};
+
   std::pair<std::string, bool> request(Spine::Reactor& theReactor,
                                        const Spine::HTTP::Request& theRequest,
                                        Spine::HTTP::Response& theResponse);
+
+  bool isPaused() const;
+
+  std::pair<std::string, bool> requestPause(SmartMet::Spine::Reactor& theReactor,
+                                            const SmartMet::Spine::HTTP::Request& theRequest);
+
+  std::pair<std::string, bool> requestContinue(SmartMet::Spine::Reactor& theReactor,
+                                               const SmartMet::Spine::HTTP::Request& theRequest);
 
 };  // class Plugin
 
