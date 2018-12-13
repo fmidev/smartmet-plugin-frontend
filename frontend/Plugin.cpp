@@ -13,6 +13,7 @@
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
 #include <json/json.h>
+#include <macgyver/Base64.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
 #include <spine/Exception.h>
@@ -210,12 +211,12 @@ std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
     if (!engine)
     {
       out << "Sputnik engine is not available" << std::endl;
-      return std::make_pair(out.str(), false);
+      return {out.str(), false};
     }
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
     sputnik->status(out);
-    return std::make_pair(out.str(), true);
+    return {out.str(), true};
   }
   catch (...)
   {
@@ -243,7 +244,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
     if (!engine)
     {
       out << "Sputnik engine is not available" << std::endl;
-      return std::make_pair(out.str(), false);
+      return {out.str(), false};
     }
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
@@ -259,7 +260,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
 
     formatter->format(out, *table, names, theRequest, Spine::TableFormatterOptions());
 
-    return std::make_pair(out.str(), true);
+    return {out.str(), true};
   }
   catch (...)
   {
@@ -313,7 +314,7 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
     std::string mime = formatter->mimetype() + "; charset=UTF-8";
     theResponse.setHeader("Content-Type", mime);
 
-    return std::make_pair(out.str(), true);
+    return {out.str(), true};
   }
   catch (...)
   {
@@ -366,7 +367,7 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
     std::string mime = formatter->mimetype() + "; charset=UTF-8";
     theResponse.setHeader("Content-Type", mime);
 
-    return std::make_pair(out.str(), true);
+    return {out.str(), true};
   }
   catch (...)
   {
@@ -627,7 +628,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
           Spine::TableFormatterFactory::create(format));
       formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return std::make_pair(out.str(), true);
+      return {out.str(), true};
     }
 
     else
@@ -731,7 +732,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
           Spine::TableFormatterFactory::create(format));
       formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return std::make_pair(out.str(), true);
+      return {out.str(), true};
     }
   }
   catch (...)
@@ -752,12 +753,19 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
 {
   try
   {
-    // Check that incoming IP is in the whitelist
+    // Check authentication first
+    bool hasValidAuthentication = authenticateRequest(theRequest, theResponse);
+
+    if (!hasValidAuthentication)
+      return {"Authorization failure", false};  // Auhentication failure
+
+    // We may return JSON, hence we should enable CORS
+    theResponse.setHeader("Access-Control-Allow-Origin", "*");
 
     std::string what = Spine::optional_string(theRequest.getParameter("what"), "");
 
     if (what.empty())
-      return std::make_pair("No request specified", false);
+      return {"No request specified", false};
 
     if (what == "clusterinfo")
       return requestClusterInfo(theReactor);
@@ -780,7 +788,7 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "continue")
       return requestContinue(theReactor, theRequest);
 
-    return std::make_pair("Unknown request: '" + what + "'", false);
+    return {"Unknown request: '" + what + "'", false};
   }
   catch (...)
   {
@@ -812,14 +820,14 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor &theReactor,
       Spine::WriteLock lock(itsPauseMutex);
       itsPaused = true;
       itsPauseDeadLine = deadline;
-      return std::make_pair("Paused Frontend until " + timestr, true);
+      return {"Paused Frontend until " + timestr, true};
     }
 
     std::cout << Spine::log_time_str() << " *** Frontend paused" << std::endl;
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = true;
     itsPauseDeadLine = boost::none;
-    return std::make_pair("Paused Frontend", true);
+    return {"Paused Frontend", true};
   }
   catch (...)
   {
@@ -851,14 +859,14 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor &theReactor,
       Spine::WriteLock lock(itsPauseMutex);
       itsPaused = true;
       itsPauseDeadLine = deadline;
-      return std::make_pair("Paused Frontend until " + timestr, true);
+      return {"Paused Frontend until " + timestr, true};
     }
 
     std::cout << Spine::log_time_str() << " *** Frontend continues" << std::endl;
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = false;
     itsPauseDeadLine = boost::none;
-    return std::make_pair("Frontend continues", true);
+    return {"Frontend continues", true};
   }
   catch (...)
   {
@@ -898,6 +906,91 @@ bool Plugin::isPaused() const
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Return true if a service requiring authentication is requested
+ */
+// ----------------------------------------------------------------------
+
+bool isAuthenticationRequired(const Spine::HTTP::Request &theRequest)
+{
+  try
+  {
+    std::string what = Spine::optional_string(theRequest.getParameter("what"), "");
+
+    if (what == "pause")
+      return true;
+    if (what == "continue")
+      return true;
+
+    return false;
+  }
+  catch (...)
+  {
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Authenticates the request
+ */
+// ----------------------------------------------------------------------
+
+bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
+                                 Spine::HTTP::Response &theResponse)
+{
+  try
+  {
+    auto credentials = theRequest.getHeader("Authorization");
+
+    if (!credentials)
+    {
+      // Does not have authentication, lets ask for it if necessary
+      if (!isAuthenticationRequired(theRequest))
+        return true;
+
+      theResponse.setStatus(Spine::HTTP::Status::unauthorized);
+      theResponse.setHeader("WWW-Authenticate", "Basic realm=\"SmartMet Admin\"");
+      theResponse.setHeader("Content-Type", "text/html; charset=UTF-8");
+
+      std::string content = "<html><body><h1>401 Unauthorized </h1></body></html>";
+      theResponse.setContent(content);
+
+      return false;
+    }
+
+    // Parse user and password
+
+    std::vector<std::string> splitHeader;
+    std::string truePassword, trueUser, trueDigest, givenDigest;
+
+    boost::algorithm::split(
+        splitHeader, *credentials, boost::is_any_of(" "), boost::token_compress_on);
+
+    givenDigest = splitHeader[1];  // Second field in the header: ( Basic aHR0cHdhdGNoOmY= )
+
+    trueDigest = Fmi::Base64::encode(itsUsername + ":" + itsPassword);
+
+    // Passwords match
+    if (trueDigest == givenDigest)
+      return true;  // // Main handler can proceed
+
+    // Wrong password, ask it again
+    theResponse.setStatus(Spine::HTTP::Status::unauthorized);
+    theResponse.setHeader("WWW-Authenticate", "Basic realm=\"SmartMet Admin\"");
+    theResponse.setHeader("Content-Type", "text/html; charset=UTF-8");
+
+    std::string content = "<html><body><h1>401 Unauthorized </h1></body></html>";
+    theResponse.setContent(content);
+    return false;
+  }
+  catch (...)
+  {
+    throw Spine::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Plugin constructor
  */
 // ----------------------------------------------------------------------
@@ -909,6 +1002,28 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
   {
     if (theReactor->getRequiredAPIVersion() != SMARTMET_API_VERSION)
       throw Spine::Exception(BCP, "Frontend and Server API version mismatch");
+
+    try
+    {
+      libconfig::Config config;
+      config.readFile(theConfig);
+      if (!config.lookupValue("user", itsUsername) || !config.lookupValue("password", itsPassword))
+        throw Spine::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
+    }
+    catch (const libconfig::ParseException &e)
+    {
+      throw Spine::Exception(BCP,
+                             std::string("Configuration error ' ") + e.getError() + "' on line " +
+                                 Fmi::to_string(e.getLine()));
+    }
+    catch (const libconfig::ConfigException &)
+    {
+      throw Spine::Exception(BCP, "Configuration error");
+    }
+    catch (...)
+    {
+      throw Spine::Exception::Trace(BCP, "Configuration error!");
+    }
 
     itsHTTP = new HTTP(theReactor, theConfig);
 

@@ -46,6 +46,9 @@ class Plugin : public SmartMetPlugin
   HTTP* itsHTTP;
   const std::string itsModuleName;
 
+  std::string itsUsername;
+  std::string itsPassword;
+
   mutable Spine::MutexType itsPauseMutex;
   mutable bool itsPaused{false};
   mutable boost::optional<boost::posix_time::ptime> itsPauseDeadLine{};
@@ -55,6 +58,9 @@ class Plugin : public SmartMetPlugin
                                        Spine::HTTP::Response& theResponse);
 
   bool isPaused() const;
+
+  bool authenticateRequest(const Spine::HTTP::Request& theRequest,
+                           Spine::HTTP::Response& theResponse);
 
   std::pair<std::string, bool> requestPause(SmartMet::Spine::Reactor& theReactor,
                                             const SmartMet::Spine::HTTP::Request& theRequest);
