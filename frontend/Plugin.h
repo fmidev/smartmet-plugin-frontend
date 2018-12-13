@@ -62,6 +62,8 @@ class Plugin : public SmartMetPlugin
   bool authenticateRequest(const Spine::HTTP::Request& theRequest,
                            Spine::HTTP::Response& theResponse);
 
+  std::pair<std::string, bool> pauseUntil(const boost::posix_time::ptime& theTime);
+
   std::pair<std::string, bool> requestPause(SmartMet::Spine::Reactor& theReactor,
                                             const SmartMet::Spine::HTTP::Request& theRequest);
 

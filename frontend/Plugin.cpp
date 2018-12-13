@@ -756,7 +756,7 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
     bool hasValidAuthentication = authenticateRequest(theRequest, theResponse);
 
     if (!hasValidAuthentication)
-      return {"Authorization failure", false};  // Auhentication failure
+      return {"", true};
 
     // We may return JSON, hence we should enable CORS
     theResponse.setHeader("Access-Control-Allow-Origin", "*");
@@ -797,6 +797,23 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Pause until the given time
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::string, bool> Plugin::pauseUntil(const boost::posix_time::ptime &theTime)
+{
+  auto timestr = Fmi::to_iso_string(theTime);
+  std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
+
+  Spine::WriteLock lock(itsPauseMutex);
+  itsPaused = true;
+  itsPauseDeadLine = theTime;
+  return {"Paused Frontend until " + timestr, true};
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Request a pause in F5 responses
  */
 // ----------------------------------------------------------------------
@@ -809,17 +826,20 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor &theReactor,
     // Optional deadline or duration:
 
     auto time_opt = theRequest.getParameter("time");
-
     if (time_opt)
     {
       auto deadline = Fmi::TimeParser::parse(*time_opt);
-      auto timestr = Fmi::to_iso_string(deadline);
-      std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
+      return pauseUntil(deadline);
+    }
 
-      Spine::WriteLock lock(itsPauseMutex);
-      itsPaused = true;
-      itsPauseDeadLine = deadline;
-      return {"Paused Frontend until " + timestr, true};
+    // Optional duration:
+
+    auto duration_opt = theRequest.getParameter("duration");
+    if (duration_opt)
+    {
+      auto duration = Fmi::TimeParser::parse_duration(*duration_opt);
+      auto deadline = boost::posix_time::second_clock::universal_time() + duration;
+      return pauseUntil(deadline);
     }
 
     std::cout << Spine::log_time_str() << " *** Frontend paused" << std::endl;
@@ -848,17 +868,20 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor &theReactor,
     // Optional deadline or duration:
 
     auto time_opt = theRequest.getParameter("time");
-
     if (time_opt)
     {
       auto deadline = Fmi::TimeParser::parse(*time_opt);
-      auto timestr = Fmi::to_iso_string(deadline);
-      std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
+      pauseUntil(deadline);
+    }
 
-      Spine::WriteLock lock(itsPauseMutex);
-      itsPaused = true;
-      itsPauseDeadLine = deadline;
-      return {"Paused Frontend until " + timestr, true};
+    // Optional duration:
+
+    auto duration_opt = theRequest.getParameter("duration");
+    if (duration_opt)
+    {
+      auto duration = Fmi::TimeParser::parse_duration(*duration_opt);
+      auto deadline = boost::posix_time::second_clock::universal_time() + duration;
+      return pauseUntil(deadline);
     }
 
     std::cout << Spine::log_time_str() << " *** Frontend continues" << std::endl;
@@ -1135,15 +1158,15 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
     try
     {
-      // We allow JSON requests, hence we should enable CORS
-      theResponse.setHeader("Access-Control-Allow-Origin", "*");
+      // Assume OK, the handler will override for example with 401 if necessary
+      theResponse.setStatus(Spine::HTTP::Status::ok);
 
       std::pair<std::string, bool> response = request(theReactor, theRequest, theResponse);
 
-      if (response.second)
-        theResponse.setStatus(Spine::HTTP::Status::ok);
-      else
-        theResponse.setStatus(Spine::HTTP::Status::not_implemented);
+      // Response may have been set directly, and the returned value is empty
+
+      if (response.first.empty())
+        return;
 
       // Make the response HTML in debug mode
 
@@ -1160,6 +1183,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       boost::shared_ptr<Spine::TableFormatter> formatter(
           Spine::TableFormatterFactory::create(format));
       theResponse.setHeader("Content-Type", formatter->mimetype().c_str());
+
+      // We allow JSON requests, hence we should enable CORS
+      theResponse.setHeader("Access-Control-Allow-Origin", "*");
 
       // Build cache expiration time info
 

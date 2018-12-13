@@ -56,6 +56,7 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 * Thu Dec 13 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.12.13-1.fmi
 - Added password protection for admin requests
+- Added "duration" option for pause/continue requests
 
 * Wed Dec 12 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.12.12-2.fmi
 - Implemented pause and continue requests
