@@ -9,7 +9,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
-#include <boost/foreach.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
 #include <json/json.h>
@@ -388,7 +387,7 @@ BackendFiles buildSpineQEngineContents(
   {
     AllFiles theFiles;
 
-    BOOST_FOREACH (auto &contentPair, backendContents)
+    for (auto &contentPair : backendContents)
     {
       // Individual backend contents
       BackendFiles theseFiles;
@@ -497,7 +496,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
     boost::asio::io_service io_service;
     bip::tcp::resolver resolver(io_service);
     std::list<std::pair<std::string, std::string> > qEngineContentList;
-    BOOST_FOREACH (auto &backend, backendList)
+    for (auto &backend : backendList)
     {
       bip::tcp::resolver::query query(backend.get<1>(),
                                       boost::lexical_cast<std::string>(backend.get<2>()));
@@ -590,7 +589,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       std::ostringstream out;
       Spine::Table table;
       std::size_t row = 0;
-      BOOST_FOREACH (auto &pair, result)
+      for (auto &pair : result)
       {
         if (pair.second.empty())
         {
@@ -636,13 +635,13 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       // There are some parameter tokens, return spine producers providing these parameters
       if (inputType == "name")
       {
-        BOOST_FOREACH (auto &pair, result)
+        for (auto &pair : result)
         {
           // Check if producer contains parameter
           // Get latest file
           QEngineFile &latest = *(--pair.second.end());
           unsigned int matches = 0;
-          BOOST_FOREACH (auto &param, paramTokens)
+          for (auto &param : paramTokens)
           {
             if (producerHasParam(latest, param))
             {
@@ -659,13 +658,13 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       }
       else if (inputType == "id")
       {
-        BOOST_FOREACH (auto &pair, result)
+        for (auto &pair : result)
         {
           // Check if producer contains parameter
           // Get latest file
           QEngineFile &latest = *(--pair.second.end());
           unsigned int matches = 0;
-          BOOST_FOREACH (auto &param, paramTokens)
+          for (auto &param : paramTokens)
           {
             // If param type is id, but input cannot be cast into int, simply ignore
             int paramId;
@@ -705,7 +704,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       // Build result table
       Spine::Table table;
       std::size_t row = 0;
-      BOOST_FOREACH (auto &file, iHasAllParameters)
+      for (auto &file : iHasAllParameters)
       {
         std::size_t column = 0;
 
