@@ -114,6 +114,9 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
     else
       response.setHeader("Vary", "Accept-Encoding");
 
+    if (!metadata.access_control_allow_origin.empty())
+      response.setHeader("Access-Control-Allow-Origin", metadata.access_control_allow_origin);
+
     // If client sent If-Modified-Since or If-None-Match - headers, respond with Not Modified.
 
     auto if_none_match = originalRequest.getHeader("If-None-Match");
@@ -616,6 +619,11 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             if (vary)
               meta.vary = *vary;
 
+            auto access_control_allow_origin =
+                responsePtr->getHeader("Access-Control-Allow-Origin");
+            if (access_control_allow_origin)
+              meta.access_control_allow_origin = *access_control_allow_origin;
+
             auto content_encoding = responsePtr->getHeader("Content-Encoding");
 
             if (!content_encoding)
@@ -772,6 +780,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
                                  itsBackendMetadata.cache_control,
                                  itsBackendMetadata.expires,
                                  itsBackendMetadata.vary,
+                                 itsBackendMetadata.access_control_allow_origin,
                                  itsBackendMetadata.content_encoding,
                                  boost::make_shared<std::string>(itsCachedContent));
       }

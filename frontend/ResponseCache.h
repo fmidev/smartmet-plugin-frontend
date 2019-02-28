@@ -24,6 +24,7 @@ class ResponseCache
     std::string cache_control;
     std::string expires;
     std::string vary;
+    std::string access_control_allow_origin;
     ContentEncodingType content_encoding;
   };
 
@@ -39,6 +40,7 @@ class ResponseCache
                           const std::string& cache_control,
                           const std::string& expires,
                           const std::string& vary,
+                          const std::string& access_control_allow_origin,
                           ContentEncodingType content_encoding,
                           const boost::shared_ptr<std::string>& buffer);
 
