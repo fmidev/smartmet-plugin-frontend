@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 18.12.13
+Version: 19.2.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 18.12.4
+BuildRequires: smartmet-library-spine-devel >= 19.2.28
 BuildRequires: smartmet-engine-sputnik-devel >= 18.12.4
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 18.11.24
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 18.11.24
-Requires: smartmet-server >= 18.11.8
+Requires: smartmet-server >= 18.12.14
 Requires: smartmet-engine-sputnik >= 18.12.4
-Requires: smartmet-library-spine >= 18.12.4
+Requires: smartmet-library-spine >= 19.2.28
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Feb 28 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.2.28-1.fmi
+- Added client IP to active requests report
+
 * Thu Dec 13 2018 Mika Heiskanen <mika.heiskanen@fmi.fi> - 18.12.13-1.fmi
 - Added password protection for admin requests
 - Added "duration" option for pause/continue requests

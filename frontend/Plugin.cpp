@@ -291,22 +291,24 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
     auto now = boost::posix_time::microsec_clock::universal_time();
 
     std::size_t row = 0;
-    for (const auto &id_request : requests)
+    for (const auto &id_info : requests)
     {
-      const auto id = id_request.first;
-      const auto &request = id_request.second;
+      const auto id = id_info.first;
+      const auto &time = id_info.second.time;
+      const auto &req = id_info.second.request;
 
-      auto duration = now - request.time;
+      auto duration = now - time;
 
       std::size_t column = 0;
       reqTable.set(column++, row, Fmi::to_string(id));
-      reqTable.set(column++, row, Fmi::to_iso_extended_string(request.time.time_of_day()));
+      reqTable.set(column++, row, Fmi::to_iso_extended_string(time.time_of_day()));
       reqTable.set(column++, row, Fmi::to_string(duration.total_milliseconds() / 1000.0));
-      reqTable.set(column++, row, request.uri);
+      reqTable.set(column++, row, req.getClientIP());
+      reqTable.set(column++, row, req.getURI());
       ++row;
     }
 
-    std::vector<std::string> headers = {"Id", "Time", "Duration", "RequestString"};
+    std::vector<std::string> headers = {"Id", "Time", "Duration", "ClientIP", "RequestString"};
     formatter->format(out, reqTable, headers, theRequest, Spine::TableFormatterOptions());
 
     // Set MIME
