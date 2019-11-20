@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 19.9.26
+Version: 19.11.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 19.9.26
+BuildRequires: smartmet-library-spine-devel >= 19.11.20
 BuildRequires: smartmet-engine-sputnik-devel >= 19.9.26
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 19.9.26
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 19.9.26
-Requires: smartmet-server >= 19.9.26
+Requires: smartmet-server >= 19.10.1
 Requires: smartmet-engine-sputnik >= 19.9.26
-Requires: smartmet-library-spine >= 19.9.26
+Requires: smartmet-library-spine >= 19.11.20
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Wed Nov 20 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.11.20-1.fmi
+- Repackaged since Spine::Parameter size changed
+
 * Thu Sep 26 2019 Mika Heiskanen <mika.heiskanen@fmi.fi> - 19.9.26-1.fmi
 - Repackaged due to ABI changes
 
