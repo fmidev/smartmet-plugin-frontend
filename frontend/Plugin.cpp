@@ -120,9 +120,7 @@ bool producerHasParam(const QEngineFile &file, const std::string &param)
     for (auto it = file.parameters.begin(); it != file.parameters.end(); ++it)
     {
       if (param == *it)
-      {
         return true;
-      }
     }
 
     return false;
@@ -383,7 +381,8 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
 // ----------------------------------------------------------------------
 
 BackendFiles buildSpineQEngineContents(
-    const std::list<std::pair<std::string, std::string> > &backendContents)
+    const std::list<std::pair<std::string, std::string> > &backendContents,
+    const std::string &producer)
 {
   try
   {
@@ -408,16 +407,18 @@ BackendFiles buildSpineQEngineContents(
 
         QEngineFile thisFile = buildQEngineFile(jsonObject);
 
-        BackendFiles::iterator it = theseFiles.find(thisFile.producer);
-        if (it == theseFiles.end())
+        // Keep only desired producer, or all if the requested producer is empty
+        if (producer.empty() || producer == thisFile.producer)
         {
-          ProducerFiles thisProducer;
-          thisProducer.push_back(thisFile);
-          theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
-        }
-        else
-        {
-          it->second.push_back(thisFile);
+          BackendFiles::iterator it = theseFiles.find(thisFile.producer);
+          if (it != theseFiles.end())
+            it->second.push_back(thisFile);
+          else
+          {
+            ProducerFiles thisProducer;
+            thisProducer.push_back(thisFile);
+            theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
+          }
         }
       }
 
@@ -563,6 +564,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
   {
     std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
+    std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
 
     // This contains the found producers
     std::list<QEngineFile> iHasAllParameters;
@@ -582,7 +584,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     // Obtain backend QEngine statuses
     std::list<std::pair<std::string, std::string> > qEngineContentList =
         getBackendQEngineStatuses(theReactor);
-    BackendFiles result = buildSpineQEngineContents(qEngineContentList);
+    BackendFiles result = buildSpineQEngineContents(qEngineContentList, producer);
 
     if (tokens == 0)
     {
