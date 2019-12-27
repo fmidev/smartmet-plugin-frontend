@@ -477,7 +477,7 @@ BackendFiles buildSpineQEngineContents(
 // ----------------------------------------------------------------------
 
 std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
-    Spine::Reactor &theReactor)
+    Spine::Reactor &theReactor, const std::string &theTimeFormat)
 {
   try
   {
@@ -514,8 +514,10 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
       //"/admin?what=qengine&format=json"
       //<< " HTTP/1.0\r\n";
       request_stream << "GET "
-                     << "/admin?what=qengine&format=json"
-                     << " HTTP/1.0\r\n";
+                     << "/admin?what=qengine&format=json";
+      if (!theTimeFormat.empty())
+        request_stream << "&timeformat=" << theTimeFormat;
+      request_stream << " HTTP/1.0\r\n";
       request_stream << "Accept: */*\r\n";
       request_stream << "Connection: close\r\n\r\n";
 
@@ -565,6 +567,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
     std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
+    std::string timeformat = Spine::optional_string(theRequest.getParameter("timeformat"), "");
 
     // This contains the found producers
     std::list<QEngineFile> iHasAllParameters;
@@ -583,7 +586,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
 
     // Obtain backend QEngine statuses
     std::list<std::pair<std::string, std::string> > qEngineContentList =
-        getBackendQEngineStatuses(theReactor);
+        getBackendQEngineStatuses(theReactor, timeformat);
     BackendFiles result = buildSpineQEngineContents(qEngineContentList, producer);
 
     if (tokens == 0)
