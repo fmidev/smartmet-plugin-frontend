@@ -396,28 +396,27 @@ BackendFiles buildSpineQEngineContents(
       Json::Value jvalue;
       Json::Reader reader;
 
-      if (!reader.parse(contentPair.second, jvalue))
+      // Skip servers which returned error HTML or some other unparseable response
+      if (reader.parse(contentPair.second, jvalue))
       {
-        throw Spine::Exception(BCP, "JSON deserialization failed");
-      }
-
-      for (Json::Value::iterator jit = jvalue.begin(); jit != jvalue.end(); ++jit)
-      {
-        auto &jsonObject = *jit;
-
-        QEngineFile thisFile = buildQEngineFile(jsonObject);
-
-        // Keep only desired producer, or all if the requested producer is empty
-        if (producer.empty() || producer == thisFile.producer)
+        for (Json::Value::iterator jit = jvalue.begin(); jit != jvalue.end(); ++jit)
         {
-          BackendFiles::iterator it = theseFiles.find(thisFile.producer);
-          if (it != theseFiles.end())
-            it->second.push_back(thisFile);
-          else
+          auto &jsonObject = *jit;
+
+          QEngineFile thisFile = buildQEngineFile(jsonObject);
+
+          // Keep only desired producer, or all if the requested producer is empty
+          if (producer.empty() || producer == thisFile.producer)
           {
-            ProducerFiles thisProducer;
-            thisProducer.push_back(thisFile);
-            theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
+            BackendFiles::iterator it = theseFiles.find(thisFile.producer);
+            if (it != theseFiles.end())
+              it->second.push_back(thisFile);
+            else
+            {
+              ProducerFiles thisProducer;
+              thisProducer.push_back(thisFile);
+              theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
+            }
           }
         }
       }
@@ -481,9 +480,6 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
 {
   try
   {
-    // The presence of admin means QEngine is running
-    std::string service = "admin";
-
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
@@ -492,8 +488,8 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
 
-    // Get the backends which provide the requested service
-    auto backendList = sputnik->getBackendList(service);  // type is Services::BackendList
+    // Get the backends which provide services
+    auto backendList = sputnik->getBackendList();  // type is Services::BackendList
 
     // Get Qengine status from backends
     boost::asio::io_service io_service;
@@ -527,12 +523,14 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
 
       boost::asio::streambuf response;
       boost::system::error_code error;
+
       while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error))
       {
         if (error == boost::asio::error::eof)  // Reads until socket is closed
           break;
 
-        // HERE WE NEED ERROR HANDLING
+        // Should there be some error handling in here? Now the JSON parser
+        // may just fail on a bad response.
       }
 
       std::stringstream responseStream;
