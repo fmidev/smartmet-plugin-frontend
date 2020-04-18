@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 20.3.3
+Version: 20.4.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -12,21 +12,21 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost-devel
-BuildRequires: smartmet-library-spine-devel >= 19.12.4
-BuildRequires: smartmet-engine-sputnik-devel >= 19.9.26
+BuildRequires: boost169-devel
+BuildRequires: smartmet-library-spine-devel >= 20.4.18
+BuildRequires: smartmet-engine-sputnik-devel >= 20.4.18
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 19.12.4
+BuildRequires: smartmet-library-macgyver-devel >= 20.4.18
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 19.12.4
-Requires: smartmet-server >= 19.10.1
-Requires: smartmet-engine-sputnik >= 19.9.26
-Requires: smartmet-library-spine >= 19.12.4
+Requires: smartmet-library-macgyver >= 20.4.18
+Requires: smartmet-server >= 20.4.18
+Requires: smartmet-engine-sputnik >= 20.4.18
+Requires: smartmet-library-spine >= 20.4.18
 Requires: jsoncpp
 %if 0%{rhel} >= 7
-Requires: boost-date-time
-Requires: boost-thread
+Requires: boost169-date-time
+Requires: boost169-thread
 %endif
 Provides: %{SPECNAME}
 Obsoletes: smartmet-brainstorm-frontend < 16.11.1
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
+- Upgraded to Boost 1.69
+
 * Tue Mar  3 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.3.3-1.fmi
 - Scan all backends for querydata content without knowing if the admin plugin is installed or not
 
