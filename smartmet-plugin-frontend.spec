@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 20.4.18
+Version: 20.8.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 20.4.18
-BuildRequires: smartmet-engine-sputnik-devel >= 20.4.18
+BuildRequires: smartmet-library-spine-devel >= 20.8.21
+BuildRequires: smartmet-engine-sputnik-devel >= 20.8.21
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.4.18
+BuildRequires: smartmet-library-macgyver-devel >= 20.8.21
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 20.4.18
-Requires: smartmet-server >= 20.4.18
-Requires: smartmet-engine-sputnik >= 20.4.18
-Requires: smartmet-library-spine >= 20.4.18
+Requires: smartmet-library-macgyver >= 20.8.21
+Requires: smartmet-server >= 20.8.21
+Requires: smartmet-engine-sputnik >= 20.8.21
+Requires: smartmet-library-spine >= 20.8.21
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Fri Aug 21 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.8.21-1.fmi
+- Upgrade to fmt 6.2
+
 * Sat Apr 18 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.4.18-1.fmi
 - Upgraded to Boost 1.69
 
