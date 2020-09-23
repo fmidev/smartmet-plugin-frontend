@@ -29,7 +29,7 @@ std::string makeDateString()
   }
   catch (...)
   {
-    throw Spine::Exception(BCP, "Failed to build HTTP response date");
+    throw Fmi::Exception(BCP, "Failed to build HTTP response date");
   }
 }
 
@@ -49,7 +49,7 @@ std::string contentEnumToString(ResponseCache::ContentEncodingType type)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -72,7 +72,7 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTT
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -146,7 +146,7 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -233,7 +233,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -285,7 +285,7 @@ std::string LowLatencyGatewayStreamer::getChunk()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -321,7 +321,7 @@ std::string LowLatencyGatewayStreamer::getPeekString(int pos, int len)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -467,7 +467,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
   }
   catch (...)
   {
-    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::readCacheResponse aborted", nullptr);
+    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::readCacheResponse aborted", nullptr);
     ex.printError();
     // Must not throw or execution will terminate
   }
@@ -528,7 +528,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -675,7 +675,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
   }
   catch (...)
   {
-    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::readDataResponseHeaders aborted", nullptr);
+    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::readDataResponseHeaders aborted", nullptr);
     ex.printError();
     // Must not throw or execution will terminate
   }
@@ -729,7 +729,7 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
   }
   catch (...)
   {
-    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::readDataResponse aborted", nullptr);
+    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::readDataResponse aborted", nullptr);
     ex.printError();
     // Must not throw or execution will terminate
   }
@@ -753,7 +753,7 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
   }
   catch (...)
   {
-    Spine::Exception ex(BCP, "LowLatencyGatewayStreamer::handleTimeout aborted", nullptr);
+    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::handleTimeout aborted", nullptr);
     ex.printError();
     // Must not throw or execution will terminate
   }
@@ -816,7 +816,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

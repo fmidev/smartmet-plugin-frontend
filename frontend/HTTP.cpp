@@ -8,7 +8,7 @@
 #include <engines/sputnik/Engine.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
-#include <spine/Exception.h>
+#include <macgyver/Exception.h>
 #include <spine/Reactor.h>
 #include <iostream>
 #include <stdexcept>
@@ -96,7 +96,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -123,7 +123,7 @@ void HTTP::requestHandler(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -141,7 +141,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 
     // Throw error if instance could not be created
     if (itsSputnikProcess == nullptr)
-      throw Spine::Exception(BCP, "HTTP plugin could not find Sputnik instance");
+      throw Fmi::Exception(BCP, "HTTP plugin could not find Sputnik instance");
 
     // Start Sputnik in frontend mode with call-back function
     itsSputnikProcess->launch(Engine::Sputnik::Frontend, theReactor);
@@ -177,17 +177,17 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     }
     catch (const libconfig::ParseException &e)
     {
-      throw Spine::Exception(BCP,
+      throw Fmi::Exception(BCP,
                              std::string("Configuration error ' ") + e.getError() + "' on line " +
                                  Fmi::to_string(e.getLine()));
     }
     catch (const libconfig::ConfigException &)
     {
-      throw Spine::Exception(BCP, "Configuration error");
+      throw Fmi::Exception(BCP, "Configuration error");
     }
     catch (...)
     {
-      throw Spine::Exception::Trace(BCP, "Configuration error!");
+      throw Fmi::Exception::Trace(BCP, "Configuration error!");
     }
 
     itsProxy = boost::make_shared<Proxy>(memorySize,
@@ -201,7 +201,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -224,7 +224,7 @@ void HTTP::shutdown()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

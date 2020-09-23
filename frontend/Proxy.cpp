@@ -7,7 +7,7 @@
 #include <boost/thread.hpp>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
-#include <spine/Exception.h>
+#include <macgyver/Exception.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -43,7 +43,7 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -63,7 +63,7 @@ ResponseCache& Proxy::getCache(ResponseCache::ContentEncodingType type)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -76,7 +76,7 @@ void Proxy::shutdown()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -166,7 +166,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 

@@ -15,7 +15,7 @@
 #include <macgyver/Base64.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
-#include <spine/Exception.h>
+#include <macgyver/Exception.h>
 #include <spine/ParameterFactory.h>
 #include <spine/SmartMet.h>
 #include <spine/Table.h>
@@ -94,7 +94,7 @@ QEngineFile buildQEngineFile(const Json::Value &jsonObject)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -109,7 +109,7 @@ bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -127,7 +127,7 @@ bool producerHasParam(const QEngineFile &file, const std::string &param)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -160,7 +160,7 @@ void Plugin::baseContentHandler(Spine::Reactor & /* theReactor */,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -187,7 +187,7 @@ void sleep(Spine::Reactor & /* theReactor */,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 #endif
@@ -217,7 +217,7 @@ std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -261,7 +261,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -317,7 +317,7 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -370,7 +370,7 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -465,7 +465,7 @@ BackendFiles buildSpineQEngineContents(
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -483,7 +483,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
-      throw Spine::Exception(BCP, "Sputnik service discovery not available");
+      throw Fmi::Exception(BCP, "Sputnik service discovery not available");
     }
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
@@ -547,7 +547,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -700,7 +700,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       {
         std::ostringstream oss;
         oss << "Invalid input type " << inputType;
-        throw Spine::Exception(BCP, oss.str());
+        throw Fmi::Exception(BCP, oss.str());
       }
 
       // Sort results by origintime
@@ -741,7 +741,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -796,7 +796,7 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -855,7 +855,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -897,7 +897,7 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -952,7 +952,7 @@ bool isAuthenticationRequired(const Spine::HTTP::Request &theRequest)
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1012,7 +1012,7 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1028,48 +1028,48 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
   try
   {
     if (theReactor->getRequiredAPIVersion() != SMARTMET_API_VERSION)
-      throw Spine::Exception(BCP, "Frontend and Server API version mismatch");
+      throw Fmi::Exception(BCP, "Frontend and Server API version mismatch");
 
     try
     {
       libconfig::Config config;
       config.readFile(theConfig);
       if (!config.lookupValue("user", itsUsername) || !config.lookupValue("password", itsPassword))
-        throw Spine::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
+        throw Fmi::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
     }
     catch (const libconfig::ParseException &e)
     {
-      throw Spine::Exception(BCP,
+      throw Fmi::Exception(BCP,
                              std::string("Configuration error ' ") + e.getError() + "' on line " +
                                  Fmi::to_string(e.getLine()));
     }
     catch (const libconfig::ConfigException &)
     {
-      throw Spine::Exception(BCP, "Configuration error");
+      throw Fmi::Exception(BCP, "Configuration error");
     }
     catch (...)
     {
-      throw Spine::Exception::Trace(BCP, "Configuration error!");
+      throw Fmi::Exception::Trace(BCP, "Configuration error!");
     }
 
     itsHTTP = new HTTP(theReactor, theConfig);
 
     if (!theReactor->addContentHandler(
             this, "/admin", boost::bind(&Plugin::callRequestHandler, this, _1, _2, _3)))
-      throw Spine::Exception(BCP, "Failed to register admin content handler");
+      throw Fmi::Exception(BCP, "Failed to register admin content handler");
 
     if (!theReactor->addContentHandler(
             this, "/", boost::bind(&Plugin::baseContentHandler, this, _1, _2, _3)))
-      throw Spine::Exception(BCP, "Failed to register base content handler");
+      throw Fmi::Exception(BCP, "Failed to register base content handler");
 
 #ifndef NDEBUG
     if (!theReactor->addContentHandler(this, "/sleep", boost::bind(&sleep, _1, _2, _3)))
-      throw Spine::Exception(BCP, "Failed to register sleep content handler");
+      throw Fmi::Exception(BCP, "Failed to register sleep content handler");
 #endif
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1087,7 +1087,7 @@ Plugin::~Plugin()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1114,7 +1114,7 @@ void Plugin::shutdown()
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
@@ -1219,7 +1219,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     }
     /*
      * Cannot find a source that is actually throwing this exception
-    catch (const Spine::Exceptions::NotAuthorizedError &)
+    catch (const Fmi::Exceptions::NotAuthorizedError &)
     {
       // Blocked by ip filter, masquerade as bad request
       theResponse.setStatus(Spine::HTTP::Status::bad_request, true);
@@ -1232,7 +1232,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     {
       // Catching all exceptions
 
-      Spine::Exception exception(BCP, "Request processing exception!", nullptr);
+      Fmi::Exception exception(BCP, "Request processing exception!", nullptr);
       exception.addParameter("URI", theRequest.getURI());
       exception.printError();
 
@@ -1284,7 +1284,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
   }
   catch (...)
   {
-    throw Spine::Exception::Trace(BCP, "Operation failed!");
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
 
