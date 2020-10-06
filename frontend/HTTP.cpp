@@ -164,6 +164,11 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 
     try
     {
+      // Enable sensible relative include paths
+      boost::filesystem::path p = theConfig;
+      p.remove_filename();
+      config.setIncludeDir(p.c_str());
+
       config.readFile(theConfig);
 
       config.lookupValue("compressed_cache.memory_bytes", memorySize);

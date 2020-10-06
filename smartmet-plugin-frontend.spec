@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 20.9.23k8.21
+Version: 20.10.6
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -17,9 +17,9 @@ BuildRequires: smartmet-library-spine-devel >= 20.9.23
 BuildRequires: smartmet-engine-sputnik-devel >= 20.8.23
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.9.18
+BuildRequires: smartmet-library-macgyver-devel >= 20.10.5
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 20.9.18
+Requires: smartmet-library-macgyver >= 20.10.5
 Requires: smartmet-server >= 20.9.23
 Requires: smartmet-engine-sputnik >= 20.8.23
 Requires: smartmet-library-spine >= 20.9.23
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Tue Oct  6 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.10.6-1.fmi
+- Enable sensible relative libconfig include paths
+
 * Wed Sep 23 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.9.23k8.21-1.fmi
 - Use Fmi::Exception instead of Spine::Exception
 

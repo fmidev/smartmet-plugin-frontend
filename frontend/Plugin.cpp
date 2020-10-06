@@ -1033,6 +1033,12 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     try
     {
       libconfig::Config config;
+
+      // Enable sensible relative include paths
+      boost::filesystem::path p = theConfig;
+      p.remove_filename();
+      config.setIncludeDir(p.c_str());
+
       config.readFile(theConfig);
       if (!config.lookupValue("user", itsUsername) || !config.lookupValue("password", itsPassword))
         throw Fmi::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
