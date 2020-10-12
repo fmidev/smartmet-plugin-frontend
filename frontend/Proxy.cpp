@@ -37,8 +37,7 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
     for (int i = 0; i < theBackendThreadCount; ++i)
     {
       // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      itsBackendThreads.add_thread(
-          new boost::thread(boost::bind(&boost::asio::io_service::run, &backendIoService)));
+      itsBackendThreads.add_thread(new boost::thread([this](){ this->backendIoService.run(); }));
     }
   }
   catch (...)
