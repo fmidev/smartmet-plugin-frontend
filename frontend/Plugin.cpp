@@ -235,14 +235,9 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
     std::string service = Spine::optional_string(theRequest.getParameter("service"), "");
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
-    std::ostringstream out;
-
     auto engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
-    {
-      out << "Sputnik engine is not available" << std::endl;
-      return {out.str(), false};
-    }
+      return {"Sputnik engine is not available", false};
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
 
@@ -255,9 +250,9 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
     names.push_back("IP");
     names.push_back("Port");
 
-    formatter->format(out, *table, names, theRequest, Spine::TableFormatterOptions());
+    auto out = formatter->format(*table, names, theRequest, Spine::TableFormatterOptions());
 
-    return {out.str(), true};
+    return {out, true};
   }
   catch (...)
   {
@@ -277,7 +272,6 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
 {
   try
   {
-    std::ostringstream out;
     Spine::Table reqTable;
     std::string format =
         SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
@@ -307,13 +301,13 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
     }
 
     std::vector<std::string> headers = {"Id", "Time", "Duration", "ClientIP", "RequestString"};
-    formatter->format(out, reqTable, headers, theRequest, Spine::TableFormatterOptions());
+    auto out = formatter->format(reqTable, headers, theRequest, Spine::TableFormatterOptions());
 
     // Set MIME
     std::string mime = formatter->mimetype() + "; charset=UTF-8";
     theResponse.setHeader("Content-Type", mime);
 
-    return {out.str(), true};
+    return {out, true};
   }
   catch (...)
   {
@@ -333,7 +327,6 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
 {
   try
   {
-    std::ostringstream out;
     Spine::Table reqTable;
     std::string format =
         SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
@@ -360,13 +353,13 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
     }
 
     std::vector<std::string> headers = {"Host", "Port", "Count"};
-    formatter->format(out, reqTable, headers, theRequest, Spine::TableFormatterOptions());
+    auto out = formatter->format(reqTable, headers, theRequest, Spine::TableFormatterOptions());
 
     // Set MIME
     std::string mime = formatter->mimetype() + "; charset=UTF-8";
     theResponse.setHeader("Content-Type", mime);
 
-    return {out.str(), true};
+    return {out, true};
   }
   catch (...)
   {
@@ -591,7 +584,6 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     {
       // Zero parameter tokens, print list of all spine producers
       // Build the result table
-      std::ostringstream out;
       Spine::Table table;
       std::size_t row = 0;
       for (auto &pair : result)
@@ -630,9 +622,9 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
 
       std::unique_ptr<Spine::TableFormatter> formatter(
           Spine::TableFormatterFactory::create(format));
-      formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
+      auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return {out.str(), true};
+      return {out, true};
     }
 
     else
@@ -730,13 +722,11 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       theNames.push_back("Path");
       theNames.push_back("OriginTime");
 
-      std::ostringstream out;
-
       std::unique_ptr<Spine::TableFormatter> formatter(
           Spine::TableFormatterFactory::create(format));
-      formatter->format(out, table, theNames, theRequest, Spine::TableFormatterOptions());
+      auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return {out.str(), true};
+      return {out, true};
     }
   }
   catch (...)

@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 20.10.12
+Version: 20.10.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 20.10.9
-BuildRequires: smartmet-engine-sputnik-devel >= 20.8.23
+BuildRequires: smartmet-library-spine-devel >= 20.10.14
+BuildRequires: smartmet-engine-sputnik-devel >= 20.10.12
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 20.10.9
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 20.10.9
 Requires: smartmet-server >= 20.10.12
-Requires: smartmet-engine-sputnik >= 20.8.23
-Requires: smartmet-library-spine >= 20.10.9
+Requires: smartmet-engine-sputnik >= 20.10.12
+Requires: smartmet-library-spine >= 20.10.14
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Wed Oct 14 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.10.14-1.fmi
+- Use new TableFormatter API
+
 * Mon Oct 12 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.10.12-1.fmi
 - Prefer lambdas over boost::bind
 
