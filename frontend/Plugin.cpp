@@ -104,8 +104,7 @@ bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
   {
     if (first.originTime != second.originTime)
       return first.originTime < second.originTime;
-    else
-      return (first.path < second.path);
+    return (first.path < second.path);
   }
   catch (...)
   {
@@ -626,107 +625,103 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
       return {out, true};
     }
 
+    // There are some parameter tokens, return spine producers providing these parameters
+    if (inputType == "name")
+    {
+      for (auto &pair : result)
+      {
+        // Check if producer contains parameter
+        // Get latest file
+        QEngineFile &latest = *(--pair.second.end());
+        unsigned int matches = 0;
+        for (auto &param : paramTokens)
+        {
+          if (producerHasParam(latest, param))
+          {
+            ++matches;
+          }
+        }
+
+        if (matches == tokens)
+        // Has all specified parameters
+        {
+          iHasAllParameters.push_back(latest);
+        }
+      }
+    }
+    else if (inputType == "id")
+    {
+      for (auto &pair : result)
+      {
+        // Check if producer contains parameter
+        // Get latest file
+        QEngineFile &latest = *(--pair.second.end());
+        unsigned int matches = 0;
+        for (auto &param : paramTokens)
+        {
+          // If param type is id, but input cannot be cast into int, simply ignore
+          int paramId = 0;
+          try
+          {
+            paramId = boost::lexical_cast<int>(param);
+          }
+          catch (const std::bad_cast &)
+          {
+            ++matches;
+            continue;
+          }
+          std::string paramString = Spine::ParameterFactory::instance().name(paramId);
+          if (producerHasParam(latest, paramString))
+          {
+            ++matches;
+          }
+        }
+
+        if (matches == tokens)
+        // Has all specified parameters
+        {
+          iHasAllParameters.push_back(latest);
+        }
+      }
+    }
     else
     {
-      // There are some parameter tokens, return spine producers providing these parameters
-      if (inputType == "name")
-      {
-        for (auto &pair : result)
-        {
-          // Check if producer contains parameter
-          // Get latest file
-          QEngineFile &latest = *(--pair.second.end());
-          unsigned int matches = 0;
-          for (auto &param : paramTokens)
-          {
-            if (producerHasParam(latest, param))
-            {
-              ++matches;
-            }
-          }
-
-          if (matches == tokens)
-          // Has all specified parameters
-          {
-            iHasAllParameters.push_back(latest);
-          }
-        }
-      }
-      else if (inputType == "id")
-      {
-        for (auto &pair : result)
-        {
-          // Check if producer contains parameter
-          // Get latest file
-          QEngineFile &latest = *(--pair.second.end());
-          unsigned int matches = 0;
-          for (auto &param : paramTokens)
-          {
-            // If param type is id, but input cannot be cast into int, simply ignore
-            int paramId = 0;
-            try
-            {
-              paramId = boost::lexical_cast<int>(param);
-            }
-            catch (const std::bad_cast &)
-            {
-              ++matches;
-              continue;
-            }
-            std::string paramString = Spine::ParameterFactory::instance().name(paramId);
-            if (producerHasParam(latest, paramString))
-            {
-              ++matches;
-            }
-          }
-
-          if (matches == tokens)
-          // Has all specified parameters
-          {
-            iHasAllParameters.push_back(latest);
-          }
-        }
-      }
-      else
-      {
-        std::ostringstream oss;
-        oss << "Invalid input type " << inputType;
-        throw Fmi::Exception(BCP, oss.str());
-      }
-
-      // Sort results by origintime
-      iHasAllParameters.sort(boost::bind(qEngineSort, _2, _1));
-
-      // Build result table
-      Spine::Table table;
-      std::size_t row = 0;
-      for (auto &file : iHasAllParameters)
-      {
-        std::size_t column = 0;
-
-        table.set(column, row, file.producer);
-        ++column;
-
-        table.set(column, row, file.path);
-        ++column;
-
-        table.set(column, row, file.originTime);
-        ++column;
-
-        ++row;
-      }
-
-      Spine::TableFormatter::Names theNames;
-      theNames.push_back("Producer");
-      theNames.push_back("Path");
-      theNames.push_back("OriginTime");
-
-      std::unique_ptr<Spine::TableFormatter> formatter(
-          Spine::TableFormatterFactory::create(format));
-      auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
-
-      return {out, true};
+      std::ostringstream oss;
+      oss << "Invalid input type " << inputType;
+      throw Fmi::Exception(BCP, oss.str());
     }
+
+    // Sort results by origintime
+    iHasAllParameters.sort(boost::bind(qEngineSort, _2, _1));
+
+    // Build result table
+    Spine::Table table;
+    std::size_t row = 0;
+    for (auto &file : iHasAllParameters)
+    {
+      std::size_t column = 0;
+
+      table.set(column, row, file.producer);
+      ++column;
+
+      table.set(column, row, file.path);
+      ++column;
+
+      table.set(column, row, file.originTime);
+      ++column;
+
+      ++row;
+    }
+
+    Spine::TableFormatter::Names theNames;
+    theNames.push_back("Producer");
+    theNames.push_back("Path");
+    theNames.push_back("OriginTime");
+
+    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
+    auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
+
+    return {out, true};
   }
   catch (...)
   {
