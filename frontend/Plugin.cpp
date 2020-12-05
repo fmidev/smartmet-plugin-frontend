@@ -380,7 +380,7 @@ BackendFiles buildSpineQEngineContents(
   {
     AllFiles theFiles;
 
-    for (auto &contentPair : backendContents)
+    for (const auto &contentPair : backendContents)
     {
       // Individual backend contents
       BackendFiles theseFiles;
