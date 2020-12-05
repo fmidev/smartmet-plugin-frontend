@@ -1156,7 +1156,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       boost::shared_ptr<Spine::TableFormatter> formatter(
           Spine::TableFormatterFactory::create(format));
-      theResponse.setHeader("Content-Type", formatter->mimetype().c_str());
+      theResponse.setHeader("Content-Type", formatter->mimetype());
 
       // We allow JSON requests, hence we should enable CORS
       theResponse.setHeader("Access-Control-Allow-Origin", "*");
@@ -1171,9 +1171,9 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       std::string expiration = Fmi::to_http_string(t_expires);
       std::string modification = Fmi::to_http_string(t_now);
 
-      theResponse.setHeader("Cache-Control", cachecontrol.c_str());
-      theResponse.setHeader("Expires", expiration.c_str());
-      theResponse.setHeader("Last-Modified", modification.c_str());
+      theResponse.setHeader("Cache-Control", cachecontrol);
+      theResponse.setHeader("Expires", expiration);
+      theResponse.setHeader("Last-Modified", modification);
 
       if (response.first.empty())
       {
@@ -1183,6 +1183,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
 #ifdef MYDEBUG
       std::cout << "Output:" << std::endl << response << std::endl;
+
 #endif
     }
     /*
