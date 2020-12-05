@@ -6,9 +6,9 @@
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 #include <engines/sputnik/Engine.h>
+#include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
-#include <macgyver/Exception.h>
 #include <spine/Reactor.h>
 #include <iostream>
 #include <stdexcept>
@@ -153,7 +153,10 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     this->itsReactor = theReactor;
 
     libconfig::Config config;
-    unsigned long long memorySize, filesystemSize, uncomMemorySize, uncomFilesystemSize;
+    unsigned long long memorySize = 0;
+    unsigned long long filesystemSize = 0;
+    unsigned long long uncomMemorySize = 0;
+    unsigned long long uncomFilesystemSize = 0;
 
     // do not use nullptr here or path construction throws
     const char *filesystemCachePath = "";
@@ -183,8 +186,8 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     catch (const libconfig::ParseException &e)
     {
       throw Fmi::Exception(BCP,
-                             std::string("Configuration error ' ") + e.getError() + "' on line " +
-                                 Fmi::to_string(e.getLine()));
+                           std::string("Configuration error ' ") + e.getError() + "' on line " +
+                               Fmi::to_string(e.getLine()));
     }
     catch (const libconfig::ConfigException &)
     {

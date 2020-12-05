@@ -663,7 +663,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
           for (auto &param : paramTokens)
           {
             // If param type is id, but input cannot be cast into int, simply ignore
-            int paramId;
+            int paramId = 0;
             try
             {
               paramId = boost::lexical_cast<int>(param);
