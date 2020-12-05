@@ -1076,14 +1076,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
 
 Plugin::~Plugin()
 {
-  try
-  {
-    delete itsHTTP;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
+  delete itsHTTP;
 }
 
 // ----------------------------------------------------------------------
