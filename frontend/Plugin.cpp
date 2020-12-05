@@ -807,7 +807,7 @@ std::pair<std::string, bool> Plugin::pauseUntil(const boost::posix_time::ptime &
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor &theReactor,
+std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor */,
                                                   const Spine::HTTP::Request &theRequest)
 {
   try
@@ -849,7 +849,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor &theReactor,
+std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReactor */,
                                                      const Spine::HTTP::Request &theRequest)
 {
   try
