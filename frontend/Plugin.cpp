@@ -509,7 +509,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
       boost::asio::streambuf response;
       boost::system::error_code error;
 
-      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error))
+      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0u)
       {
         if (error == boost::asio::error::eof)  // Reads until socket is closed
           break;
