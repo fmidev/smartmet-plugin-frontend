@@ -1047,7 +1047,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
       throw Fmi::Exception::Trace(BCP, "Configuration error!");
     }
 
-    itsHTTP = new HTTP(theReactor, theConfig);
+    itsHTTP.reset(new HTTP(theReactor, theConfig));
 
     if (!theReactor->addContentHandler(
             this, "/admin", boost::bind(&Plugin::callRequestHandler, this, _1, _2, _3)))
@@ -1066,17 +1066,6 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Destructor
- */
-// ----------------------------------------------------------------------
-
-Plugin::~Plugin()
-{
-  delete itsHTTP;
 }
 
 // ----------------------------------------------------------------------

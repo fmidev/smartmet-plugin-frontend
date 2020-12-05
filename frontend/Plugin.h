@@ -6,14 +6,13 @@
 
 #pragma once
 
+#include "HTTP.h"
 #include <macgyver/Cache.h>
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
 #include <spine/SmartMetPlugin.h>
-
+#include <memory>
 #include <utility>
-
-#include "HTTP.h"
 
 namespace SmartMet
 {
@@ -25,7 +24,7 @@ class Plugin : public SmartMetPlugin
 {
  public:
   Plugin(Spine::Reactor* theReactor, const char* theConfig);
-  virtual ~Plugin();
+  ~Plugin() = default;
 
   const std::string& getPluginName() const;
   int getRequiredAPIVersion() const;
@@ -43,7 +42,7 @@ class Plugin : public SmartMetPlugin
                           Spine::HTTP::Response& theResponse);
 
  private:
-  HTTP* itsHTTP;
+  std::unique_ptr<HTTP> itsHTTP;
   const std::string itsModuleName;
 
   std::string itsUsername;
