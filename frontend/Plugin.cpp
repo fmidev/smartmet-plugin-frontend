@@ -116,9 +116,9 @@ bool producerHasParam(const QEngineFile &file, const std::string &param)
 {
   try
   {
-    for (auto it = file.parameters.begin(); it != file.parameters.end(); ++it)
+    for (const auto &p : file.parameters)
     {
-      if (param == *it)
+      if (param == p)
         return true;
     }
 
@@ -391,10 +391,8 @@ BackendFiles buildSpineQEngineContents(
       // Skip servers which returned error HTML or some other unparseable response
       if (reader.parse(contentPair.second, jvalue))
       {
-        for (Json::Value::iterator jit = jvalue.begin(); jit != jvalue.end(); ++jit)
+        for (const auto &jsonObject : jvalue)
         {
-          auto &jsonObject = *jit;
-
           QEngineFile thisFile = buildQEngineFile(jsonObject);
 
           // Keep only desired producer, or all if the requested producer is empty
@@ -420,32 +418,28 @@ BackendFiles buildSpineQEngineContents(
     std::size_t maxsize = 0;
     for (auto backendIt = theFiles.begin(); backendIt != theFiles.end(); ++backendIt)
     {
-      for (auto producerIt = backendIt->second.begin(); producerIt != backendIt->second.end();
-           ++producerIt)
-      {
-        maxsize = std::max(maxsize, producerIt->second.size());
-      }
+      for (const auto &producer : backendIt->second)
+        maxsize = std::max(maxsize, producer.second.size());
     }
 
     BackendFiles spineFiles;
 
     for (auto backendIt = theFiles.begin(); backendIt != theFiles.end(); ++backendIt)
     {
-      for (auto producerIt = backendIt->second.begin(); producerIt != backendIt->second.end();
-           ++producerIt)
+      for (const auto &producer : backendIt->second)
       {
-        auto outputIt = spineFiles.find(producerIt->first);
+        auto outputIt = spineFiles.find(producer.first);
         if (outputIt == spineFiles.end())
         {
-          spineFiles.insert(std::make_pair(producerIt->first, producerIt->second));
+          spineFiles.insert(std::make_pair(producer.first, producer.second));
         }
         else
         {
           ProducerFiles tempResult(maxsize);
           auto last_modified = std::set_intersection(outputIt->second.begin(),
                                                      outputIt->second.end(),
-                                                     producerIt->second.begin(),
-                                                     producerIt->second.end(),
+                                                     producer.second.begin(),
+                                                     producer.second.end(),
                                                      tempResult.begin(),
                                                      qEngineSort);
           outputIt->second = ProducerFiles(tempResult.begin(), last_modified);
