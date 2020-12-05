@@ -22,7 +22,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                             Spine::Reactor& theReactor,
-                            const std::string& theHostName,
+                            std::string theHostName,
                             std::string theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,

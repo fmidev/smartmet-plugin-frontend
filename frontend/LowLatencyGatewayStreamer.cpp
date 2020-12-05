@@ -162,14 +162,14 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                                                      Spine::Reactor& theReactor,
-                                                     const std::string& theHostName,
+                                                     std::string theHostName,
                                                      std::string theIP,
                                                      unsigned short thePort,
                                                      int theBackendTimeoutInSeconds,
                                                      const Spine::HTTP::Request& theOriginalRequest)
     : itsOriginalRequest(theOriginalRequest),
       itsSocketBuffer(),
-      itsHostName(theHostName),
+      itsHostName(std::move(theHostName)),
       itsIP(std::move(theIP)),
       itsPort(thePort),
       itsBackendSocket(theProxy->backendIoService),

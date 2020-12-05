@@ -56,18 +56,18 @@ struct QEngineFile
   std::string minTime;
   std::string maxTime;
 
-  QEngineFile(const std::string &theProducer,
-              const std::string thePath,
-              const std::list<std::string> &theParameters,
-              const std::string &theOriginTime,
-              const std::string &theMinTime,
-              const std::string &theMaxTime)
-      : producer(theProducer),
-        path(thePath),
-        parameters(theParameters),
-        originTime(theOriginTime),
-        minTime(theMinTime),
-        maxTime(theMaxTime)
+  QEngineFile(std::string theProducer,
+              std::string thePath,
+              std::list<std::string> theParameters,
+              std::string theOriginTime,
+              std::string theMinTime,
+              std::string theMaxTime)
+      : producer(std::move(theProducer)),
+        path(std::move(thePath)),
+        parameters(std::move(theParameters)),
+        originTime(std::move(theOriginTime)),
+        minTime(std::move(theMinTime)),
+        maxTime(std::move(theMaxTime))
   {
   }
 
