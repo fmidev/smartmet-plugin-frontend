@@ -204,7 +204,7 @@ std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
   {
     std::ostringstream out;
 
-    auto engine = theReactor.getSingleton("Sputnik", nullptr);
+    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
       out << "Sputnik engine is not available" << std::endl;
@@ -235,7 +235,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
     std::string service = Spine::optional_string(theRequest.getParameter("service"), "");
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
-    auto engine = theReactor.getSingleton("Sputnik", nullptr);
+    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
       return {"Sputnik engine is not available", false};
 
@@ -401,7 +401,7 @@ BackendFiles buildSpineQEngineContents(
           // Keep only desired producer, or all if the requested producer is empty
           if (producer.empty() || producer == thisFile.producer)
           {
-            BackendFiles::iterator it = theseFiles.find(thisFile.producer);
+            auto it = theseFiles.find(thisFile.producer);
             if (it != theseFiles.end())
               it->second.push_back(thisFile);
             else
@@ -435,7 +435,7 @@ BackendFiles buildSpineQEngineContents(
       for (auto producerIt = backendIt->second.begin(); producerIt != backendIt->second.end();
            ++producerIt)
       {
-        BackendFiles::iterator outputIt = spineFiles.find(producerIt->first);
+        auto outputIt = spineFiles.find(producerIt->first);
         if (outputIt == spineFiles.end())
         {
           spineFiles.insert(std::make_pair(producerIt->first, producerIt->second));
@@ -473,7 +473,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
 {
   try
   {
-    auto engine = theReactor.getSingleton("Sputnik", nullptr);
+    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
     if (!engine)
     {
       throw Fmi::Exception(BCP, "Sputnik service discovery not available");
