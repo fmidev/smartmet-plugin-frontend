@@ -532,7 +532,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
       size_t bodyStart = rawResponse.find("\r\n\r\n");
       std::string body = rawResponse.substr(bodyStart);
 
-      qEngineContentList.push_back(std::make_pair(backend.get<0>(), body));
+      qEngineContentList.emplace_back(std::make_pair(backend.get<0>(), body));
     }
 
     return qEngineContentList;
