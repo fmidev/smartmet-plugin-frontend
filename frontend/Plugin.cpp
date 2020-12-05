@@ -966,7 +966,10 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
     // Parse user and password
 
     std::vector<std::string> splitHeader;
-    std::string truePassword, trueUser, trueDigest, givenDigest;
+    std::string truePassword;
+    std::string trueUser;
+    std::string trueDigest;
+    std::string givenDigest;
 
     boost::algorithm::split(
         splitHeader, *credentials, boost::is_any_of(" "), boost::token_compress_on);
