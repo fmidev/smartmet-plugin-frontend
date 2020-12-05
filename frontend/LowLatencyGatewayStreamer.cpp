@@ -12,11 +12,15 @@ namespace ip = boost::asio::ip;
 namespace
 {
 #ifndef PROXY_MAX_BUFFER_SIZE
-#define PROXY_MAX_BUFFER_SIZE 16777216  // 16 MB
+const std::size_t proxy_max_buffer_size = 16777216;  // 16 MB
+#else
+const std::size_t proxy_max_buffer_size = PROXY_MAX_BUFFER_SIZE;
 #endif
 
 #ifndef PROXY_MAX_CACHED_BUFFER_SIZE
-#define PROXY_MAX_CACHED_BUFFER_SIZE 20971520  // 20 MB
+const std::size_t proxy_max_cached_buffer_size = 20971520;  // 20 MB
+#else
+const std::size_t proxy_max_cached_buffer_size = PROXY_MAX_CACHED_BUFFER_SIZE;
 #endif
 
 // Format response header date as in "Fri, 27 Jul 2018 11:26:04 GMT"
@@ -710,7 +714,7 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
       {
         itsCachedContent.append(itsSocketBuffer.begin(), bytes_transferred);
 
-        if (itsCachedContent.size() > PROXY_MAX_CACHED_BUFFER_SIZE)
+        if (itsCachedContent.size() > proxy_max_cached_buffer_size)
         {
           // Overflow, do not cache this response
           itsResponseIsCacheable = false;
@@ -718,7 +722,7 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
         }
       }
 
-      if (itsClientDataBuffer.size() > PROXY_MAX_BUFFER_SIZE)
+      if (itsClientDataBuffer.size() > proxy_max_buffer_size)
       {
         // Too much data in buffer
         // Signal the consumer thread to schedule the next read when buffer is extracted
