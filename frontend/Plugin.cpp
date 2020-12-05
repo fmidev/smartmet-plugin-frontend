@@ -559,7 +559,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     std::size_t tokens = 0;
     std::vector<std::string> paramTokens;
 
-    if (input != "")
+    if (!input.empty())
     {
       // Parse input parameter names
       boost::algorithm::split(
@@ -1172,7 +1172,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       theResponse.setHeader("Expires", expiration.c_str());
       theResponse.setHeader("Last-Modified", modification.c_str());
 
-      if (response.first.size() == 0)
+      if (response.first.empty())
       {
         std::cerr << "Warning: Empty input for request " << theRequest.getQueryString() << " from "
                   << theRequest.getClientIP() << std::endl;
