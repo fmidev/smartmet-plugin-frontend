@@ -71,7 +71,7 @@ struct QEngineFile
   {
   }
 
-  QEngineFile() : producer(), path(), parameters(), originTime(), minTime(), maxTime() {}
+  QEngineFile() = default;
 };
 
 QEngineFile buildQEngineFile(const Json::Value &jsonObject)
