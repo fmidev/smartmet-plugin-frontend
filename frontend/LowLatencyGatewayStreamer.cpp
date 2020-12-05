@@ -42,8 +42,7 @@ std::string contentEnumToString(ResponseCache::ContentEncodingType type)
       case ResponseCache::ContentEncodingType::GZIP:
         return "gzip";
       case ResponseCache::ContentEncodingType::NONE:
-        return "";
-      default:  // Unreachable, must be here because compiler
+      default:
         return "";
     }
   }
@@ -219,14 +218,14 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     itsTimeoutTimer = boost::make_shared<boost::asio::deadline_timer>(
         itsProxy->backendIoService, boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
-    itsTimeoutTimer->async_wait(
-        [me=shared_from_this()](const boost::system::error_code& err){ me->handleTimeout(err); });
+    itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err) {
+      me->handleTimeout(err);
+    });
 
     // Start to listen for the reply, headers not yet received
     itsBackendSocket.async_read_some(boost::asio::buffer(itsSocketBuffer),
-                                     [me=shared_from_this()]
-                                     (const boost::system::error_code& err, std::size_t bytes_transferred)
-                                     {
+                                     [me = shared_from_this()](const boost::system::error_code& err,
+                                                               std::size_t bytes_transferred) {
                                        me->readCacheResponse(err, bytes_transferred);
                                      });
 
@@ -276,9 +275,8 @@ std::string LowLatencyGatewayStreamer::getChunk()
       // Schedule new read from the socket now that we have extracted the buffer
       itsBackendSocket.async_read_some(
           boost::asio::buffer(itsSocketBuffer),
-          [me=shared_from_this()]
-          (const boost::system::error_code& err, std::size_t bytes_transferred)
-          {
+          [me = shared_from_this()](const boost::system::error_code& err,
+                                    std::size_t bytes_transferred) {
             me->readDataResponse(err, bytes_transferred);
           });
 
@@ -369,9 +367,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
         itsBackendSocket.async_read_some(
             boost::asio::buffer(itsSocketBuffer),
-            [me=shared_from_this()]
-            (const boost::system::error_code& err, std::size_t bytes_transferred)
-            {
+            [me = shared_from_this()](const boost::system::error_code& err,
+                                      std::size_t bytes_transferred) {
               me->readCacheResponse(err, bytes_transferred);
             });
 
@@ -399,9 +396,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           // Go to data response loop
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
-              [me=shared_from_this()]
-              (const boost::system::error_code& err, std::size_t bytes_transferred)
-              {
+              [me = shared_from_this()](const boost::system::error_code& err,
+                                        std::size_t bytes_transferred) {
                 me->readDataResponse(err, bytes_transferred);
               });
 
@@ -522,9 +518,8 @@ void LowLatencyGatewayStreamer::sendContentRequest()
       // Start to listen for the reply, headers not yet received
       itsBackendSocket.async_read_some(
           boost::asio::buffer(itsSocketBuffer),
-          [me=shared_from_this()]
-          (const boost::system::error_code& err, std::size_t bytes_transferred)
-          {
+          [me = shared_from_this()](const boost::system::error_code& err,
+                                    std::size_t bytes_transferred) {
             me->readDataResponseHeaders(err, bytes_transferred);
           });
 
@@ -580,9 +575,8 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
 
         itsBackendSocket.async_read_some(
             boost::asio::buffer(itsSocketBuffer),
-            [me=shared_from_this()]
-            (const boost::system::error_code& err, std::size_t bytes_transferred)
-            {
+            [me = shared_from_this()](const boost::system::error_code& err,
+                                      std::size_t bytes_transferred) {
               me->readDataResponseHeaders(err, bytes_transferred);
             });
 
@@ -640,14 +634,10 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             if (access_control_allow_origin)
               meta.access_control_allow_origin = *access_control_allow_origin;
 
+            meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
             auto content_encoding = responsePtr->getHeader("Content-Encoding");
-
-            if (!content_encoding)
-              meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
-            else if (boost::algorithm::contains(*content_encoding, "gzip"))
+            if (content_encoding && boost::algorithm::contains(*content_encoding, "gzip"))
               meta.content_encoding = ResponseCache::ContentEncodingType::GZIP;
-            else
-              meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
 
             // Store for later use when writing to cache
             itsBackendMetadata = meta;
@@ -665,9 +655,8 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
 
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
-              [me=shared_from_this()]
-              (const boost::system::error_code& err, std::size_t bytes_transferred)
-              {
+              [me = shared_from_this()](const boost::system::error_code& err,
+                                        std::size_t bytes_transferred) {
                 me->readDataResponse(err, bytes_transferred);
               });
         }
@@ -679,9 +668,8 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           itsClientDataBuffer = itsResponseHeaderBuffer;
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
-              [me=shared_from_this()]
-              (const boost::system::error_code& err, std::size_t bytes_transferred)
-              {
+              [me = shared_from_this()](const boost::system::error_code& err,
+                                        std::size_t bytes_transferred) {
                 me->readDataResponse(err, bytes_transferred);
               });
         }
@@ -741,9 +729,8 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
       // Go back to listen the socket
       itsBackendSocket.async_read_some(
           boost::asio::buffer(itsSocketBuffer),
-          [me=shared_from_this()]
-          (const boost::system::error_code& err, std::size_t bytes_transferred)
-          {
+          [me = shared_from_this()](const boost::system::error_code& err,
+                                    std::size_t bytes_transferred) {
             me->readDataResponse(err, bytes_transferred);
           });
 
