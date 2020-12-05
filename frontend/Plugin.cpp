@@ -204,7 +204,7 @@ std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
     std::ostringstream out;
 
     auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (!engine)
+    if (engine == nullptr)
     {
       out << "Sputnik engine is not available" << std::endl;
       return {out.str(), false};
@@ -235,7 +235,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
 
     auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (!engine)
+    if (engine == nullptr)
       return {"Sputnik engine is not available", false};
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
@@ -467,7 +467,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
   try
   {
     auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (!engine)
+    if (engine == nullptr)
     {
       throw Fmi::Exception(BCP, "Sputnik service discovery not available");
     }
