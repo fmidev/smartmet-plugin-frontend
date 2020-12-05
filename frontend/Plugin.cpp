@@ -13,9 +13,9 @@
 #include <engines/sputnik/Services.h>
 #include <json/json.h>
 #include <macgyver/Base64.h>
+#include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
-#include <macgyver/Exception.h>
 #include <spine/ParameterFactory.h>
 #include <spine/SmartMet.h>
 #include <spine/Table.h>
@@ -490,8 +490,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
     std::list<std::pair<std::string, std::string> > qEngineContentList;
     for (auto &backend : backendList)
     {
-      bip::tcp::resolver::query query(backend.get<1>(),
-                                      boost::lexical_cast<std::string>(backend.get<2>()));
+      bip::tcp::resolver::query query(backend.get<1>(), Fmi::to_string(backend.get<2>()));
       bip::tcp::resolver::iterator endpoint = resolver.resolve(query);
 
       bip::tcp::socket socket(io_service);
@@ -1036,8 +1035,8 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     catch (const libconfig::ParseException &e)
     {
       throw Fmi::Exception(BCP,
-                             std::string("Configuration error ' ") + e.getError() + "' on line " +
-                                 Fmi::to_string(e.getLine()));
+                           std::string("Configuration error ' ") + e.getError() + "' on line " +
+                               Fmi::to_string(e.getLine()));
     }
     catch (const libconfig::ConfigException &)
     {
@@ -1194,8 +1193,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       // The headers themselves
 
-      std::string cachecontrol =
-          "public, max-age=" + boost::lexical_cast<std::string>(expires_seconds);
+      std::string cachecontrol = "public, max-age=" + Fmi::to_string(expires_seconds);
       std::string expiration = Fmi::to_http_string(t_expires);
       std::string modification = Fmi::to_http_string(t_now);
 
