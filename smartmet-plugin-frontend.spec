@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 20.12.7
+Version: 21.1.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 20.12.4
-BuildRequires: smartmet-engine-sputnik-devel >= 20.12.7
+BuildRequires: smartmet-library-spine-devel >= 21.1.14
+BuildRequires: smartmet-engine-sputnik-devel >= 21.1.14
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 20.11.24
+BuildRequires: smartmet-library-macgyver-devel >= 21.1.14
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 20.11.24
-Requires: smartmet-server >= 20.10.28
-Requires: smartmet-engine-sputnik >= 20.12.7
-Requires: smartmet-library-spine >= 20.12.4
+Requires: smartmet-library-macgyver >= 21.1.14
+Requires: smartmet-server >= 21.1.14
+Requires: smartmet-engine-sputnik >= 21.1.14
+Requires: smartmet-library-spine >= 21.1.14
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Jan 14 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.1.14-1.fmi
+- Repackaged smartmet to resolve debuginfo issues
+
 * Mon Dec  7 2020 Mika Heiskanen <mika.heiskanen@fmi.fi> - 20.12.7-1.fmi
 - Minor fixes to silence CodeChecker warnings
 
