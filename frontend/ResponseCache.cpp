@@ -6,7 +6,7 @@ ResponseCache::ResponseCache(std::size_t memoryCacheSize,
                              std::size_t filesystemCacheSize,
                              const boost::filesystem::path& fileCachePath)
     : itsMetaDataCache((memoryCacheSize + filesystemCacheSize) /
-                       8)  // Buffer cache sizes are in bytes, this in units
+                       8192)  // Buffer cache sizes are in bytes, this in units
       ,
       itsBufferCache(memoryCacheSize, filesystemCacheSize, fileCachePath)
 {
