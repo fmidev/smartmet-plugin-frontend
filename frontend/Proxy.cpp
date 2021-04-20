@@ -114,7 +114,6 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
 
     fwdRequest.setHeader("Connection", "close");
 
-    // The destructor will call stopBackendRequest so there should be no leaks in the counters
     boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
         new LowLatencyGatewayStreamer(shared_from_this(),
                                       theReactor,
@@ -123,8 +122,6 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
                                       theBackendPort,
                                       itsBackendTimeoutInSeconds,
                                       fwdRequest));
-
-    theReactor.startBackendRequest(theHostName, theBackendPort);
 
     // Begin backend negotiation
     bool success = responseStreamer->sendAndListen();

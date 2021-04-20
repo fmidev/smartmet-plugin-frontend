@@ -155,10 +155,7 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 
 }  // namespace
 
-LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
-{
-  itsReactor.stopBackendRequest(itsHostName, itsPort);
-}
+LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer() {}
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                                                      Spine::Reactor& theReactor,

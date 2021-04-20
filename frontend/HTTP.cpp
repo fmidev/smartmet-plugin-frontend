@@ -19,6 +19,23 @@ namespace Plugin
 {
 namespace Frontend
 {
+class BackendCounter
+{
+ public:
+  BackendCounter(Spine::Reactor &theReactor, const std::string &theHost, int thePort)
+      : itsReactor(theReactor), itsHost(theHost), itsPort(thePort)
+  {
+    itsReactor.startBackendRequest(itsHost, itsPort);
+  }
+
+  ~BackendCounter() { itsReactor.stopBackendRequest(itsHost, itsPort); }
+
+ private:
+  Spine::Reactor &itsReactor;
+  std::string itsHost;
+  int itsPort;
+};
+
 Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                    const Spine::HTTP::Request &theRequest,
                                    Spine::HTTP::Response &theResponse)
@@ -65,6 +82,9 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     // The destructor of the streamer created by the proxy will decrement the count.
 
     Proxy::ProxyStatus proxyStatus = Proxy::ProxyStatus::PROXY_SUCCESS;
+
+    // Scope guard for counting active requests
+    BackendCounter counter(theReactor, theHost->Name(), theHost->Port());
 
     // Use Proxy class to forward the request to backend server
     proxyStatus = itsProxy->HTTPForward(theReactor,

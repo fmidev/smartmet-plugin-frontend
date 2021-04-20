@@ -3,7 +3,7 @@
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
 Version: 21.4.20
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Tue Apr 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.20-2.fmi
+- Use a scope guard to handle request counting to guarantee correctness
+
 * Tue Apr 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.20-1.fmi
 - Fixed backend request counters not to leak on errors
 
