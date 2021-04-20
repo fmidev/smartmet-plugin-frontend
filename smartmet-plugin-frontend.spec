@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 21.2.25
+Version: 21.4.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 21.2.5
+BuildRequires: smartmet-library-spine-devel >= 21.4.16
 BuildRequires: smartmet-engine-sputnik-devel >= 21.1.14
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.1.25
+BuildRequires: smartmet-library-macgyver-devel >= 21.2.25
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 21.1.25
+Requires: smartmet-library-macgyver >= 21.2.25
 Requires: smartmet-server >= 21.1.14
 Requires: smartmet-engine-sputnik >= 21.1.14
-Requires: smartmet-library-spine >= 21.2.5
+Requires: smartmet-library-spine >= 21.4.16
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Tue Apr 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.20-1.fmi
+- Fixed backend request counters not to leak on errors
+
 * Thu Feb 25 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.2.25-1.fmi
 - Use a much smaller response cache, it was severely oversized
 

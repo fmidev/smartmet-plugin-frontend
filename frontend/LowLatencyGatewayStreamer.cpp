@@ -222,16 +222,14 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     itsTimeoutTimer = boost::make_shared<boost::asio::deadline_timer>(
         itsProxy->backendIoService, boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
-    itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err) {
-      me->handleTimeout(err);
-    });
+    itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err)
+                                { me->handleTimeout(err); });
 
     // Start to listen for the reply, headers not yet received
     itsBackendSocket.async_read_some(boost::asio::buffer(itsSocketBuffer),
                                      [me = shared_from_this()](const boost::system::error_code& err,
-                                                               std::size_t bytes_transferred) {
-                                       me->readCacheResponse(err, bytes_transferred);
-                                     });
+                                                               std::size_t bytes_transferred)
+                                     { me->readCacheResponse(err, bytes_transferred); });
 
     return true;
   }
@@ -280,9 +278,8 @@ std::string LowLatencyGatewayStreamer::getChunk()
       itsBackendSocket.async_read_some(
           boost::asio::buffer(itsSocketBuffer),
           [me = shared_from_this()](const boost::system::error_code& err,
-                                    std::size_t bytes_transferred) {
-            me->readDataResponse(err, bytes_transferred);
-          });
+                                    std::size_t bytes_transferred)
+          { me->readDataResponse(err, bytes_transferred); });
 
       // Reset timeout timer
       itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
@@ -372,9 +369,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
         itsBackendSocket.async_read_some(
             boost::asio::buffer(itsSocketBuffer),
             [me = shared_from_this()](const boost::system::error_code& err,
-                                      std::size_t bytes_transferred) {
-              me->readCacheResponse(err, bytes_transferred);
-            });
+                                      std::size_t bytes_transferred)
+            { me->readCacheResponse(err, bytes_transferred); });
 
         // Reset timeout timer
         itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
@@ -401,9 +397,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred) {
-                me->readDataResponse(err, bytes_transferred);
-              });
+                                        std::size_t bytes_transferred)
+              { me->readDataResponse(err, bytes_transferred); });
 
           // Reset timeout timer
           itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
@@ -523,9 +518,8 @@ void LowLatencyGatewayStreamer::sendContentRequest()
       itsBackendSocket.async_read_some(
           boost::asio::buffer(itsSocketBuffer),
           [me = shared_from_this()](const boost::system::error_code& err,
-                                    std::size_t bytes_transferred) {
-            me->readDataResponseHeaders(err, bytes_transferred);
-          });
+                                    std::size_t bytes_transferred)
+          { me->readDataResponseHeaders(err, bytes_transferred); });
 
       // Reset timeout timer
       itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
@@ -580,9 +574,8 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
         itsBackendSocket.async_read_some(
             boost::asio::buffer(itsSocketBuffer),
             [me = shared_from_this()](const boost::system::error_code& err,
-                                      std::size_t bytes_transferred) {
-              me->readDataResponseHeaders(err, bytes_transferred);
-            });
+                                      std::size_t bytes_transferred)
+            { me->readDataResponseHeaders(err, bytes_transferred); });
 
         // Reset timeout timer
         itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
@@ -660,9 +653,8 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred) {
-                me->readDataResponse(err, bytes_transferred);
-              });
+                                        std::size_t bytes_transferred)
+              { me->readDataResponse(err, bytes_transferred); });
         }
         else
         {
@@ -673,9 +665,8 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred) {
-                me->readDataResponse(err, bytes_transferred);
-              });
+                                        std::size_t bytes_transferred)
+              { me->readDataResponse(err, bytes_transferred); });
         }
 
         // Reset timeout timer
@@ -734,9 +725,8 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
       itsBackendSocket.async_read_some(
           boost::asio::buffer(itsSocketBuffer),
           [me = shared_from_this()](const boost::system::error_code& err,
-                                    std::size_t bytes_transferred) {
-            me->readDataResponse(err, bytes_transferred);
-          });
+                                    std::size_t bytes_transferred)
+          { me->readDataResponse(err, bytes_transferred); });
 
       // Reset timeout timer
       itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));

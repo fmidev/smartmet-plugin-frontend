@@ -65,7 +65,6 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     // The destructor of the streamer created by the proxy will decrement the count.
 
     Proxy::ProxyStatus proxyStatus = Proxy::ProxyStatus::PROXY_SUCCESS;
-    theReactor.startBackendRequest(theHost->Name(), theHost->Port());
 
     // Use Proxy class to forward the request to backend server
     proxyStatus = itsProxy->HTTPForward(theReactor,

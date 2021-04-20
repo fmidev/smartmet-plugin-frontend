@@ -5,9 +5,9 @@
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
+#include <macgyver/Exception.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
-#include <macgyver/Exception.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -37,7 +37,7 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
     for (int i = 0; i < theBackendThreadCount; ++i)
     {
       // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      itsBackendThreads.add_thread(new boost::thread([this](){ this->backendIoService.run(); }));
+      itsBackendThreads.add_thread(new boost::thread([this]() { this->backendIoService.run(); }));
     }
   }
   catch (...)
@@ -114,6 +114,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
 
     fwdRequest.setHeader("Connection", "close");
 
+    // The destructor will call stopBackendRequest so there should be no leaks in the counters
     boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
         new LowLatencyGatewayStreamer(shared_from_this(),
                                       theReactor,
@@ -122,6 +123,8 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
                                       theBackendPort,
                                       itsBackendTimeoutInSeconds,
                                       fwdRequest));
+
+    theReactor.startBackendRequest(theHostName, theBackendPort);
 
     // Begin backend negotiation
     bool success = responseStreamer->sendAndListen();
