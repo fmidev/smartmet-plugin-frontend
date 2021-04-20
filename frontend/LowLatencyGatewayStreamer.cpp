@@ -155,7 +155,11 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 
 }  // namespace
 
-LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer() {}
+LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
+{
+  if (!itsFinishing)
+    itsReactor.stopBackendRequest(itsHostName, itsPort);
+}
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
                                                      Spine::Reactor& theReactor,
@@ -174,6 +178,17 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Pro
       itsProxy(theProxy),
       itsReactor(theReactor)
 {
+  itsReactor.startBackendRequest(itsHostName, itsPort);
+}
+
+// Mark the communication almost finished for load balancing purposes
+void LowLatencyGatewayStreamer::markFinishing()
+{
+  if (!itsFinishing)
+  {
+    itsFinishing = true;
+    itsReactor.stopBackendRequest(itsHostName, itsPort);
+  }
 }
 
 // Begin backend communication
@@ -400,6 +415,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           // Reset timeout timer
           itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
 
+          markFinishing();  // Remove backend communication from load balancing
+
           itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
         }
         else
@@ -462,6 +479,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           // Backend socket will leak without this
           boost::system::error_code ignored_error;
           itsBackendSocket.close(ignored_error);
+
+          markFinishing();  // Remove backend communication from load balancing
 
           itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
         }

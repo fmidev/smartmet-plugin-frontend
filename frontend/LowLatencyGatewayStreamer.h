@@ -56,6 +56,9 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Function to handle errors in backend communication
   void handleError(const boost::system::error_code& err);
 
+  // Function to mark the communication to be in finishing stages
+  void markFinishing();
+
   // Flag to indicate if we should cache the response content
   bool itsResponseIsCacheable = true;
 
@@ -115,6 +118,10 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   // Reference to the reactor for decrementing backend activity count when done
   Spine::Reactor& itsReactor;
+
+  // Boolean to indicate whether the backend task is practically finished, but sockets may remain
+  // open etc
+  bool itsFinishing = false;
 };
 
 }  // namespace SmartMet
