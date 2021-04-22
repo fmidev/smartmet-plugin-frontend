@@ -68,7 +68,10 @@ class Plugin : public SmartMetPlugin
 
   std::pair<std::string, bool> requestContinue(SmartMet::Spine::Reactor& theReactor,
                                                const SmartMet::Spine::HTTP::Request& theRequest);
-
+  std::pair<std::string, bool> listRequests(Spine::Reactor &theReactor,
+											const Spine::HTTP::Request &theRequest,
+											Spine::HTTP::Response &theResponse);
+	
 };  // class Plugin
 
 }  // namespace Frontend

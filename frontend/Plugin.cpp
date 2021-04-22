@@ -37,6 +37,25 @@ namespace Plugin
 {
 namespace Frontend
 {
+namespace
+{
+bool sortRequestVector(const std::pair<std::string, std::string> &pair1,
+                       const std::pair<std::string, std::string> &pair2)
+{
+  return pair1.first < pair2.first;
+}
+
+std::vector<std::pair<std::string, std::string>> getRequests()
+{
+  std::vector<std::pair<std::string, std::string>> ret = {
+      {"qengine", "Available querydata"},
+      {"backends", "Backend information"},
+      {"activerequests", "Currently active requests"},
+      {"activebackends", "Currently active backends"}};
+
+  return ret;
+}
+}
 struct QEngineFile;
 
 // QEngine reporting types
@@ -770,6 +789,9 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "continue")
       return requestContinue(theReactor, theRequest);
 
+    if (what == "list")
+      return listRequests(theReactor, theRequest, theResponse);
+
     return {"Unknown request: '" + what + "'", false};
   }
   catch (...)
@@ -878,6 +900,84 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Lists all requests supported by frontend plugin
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor &theReactor,
+												  const Spine::HTTP::Request &theRequest,
+												  Spine::HTTP::Response &theResponse)
+{
+  try
+  {
+    // Parse formatting options
+    std::string tableFormat = Spine::optional_string(theRequest.getParameter("format"), "debug");
+
+    if (tableFormat == "wxml")
+    {
+      std::string response = "Wxml formatting not supported";
+      theResponse.setContent(response);
+      return {response, false};
+    }
+
+    std::unique_ptr<Spine::TableFormatter> tableFormatter(
+        Spine::TableFormatterFactory::create(tableFormat));
+
+    Spine::Table resultTable;
+    Spine::TableFormatter::Names headers{"Request", "Response"};
+
+    std::vector<std::pair<std::string, std::string>> requests = getRequests();
+    std::sort(requests.begin(), requests.end(), sortRequestVector);
+
+    unsigned int row = 0;
+    for (const auto &r : requests)
+    {
+      resultTable.set(0, row, r.first);
+      resultTable.set(1, row, r.second);
+      row++;
+    }
+
+    auto requests_out =
+        tableFormatter->format(resultTable, headers, theRequest, Spine::TableFormatterOptions());
+
+    if (tableFormat == "html" || tableFormat == "debug")
+      requests_out.insert(0, "<h1>Admin requests</h1>");
+
+    if (tableFormat != "html")
+      theResponse.setContent(requests_out);
+    else
+    {
+      // Only insert tags if using human readable mode
+      std::string ret =
+          "<html><head>"
+          "<title>SmartMet Admin</title>"
+          "<style>";
+      ret +=
+          "table { border: 1px solid black; }"
+          "td { border: 1px solid black; text-align:right;}"
+          "</style>"
+          "</head><body>";
+      ret += requests_out;
+      ret += "</body></html>";
+      theResponse.setContent(ret);
+    }
+
+    // Make MIME header and content
+    std::string mime = tableFormatter->mimetype() + "; charset=UTF-8";
+
+    theResponse.setHeader("Content-Type", mime);
+
+    return {requests_out, true};
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
 
 // ----------------------------------------------------------------------
 /*!
