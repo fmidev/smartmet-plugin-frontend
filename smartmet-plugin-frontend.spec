@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 21.4.20
+Version: 21.4.22
 Release: 4%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Apr 22 2021 Anssi Reponen <anssi.reponen@fmi.fi> - 21.4.22-4.fmi
+- Added what=list query (BRAINSTORM-2030)
+
 * Tue Apr 20 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.4.20-4.fmi
 - Improved backend request counting
 
