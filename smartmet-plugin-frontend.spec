@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 21.4.22
-Release: 4%{?dist}.fmi
+Version: 21.8.17
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 21.4.16
-BuildRequires: smartmet-engine-sputnik-devel >= 21.1.14
+BuildRequires: smartmet-library-spine-devel >= 21.8.17
+BuildRequires: smartmet-engine-sputnik-devel >= 21.8.17
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.2.25
+BuildRequires: smartmet-library-macgyver-devel >= 21.8.5
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 21.2.25
-Requires: smartmet-server >= 21.1.14
-Requires: smartmet-engine-sputnik >= 21.1.14
-Requires: smartmet-library-spine >= 21.4.16
+Requires: smartmet-library-macgyver >= 21.8.5
+Requires: smartmet-server >= 21.6.3
+Requires: smartmet-engine-sputnik >= 21.8.17
+Requires: smartmet-library-spine >= 21.8.17
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Tue Aug 17 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.8.17-1.fmi
+- Use the new shutdown API
+
 * Thu Apr 22 2021 Anssi Reponen <anssi.reponen@fmi.fi> - 21.4.22-4.fmi
 - Added what=list query (BRAINSTORM-2030)
 
