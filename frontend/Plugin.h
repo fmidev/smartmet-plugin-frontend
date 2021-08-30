@@ -7,10 +7,10 @@
 #pragma once
 
 #include "HTTP.h"
-#include <macgyver/Cache.h>
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
 #include <spine/SmartMetPlugin.h>
+#include <macgyver/CacheStats.h>
 #include <memory>
 #include <utility>
 
@@ -71,7 +71,7 @@ class Plugin : public SmartMetPlugin
   std::pair<std::string, bool> listRequests(Spine::Reactor &theReactor,
 											const Spine::HTTP::Request &theRequest,
 											Spine::HTTP::Response &theResponse);
-	
+  Fmi::Cache::CacheStatistics getCacheStats() const;	
 };  // class Plugin
 
 }  // namespace Frontend
