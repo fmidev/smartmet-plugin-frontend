@@ -39,6 +39,8 @@ class HTTP
 
   void shutdown();
 
+  const boost::shared_ptr<Proxy>& getProxy() const { return itsProxy; }
+
  private:
   // Pointer to Sputnik instance
   Engine::Sputnik::Engine* itsSputnikProcess;

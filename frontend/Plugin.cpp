@@ -15,6 +15,7 @@
 #include <macgyver/Base64.h>
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
+#include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
 #include <spine/ParameterFactory.h>
 #include <spine/SmartMet.h>
@@ -51,7 +52,8 @@ std::vector<std::pair<std::string, std::string>> getRequests()
       {"qengine", "Available querydata"},
       {"backends", "Backend information"},
       {"activerequests", "Currently active requests"},
-      {"activebackends", "Currently active backends"}};
+      {"activebackends", "Currently active backends"},
+      {"cachestats", "Cache statistics"}};
 
   return ret;
 }
@@ -792,6 +794,9 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "list")
       return listRequests(theReactor, theRequest, theResponse);
 
+    if (what == "cachestats")
+      return requestCacheStats(theReactor, theRequest, theResponse);
+
     return {"Unknown request: '" + what + "'", false};
   }
   catch (...)
@@ -971,6 +976,87 @@ std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor &theReactor,
     theResponse.setHeader("Content-Type", mime);
 
     return {requests_out, true};
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Cache statistics
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReactor,
+							   const Spine::HTTP::Request &theRequest,
+							   Spine::HTTP::Response &theResponse)
+{
+  try
+  {
+    std::string tableFormat = Spine::optional_string(theRequest.getParameter("format"), "html");
+    std::unique_ptr<Spine::TableFormatter> tableFormatter(Spine::TableFormatterFactory::create(tableFormat));
+	boost::shared_ptr<Spine::Table> table(new Spine::Table());
+	Spine::TableFormatter::Names header_names{"#","cache_name","hits","misses","hitrate/min","created"};
+
+	auto now = boost::posix_time::microsec_clock::universal_time();
+	auto cache_stats = getCacheStats();
+
+	Spine::Table data_table;
+
+    auto timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "sql");
+	std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
+
+	size_t row = 1;
+	for(const auto& item : cache_stats)
+	  {
+		const auto& name = item.first;
+		const auto& stat = item.second;
+		auto duration = (now - stat.startTime());
+		auto hit_rate_per_minute = ((duration.total_seconds() / 60) == 0 ? 0 : (stat.hits() / (duration.total_seconds() / 60)));
+		data_table.set(0, row, Fmi::to_string(row));
+		data_table.set(1, row, name);
+		data_table.set(2, row, Fmi::to_string(stat.hits()));
+		data_table.set(3, row, Fmi::to_string(stat.misses()));
+		data_table.set(4, row, Fmi::to_string(hit_rate_per_minute));
+		data_table.set(5, row, timeFormatter->format(stat.startTime()));
+		row++;
+	  }
+
+    auto cache_stats_output = tableFormatter->format(data_table,
+													header_names,
+													theRequest,
+													Spine::TableFormatterOptions());
+
+    if (tableFormat == "html" || tableFormat == "debug")
+      cache_stats_output.insert(0, "<h1>CacheStatistics</h1>");
+
+    if (tableFormat != "html")
+      theResponse.setContent(cache_stats_output);
+    else
+    {
+      // Only insert tags if using human readable mode
+      std::string ret =
+          "<html><head>"
+          "<title>SmartMet Frontend</title>"
+          "<style>";
+      ret +=
+          "table { border: 1px solid black; }"
+          "td { border: 1px solid black; text-align:right;}"
+          "</style>"
+          "</head><body>";
+      ret += cache_stats_output;
+      ret += "</body></html>";
+      theResponse.setContent(ret);
+    }
+
+    // Make MIME header and content
+    std::string mime = tableFormatter->mimetype() + "; charset=UTF-8";
+
+    theResponse.setHeader("Content-Type", mime);
+    return {cache_stats_output, true};
   }
   catch (...)
   {
@@ -1369,6 +1455,25 @@ bool Plugin::queryIsFast(const Spine::HTTP::Request & /* theRequest */) const
 {
   return true;
 }
+
+Fmi::Cache::CacheStatistics Plugin::getCacheStats() const
+{
+  Fmi::Cache::CacheStatistics ret;
+
+  const ResponseCache& compressed_cache = itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::GZIP);
+  const ResponseCache& uncompressed_cache = itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::NONE);
+
+  ret.insert(std::make_pair("Frontend::compressed_response_cache::meta_data_cache", compressed_cache.getMetaDataCacheStats()));
+  ret.insert(std::make_pair("Frontend::compressed_response_cache::memory_cache", compressed_cache.getMemoryCacheStats()));
+  ret.insert(std::make_pair("Frontend::compressed_response_cache::file_cache", compressed_cache.getFileCacheStats()));
+
+  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::meta_data_cache", uncompressed_cache.getMetaDataCacheStats()));
+  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::memory_cache", uncompressed_cache.getMemoryCacheStats()));
+  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::file_cache", uncompressed_cache.getFileCacheStats()));
+
+  return ret;
+}
+
 
 }  // namespace Frontend
 }  // namespace Plugin
