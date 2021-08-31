@@ -1018,7 +1018,7 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReacto
       auto duration = (now - stat.startTime()).total_seconds();
       auto n = stat.hits() + stat.misses();
       auto hitrate = (n == 0 ? 0.0 : stat.hits() * 100.0 / n);
-      auto hits_per_min = (duration == 0 ? 0.0 : stat.hits() / (60.0 * duration));
+      auto hits_per_min = (duration == 0 ? 0.0 : 60.0 * stat.hits() / duration);
       data_table.set(0, row, Fmi::to_string(row));
       data_table.set(1, row, name);
       data_table.set(2, row, Fmi::to_string(stat.hits()));
