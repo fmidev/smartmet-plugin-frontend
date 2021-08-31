@@ -57,7 +57,7 @@ std::vector<std::pair<std::string, std::string>> getRequests()
 
   return ret;
 }
-}
+}  // namespace
 struct QEngineFile;
 
 // QEngine reporting types
@@ -394,7 +394,7 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
 // ----------------------------------------------------------------------
 
 BackendFiles buildSpineQEngineContents(
-    const std::list<std::pair<std::string, std::string> > &backendContents,
+    const std::list<std::pair<std::string, std::string>> &backendContents,
     const std::string &producer)
 {
   try
@@ -482,7 +482,7 @@ BackendFiles buildSpineQEngineContents(
  */
 // ----------------------------------------------------------------------
 
-std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
+std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
     Spine::Reactor &theReactor, const std::string &theTimeFormat)
 {
   try
@@ -501,7 +501,7 @@ std::list<std::pair<std::string, std::string> > getBackendQEngineStatuses(
     // Get Qengine status from backends
     boost::asio::io_service io_service;
     bip::tcp::resolver resolver(io_service);
-    std::list<std::pair<std::string, std::string> > qEngineContentList;
+    std::list<std::pair<std::string, std::string>> qEngineContentList;
     for (auto &backend : backendList)
     {
       bip::tcp::resolver::query query(backend.get<1>(), Fmi::to_string(backend.get<2>()));
@@ -589,7 +589,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     }
 
     // Obtain backend QEngine statuses
-    std::list<std::pair<std::string, std::string> > qEngineContentList =
+    std::list<std::pair<std::string, std::string>> qEngineContentList =
         getBackendQEngineStatuses(theReactor, timeformat);
     BackendFiles result = buildSpineQEngineContents(qEngineContentList, producer);
 
@@ -913,8 +913,8 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
 // ----------------------------------------------------------------------
 
 std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor &theReactor,
-												  const Spine::HTTP::Request &theRequest,
-												  Spine::HTTP::Response &theResponse)
+                                                  const Spine::HTTP::Request &theRequest,
+                                                  Spine::HTTP::Response &theResponse)
 {
   try
   {
@@ -983,7 +983,6 @@ std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor &theReactor,
   }
 }
 
-
 // ----------------------------------------------------------------------
 /*!
  * \brief Cache statistics
@@ -991,44 +990,47 @@ std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor &theReactor,
 // ----------------------------------------------------------------------
 
 std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReactor,
-							   const Spine::HTTP::Request &theRequest,
-							   Spine::HTTP::Response &theResponse)
+                                                       const Spine::HTTP::Request &theRequest,
+                                                       Spine::HTTP::Response &theResponse)
 {
   try
   {
     std::string tableFormat = Spine::optional_string(theRequest.getParameter("format"), "html");
-    std::unique_ptr<Spine::TableFormatter> tableFormatter(Spine::TableFormatterFactory::create(tableFormat));
-	boost::shared_ptr<Spine::Table> table(new Spine::Table());
-	Spine::TableFormatter::Names header_names{"#","cache_name","hits","misses","hitrate/min","created"};
+    std::unique_ptr<Spine::TableFormatter> tableFormatter(
+        Spine::TableFormatterFactory::create(tableFormat));
+    boost::shared_ptr<Spine::Table> table(new Spine::Table());
+    Spine::TableFormatter::Names header_names{
+        "#", "cache_name", "hits", "misses", "hitrate", "hits/min", "created"};
 
-	auto now = boost::posix_time::microsec_clock::universal_time();
-	auto cache_stats = getCacheStats();
+    auto now = boost::posix_time::microsec_clock::universal_time();
+    auto cache_stats = getCacheStats();
 
-	Spine::Table data_table;
+    Spine::Table data_table;
 
     auto timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "sql");
-	std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
+    std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
 
-	size_t row = 1;
-	for(const auto& item : cache_stats)
-	  {
-		const auto& name = item.first;
-		const auto& stat = item.second;
-		auto duration = (now - stat.startTime());
-		auto hit_rate_per_minute = ((duration.total_seconds() / 60) == 0 ? 0 : (stat.hits() / (duration.total_seconds() / 60)));
-		data_table.set(0, row, Fmi::to_string(row));
-		data_table.set(1, row, name);
-		data_table.set(2, row, Fmi::to_string(stat.hits()));
-		data_table.set(3, row, Fmi::to_string(stat.misses()));
-		data_table.set(4, row, Fmi::to_string(hit_rate_per_minute));
-		data_table.set(5, row, timeFormatter->format(stat.startTime()));
-		row++;
-	  }
+    size_t row = 1;
+    for (const auto &item : cache_stats)
+    {
+      const auto &name = item.first;
+      const auto &stat = item.second;
+      auto duration = (now - stat.startTime()).total_seconds();
+      auto n = stat.hits() + stat.misses();
+      auto hitrate = (n == 0 ? 0.0 : stat.hits() * 100.0 / n);
+      auto hits_per_min = (duration == 0 ? 0.0 : stat.hits() / (60.0 * duration));
+      data_table.set(0, row, Fmi::to_string(row));
+      data_table.set(1, row, name);
+      data_table.set(2, row, Fmi::to_string(stat.hits()));
+      data_table.set(3, row, Fmi::to_string(stat.misses()));
+      data_table.set(4, row, Fmi::to_string("%.1f", hitrate));
+      data_table.set(5, row, Fmi::to_string("%.1f", hits_per_min));
+      data_table.set(6, row, timeFormatter->format(stat.startTime()));
+      row++;
+    }
 
-    auto cache_stats_output = tableFormatter->format(data_table,
-													header_names,
-													theRequest,
-													Spine::TableFormatterOptions());
+    auto cache_stats_output = tableFormatter->format(
+        data_table, header_names, theRequest, Spine::TableFormatterOptions());
 
     if (tableFormat == "html" || tableFormat == "debug")
       cache_stats_output.insert(0, "<h1>CacheStatistics</h1>");
@@ -1063,7 +1065,6 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReacto
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -1460,20 +1461,27 @@ Fmi::Cache::CacheStatistics Plugin::getCacheStats() const
 {
   Fmi::Cache::CacheStatistics ret;
 
-  const ResponseCache& compressed_cache = itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::GZIP);
-  const ResponseCache& uncompressed_cache = itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::NONE);
+  const ResponseCache &compressed_cache =
+      itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::GZIP);
+  const ResponseCache &uncompressed_cache =
+      itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::NONE);
 
-  ret.insert(std::make_pair("Frontend::compressed_response_cache::meta_data_cache", compressed_cache.getMetaDataCacheStats()));
-  ret.insert(std::make_pair("Frontend::compressed_response_cache::memory_cache", compressed_cache.getMemoryCacheStats()));
-  ret.insert(std::make_pair("Frontend::compressed_response_cache::file_cache", compressed_cache.getFileCacheStats()));
+  ret.insert(std::make_pair("Frontend::compressed_response_cache::meta_data_cache",
+                            compressed_cache.getMetaDataCacheStats()));
+  ret.insert(std::make_pair("Frontend::compressed_response_cache::memory_cache",
+                            compressed_cache.getMemoryCacheStats()));
+  ret.insert(std::make_pair("Frontend::compressed_response_cache::file_cache",
+                            compressed_cache.getFileCacheStats()));
 
-  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::meta_data_cache", uncompressed_cache.getMetaDataCacheStats()));
-  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::memory_cache", uncompressed_cache.getMemoryCacheStats()));
-  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::file_cache", uncompressed_cache.getFileCacheStats()));
+  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::meta_data_cache",
+                            uncompressed_cache.getMetaDataCacheStats()));
+  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::memory_cache",
+                            uncompressed_cache.getMemoryCacheStats()));
+  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::file_cache",
+                            uncompressed_cache.getFileCacheStats()));
 
   return ret;
 }
-
 
 }  // namespace Frontend
 }  // namespace Plugin
