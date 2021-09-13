@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 21.8.31
+Version: 21.9.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,16 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 21.8.30
-BuildRequires: smartmet-engine-sputnik-devel >= 21.8.17
+BuildRequires: smartmet-library-spine-devel >= 21.9.13
+BuildRequires: smartmet-engine-sputnik-devel >= 21.9.9
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.8.30
+BuildRequires: smartmet-library-macgyver-devel >= 21.9.13
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 21.8.30
-Requires: smartmet-server >= 21.6.3
-Requires: smartmet-engine-sputnik >= 21.8.17
-Requires: smartmet-library-spine >= 21.8.30
+Requires: smartmet-library-macgyver >= 21.9.13
+Requires: smartmet-server >= 21.9.7
+Requires: smartmet-engine-sputnik >= 21.9.9
+Requires: smartmet-library-spine >= 21.9.13
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +54,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Mon Sep 13 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.9.13-1.fmi
+- Repackaged due to Fmi::Cache statistics fixes
+
 * Tue Aug 31 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.8.31-1.fmi
 - Improved cache statistics output
 
