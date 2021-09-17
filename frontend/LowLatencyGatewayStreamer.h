@@ -28,12 +28,12 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
                             int theBackendTimeoutInSeconds,
                             const Spine::HTTP::Request& theOriginalRequest);
 
-  virtual ~LowLatencyGatewayStreamer();
+  ~LowLatencyGatewayStreamer() override;
 
   // Begin backend operations
   bool sendAndListen();
 
-  virtual std::string getChunk();
+  std::string getChunk() override;
   virtual std::string getPeekString(int pos, int len);
 
  private:

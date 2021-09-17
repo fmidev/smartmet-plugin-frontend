@@ -437,17 +437,17 @@ BackendFiles buildSpineQEngineContents(
 
     // Find maximum size of the file list
     std::size_t maxsize = 0;
-    for (auto backendIt = theFiles.begin(); backendIt != theFiles.end(); ++backendIt)
+    for (const auto &backend : theFiles)
     {
-      for (const auto &producer : backendIt->second)
+      for (const auto &producer : backend.second)
         maxsize = std::max(maxsize, producer.second.size());
     }
 
     BackendFiles spineFiles;
 
-    for (auto backendIt = theFiles.begin(); backendIt != theFiles.end(); ++backendIt)
+    for (const auto &backend : theFiles)
     {
-      for (const auto &producer : backendIt->second)
+      for (const auto &producer : backend.second)
       {
         auto outputIt = spineFiles.find(producer.first);
         if (outputIt == spineFiles.end())
