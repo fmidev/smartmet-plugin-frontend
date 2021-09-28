@@ -2,7 +2,7 @@ SUBNAME = frontend
 SPEC = smartmet-plugin-$(SUBNAME)
 INCDIR = smartmet/plugins/$(SUBNAME)
 
-REQUIRES = jsoncpp
+REQUIRES = jsoncpp configpp
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
