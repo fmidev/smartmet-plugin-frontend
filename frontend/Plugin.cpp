@@ -22,6 +22,7 @@
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
+#include <grid-files/common/GeneralFunctions.h>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -50,6 +51,8 @@ std::vector<std::pair<std::string, std::string>> getRequests()
 {
   std::vector<std::pair<std::string, std::string>> ret = {
       {"qengine", "Available querydata"},
+      {"gridgenerations", "Available grid generations"},
+      {"gridnbgenerations", "Available grid newbase generations"},
       {"backends", "Backend information"},
       {"activerequests", "Currently active requests"},
       {"activebackends", "Currently active backends"},
@@ -557,6 +560,77 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
   }
 }
 
+
+std::list<std::pair<std::string, std::string>> getBackendMessages(
+    Spine::Reactor &theReactor, const std::string &url)
+{
+  try
+  {
+    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
+    if (engine == nullptr)
+    {
+      throw Fmi::Exception(BCP, "Sputnik service discovery not available");
+    }
+
+    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
+
+    // Get the backends which provide services
+    auto backendList = sputnik->getBackendList();  // type is Services::BackendList
+
+    // Get Qengine status from backends
+    boost::asio::io_service io_service;
+    bip::tcp::resolver resolver(io_service);
+    std::list<std::pair<std::string, std::string>> messageList;
+    for (auto &backend : backendList)
+    {
+      bip::tcp::resolver::query query(backend.get<1>(), Fmi::to_string(backend.get<2>()));
+      bip::tcp::resolver::iterator endpoint = resolver.resolve(query);
+
+      bip::tcp::socket socket(io_service);
+      boost::asio::connect(socket, endpoint);
+
+      boost::asio::streambuf request;
+      std::ostream request_stream(&request);
+      //    request_stream << "GET " << "/" << backend.get<0>() <<
+      //"/admin?what=qengine&format=json"
+      //<< " HTTP/1.0\r\n";
+      request_stream << "GET " << url << " HTTP/1.0\r\n";
+      request_stream << "Accept: */*\r\n";
+      request_stream << "Connection: close\r\n\r\n";
+
+      boost::asio::write(socket, request);
+
+      boost::asio::streambuf response;
+      boost::system::error_code error;
+
+      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0u)
+      {
+        if (error == boost::asio::error::eof)  // Reads until socket is closed
+          break;
+
+        // Should there be some error handling in here? Now the JSON parser
+        // may just fail on a bad response.
+      }
+
+      std::stringstream responseStream;
+      responseStream << &response;
+
+      std::string rawResponse = responseStream.str();
+      size_t bodyStart = rawResponse.find("\r\n\r\n");
+      std::string body = rawResponse.substr(bodyStart);
+
+      messageList.emplace_back(std::make_pair(backend.get<0>(), body));
+    }
+
+    return messageList;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Request producers which provide given parameter
@@ -744,6 +818,169 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
   }
 }
 
+
+
+
+
+std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spine::HTTP::Request &theRequest,std::string what)
+{
+  try
+  {
+    std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
+    std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
+    std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
+    std::string timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "iso");
+    std::string param = Spine::optional_string(theRequest.getParameter("param"), "");
+    std::vector<std::string> inputParamList;
+    if (!param.empty())
+    {
+      std::string tmp = toLowerString(param);
+      splitString(tmp,',',inputParamList);
+    }
+
+    Spine::Table table;
+    std::size_t row = 0;
+
+    std::string url = "/admin?what=" + what + "&format=ascii&timeformat=iso";
+    if (!producer.empty())
+      url = url + "&producer=" + producer;
+
+    std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
+
+    // Obtain backend QEngine statuses
+    std::list<std::pair<std::string, std::string>> messageList = getBackendMessages(theReactor, url);
+
+    typedef std::map<std::string,uint> TimeCounter;
+    std::map<std::string,TimeCounter> producers;
+
+    uint backendCount = messageList.size();
+
+    for (auto b = messageList.begin(); b != messageList.end(); ++b)
+    {
+      std::vector<std::string> lines;
+      lineSplit(b->second.c_str(),lines);
+
+      for (auto line = lines.begin(); line != lines.end(); ++line)
+      {
+        // std::cout << *line << "\n";
+        std::vector<std::string> fields;
+        splitString(*line,' ',fields);
+
+        if (fields.size() >= 7)
+        {
+          std::size_t matchCount = 0;
+          if (inputParamList.size() > 0)
+          {
+            std::set<std::string> paramList1;
+            std::set<std::string> paramList2;
+
+            std::string tmp1 = toLowerString(fields[5]);
+            std::string tmp2 = toLowerString(fields[6]);
+            splitString(tmp1,',',paramList1);
+            splitString(tmp2,',',paramList2);
+
+            for (auto p = inputParamList.begin(); p != inputParamList.end(); ++p)
+            {
+              auto f1 = paramList1.find(*p);
+              if (f1 != paramList1.end())
+              {
+                matchCount++;
+              }
+              else
+              {
+                auto f2 = paramList2.find(*p);
+                if (f2 != paramList2.end())
+                {
+                  matchCount++;
+                }
+              }
+            }
+          }
+          if (inputParamList.size() == matchCount)
+          {
+            std::string tm = fields[2] + ":" +fields[3] + ":" +fields[4] + ":" + fields[1];
+            auto prod = producers.find(fields[0]);
+            if (prod == producers.end())
+            {
+              TimeCounter originTimes;
+              originTimes.insert(std::pair<std::string,uint>(tm,1));
+              producers.insert(std::pair<std::string,TimeCounter>(fields[0],originTimes));
+            }
+            else
+            {
+              auto originTime = prod->second.find(tm);
+              if (originTime == prod->second.end())
+              {
+                prod->second.insert(std::pair<std::string,uint>(tm,1));
+              }
+              else
+              {
+                originTime->second++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (auto prod = producers.begin(); prod != producers.end(); ++prod)
+    {
+      uint cnt = 0;
+      for (auto atime = prod->second.rbegin(); atime != prod->second.rend() && cnt == 0; ++atime)
+      {
+        if (atime->second == backendCount)
+        {
+          std::vector<std::string> fields;
+          splitString(atime->first.c_str(),':',fields);
+
+          if (fields.size() == 4)
+          {
+            table.set(0,row,prod->first);
+            table.set(1,row,fields[3]);
+            if (!timeFormat.empty()  &&  strcasecmp(timeFormat.c_str(),"iso") != 0  && timeFormatter)
+            {
+              // Analysis time
+              boost::posix_time::ptime aTime = toTimeStamp(fields[0]);
+              table.set(2,row,timeFormatter->format(aTime));
+
+              boost::posix_time::ptime fTime = toTimeStamp(fields[1]);
+              table.set(3,row,timeFormatter->format(fTime));
+
+              boost::posix_time::ptime lTime = toTimeStamp(fields[2]);
+              table.set(4,row,timeFormatter->format(lTime));
+            }
+            else
+            {
+              table.set(2,row,fields[0]);
+              table.set(3,row,fields[1]);
+              table.set(4,row,fields[2]);
+            }
+            cnt++;
+            row++;
+          }
+        }
+      }
+    }
+
+    Spine::TableFormatter::Names theNames;
+    theNames.push_back("Producer");
+    theNames.push_back("TimeSteps");
+    theNames.push_back("OriginTime");
+    theNames.push_back("MinTime");
+    theNames.push_back("MaxTime");
+
+    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
+    auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
+    return {out, true};
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Perform an Admin query
@@ -778,6 +1015,12 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
 
     if (what == "qengine")
       return requestQEngineStatus(theReactor, theRequest);
+
+    if (what == "gridgenerations")
+      return requestStatus(theReactor, theRequest,"gridgenerations");
+
+    if (what == "gridnbgenerations")
+      return requestStatus(theReactor, theRequest,"gridnbgenerations");
 
     if (what == "activerequests")
       return requestActiveRequests(theReactor, theRequest, theResponse);
