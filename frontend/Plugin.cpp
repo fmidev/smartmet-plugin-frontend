@@ -52,7 +52,7 @@ std::vector<std::pair<std::string, std::string>> getRequests()
   std::vector<std::pair<std::string, std::string>> ret = {
       {"qengine", "Available querydata"},
       {"gridgenerations", "Available grid generations"},
-      {"gridnbgenerations", "Available grid newbase generations"},
+      {"gridgenerationsqd", "Available grid newbase generations"},
       {"backends", "Backend information"},
       {"activerequests", "Currently active requests"},
       {"activebackends", "Currently active backends"},
@@ -1019,8 +1019,8 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
     if (what == "gridgenerations")
       return requestStatus(theReactor, theRequest,"gridgenerations");
 
-    if (what == "gridnbgenerations")
-      return requestStatus(theReactor, theRequest,"gridnbgenerations");
+    if (what == "gridgenerationsqd")
+      return requestStatus(theReactor, theRequest,"gridgenerationsqd");
 
     if (what == "activerequests")
       return requestActiveRequests(theReactor, theRequest, theResponse);
