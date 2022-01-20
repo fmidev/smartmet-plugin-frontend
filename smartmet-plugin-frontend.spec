@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 21.9.13
+Version: 22.1.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -13,16 +13,19 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: boost169-devel
-BuildRequires: smartmet-library-spine-devel >= 21.9.13
-BuildRequires: smartmet-engine-sputnik-devel >= 21.9.9
+BuildRequires: smartmet-library-spine-devel >= 22.1.5
+BuildRequires: smartmet-library-grid-files-devel >= 22.1.13
+BuildRequires: smartmet-engine-sputnik-devel >= 21.9.27
+BuildRequires: gdal33-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 21.9.13
+BuildRequires: smartmet-library-macgyver-devel >= 22.1.18
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 21.9.13
-Requires: smartmet-server >= 21.9.7
-Requires: smartmet-engine-sputnik >= 21.9.9
-Requires: smartmet-library-spine >= 21.9.13
+Requires: smartmet-library-macgyver >= 22.1.18
+Requires: smartmet-server >= 21.11.25
+Requires: smartmet-engine-sputnik >= 21.9.27
+Requires: smartmet-library-spine >= 22.1.5
+Requires: smartmet-library-grid-files >= 22.1.13
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: boost169-date-time
@@ -54,6 +57,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Jan 20 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.1.20-1.fmi
+- Added gridgenerations and gridgenerationsqd admin queries
+
 * Mon Sep 13 2021 Mika Heiskanen <mika.heiskanen@fmi.fi> - 21.9.13-1.fmi
 - Repackaged due to Fmi::Cache statistics fixes
 
