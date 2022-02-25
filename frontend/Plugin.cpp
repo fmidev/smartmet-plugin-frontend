@@ -862,11 +862,10 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
 
       for (auto line = lines.begin(); line != lines.end(); ++line)
       {
-        // std::cout << *line << "\n";
         std::vector<std::string> fields;
         splitString(*line,' ',fields);
 
-        if (fields.size() >= 8)
+        if (fields.size() >= 9)
         {
           std::size_t matchCount = 0;
           if (inputParamList.size() > 0)
@@ -874,8 +873,8 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
             std::set<std::string> paramList1;
             std::set<std::string> paramList2;
 
-            std::string tmp1 = toLowerString(fields[6]);
-            std::string tmp2 = toLowerString(fields[7]);
+            std::string tmp1 = toLowerString(fields[7]);
+            std::string tmp2 = toLowerString(fields[8]);
             splitString(tmp1,',',paramList1);
             splitString(tmp2,',',paramList2);
 
@@ -898,7 +897,7 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
           }
           if (inputParamList.size() == matchCount)
           {
-            std::string tm = fields[2] + ":" +fields[3] + ":" +fields[4] + ":" +fields[5] + ":" + fields[1];
+            std::string tm = fields[3] + ":" +fields[4] + ":" +fields[5] + ":" +fields[6] + ":" + fields[1] + ":" + fields[2];
             auto prod = producers.find(fields[0]);
             if (prod == producers.end())
             {
@@ -933,31 +932,32 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
           std::vector<std::string> fields;
           splitString(atime->first.c_str(),':',fields);
 
-          if (fields.size() == 5)
+          if (fields.size() == 6)
           {
             table.set(0,row,prod->first);
             table.set(1,row,fields[4]);
+            table.set(2,row,fields[5]);
             if (!timeFormat.empty()  &&  strcasecmp(timeFormat.c_str(),"iso") != 0  && timeFormatter)
             {
               // Analysis time
               boost::posix_time::ptime aTime = toTimeStamp(fields[0]);
-              table.set(2,row,timeFormatter->format(aTime));
+              table.set(3,row,timeFormatter->format(aTime));
 
               boost::posix_time::ptime fTime = toTimeStamp(fields[1]);
-              table.set(3,row,timeFormatter->format(fTime));
+              table.set(4,row,timeFormatter->format(fTime));
 
               boost::posix_time::ptime lTime = toTimeStamp(fields[2]);
-              table.set(4,row,timeFormatter->format(lTime));
+              table.set(5,row,timeFormatter->format(lTime));
 
               boost::posix_time::ptime mTime = toTimeStamp(fields[3]);
-              table.set(5,row,timeFormatter->format(mTime));
+              table.set(6,row,timeFormatter->format(mTime));
             }
             else
             {
-              table.set(2,row,fields[0]);
-              table.set(3,row,fields[1]);
-              table.set(4,row,fields[2]);
-              table.set(5,row,fields[3]);
+              table.set(3,row,fields[0]);
+              table.set(4,row,fields[1]);
+              table.set(5,row,fields[2]);
+              table.set(6,row,fields[3]);
             }
             cnt++;
             row++;
@@ -968,6 +968,7 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
 
     Spine::TableFormatter::Names theNames;
     theNames.push_back("Producer");
+    theNames.push_back("GeometryId");
     theNames.push_back("TimeSteps");
     theNames.push_back("OriginTime");
     theNames.push_back("MinTime");
