@@ -17,11 +17,11 @@
 #include <macgyver/StringConversion.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
-#include <spine/ParameterFactory.h>
 #include <spine/SmartMet.h>
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
+#include <timeseries/ParameterFactory.h>
 #include <grid-files/common/GeneralFunctions.h>
 #include <sstream>
 #include <stdexcept>
@@ -759,7 +759,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
             ++matches;
             continue;
           }
-          std::string paramString = Spine::ParameterFactory::instance().name(paramId);
+          std::string paramString = TimeSeries::ParameterFactory::instance().name(paramId);
           if (producerHasParam(latest, paramString))
           {
             ++matches;
