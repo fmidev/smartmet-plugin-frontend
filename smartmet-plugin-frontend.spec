@@ -9,29 +9,38 @@ Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
 Source0: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+%if 0%{?rhel} && 0%{rhel} < 9
+%define smartmet_boost boost169
+%else
+%define smartmet_boost boost
+%endif
+
+%define smartmet_fmt_min 8.1.1
+%define smartmet_fmt_max 8.2.0
+
 BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
-BuildRequires: boost169-devel
-BuildRequires: smartmet-library-timeseries-devel >= 22.5.24
-BuildRequires: smartmet-library-spine-devel >= 22.5.24
+BuildRequires: %{smartmet_boost}-devel
+BuildRequires: smartmet-library-timeseries-devel >= 22.6.16
+BuildRequires: smartmet-library-spine-devel >= 22.6.16
 BuildRequires: smartmet-library-grid-files-devel >= 22.5.24
-BuildRequires: smartmet-engine-sputnik-devel >= 22.5.24
+BuildRequires: smartmet-engine-sputnik-devel >= 22.6.17
 BuildRequires: gdal34-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 22.5.24
+BuildRequires: smartmet-library-macgyver-devel >= 22.6.16
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 22.5.24
+Requires: smartmet-library-macgyver >= 22.6.16
 Requires: smartmet-server >= 22.5.16
-Requires: smartmet-engine-sputnik >= 22.5.24
-Requires: smartmet-library-spine >= 22.5.24
-Requires: smartmet-library-timeseries >= 22.5.24
+Requires: smartmet-engine-sputnik >= 22.6.17
+Requires: smartmet-library-spine >= 22.6.16
+Requires: smartmet-library-timeseries >= 22.6.16
 Requires: smartmet-library-grid-files >= 22.5.24
 Requires: jsoncpp
 %if 0%{rhel} >= 7
-Requires: boost169-date-time
-Requires: boost169-thread
+Requires: %{smartmet_boost}-date-time
+Requires: %{smartmet_boost}-thread
 %endif
 Provides: %{SPECNAME}
 Obsoletes: smartmet-brainstorm-frontend < 16.11.1
