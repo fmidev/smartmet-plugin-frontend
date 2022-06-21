@@ -8,7 +8,7 @@
 #include "HTTP.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
 #include <json/json.h>
@@ -32,6 +32,8 @@ using boost::posix_time::second_clock;
 using boost::posix_time::seconds;
 
 namespace bip = boost::asio::ip;
+
+namespace bph = boost::placeholders;
 
 namespace SmartMet
 {
@@ -781,7 +783,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     }
 
     // Sort results by origintime
-    iHasAllParameters.sort(boost::bind(qEngineSort, _2, _1));
+    iHasAllParameters.sort(boost::bind(qEngineSort, bph::_2, bph::_1));
 
     // Build result table
     Spine::Table table;
@@ -1479,15 +1481,18 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     itsHTTP.reset(new HTTP(theReactor, theConfig));
 
     if (!theReactor->addContentHandler(
-            this, "/admin", boost::bind(&Plugin::callRequestHandler, this, _1, _2, _3)))
+            this, "/admin", boost::bind(&Plugin::callRequestHandler, this,
+					bph::_1, bph::_2, bph::_3)))
       throw Fmi::Exception(BCP, "Failed to register admin content handler");
 
     if (!theReactor->addContentHandler(
-            this, "/", boost::bind(&Plugin::baseContentHandler, this, _1, _2, _3)))
+            this, "/", boost::bind(&Plugin::baseContentHandler, this,
+				   bph::_1, bph::_2, bph::_3)))
       throw Fmi::Exception(BCP, "Failed to register base content handler");
 
 #ifndef NDEBUG
-    if (!theReactor->addContentHandler(this, "/sleep", boost::bind(&sleep, _1, _2, _3)))
+    if (!theReactor->addContentHandler(this, "/sleep",
+				       boost::bind(&sleep, bph::_1, bph::_2, bph::_3)))
       throw Fmi::Exception(BCP, "Failed to register sleep content handler");
 #endif
   }

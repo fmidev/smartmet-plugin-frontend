@@ -1,6 +1,6 @@
 #include "HTTP.h"
 #include "Proxy.h"
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
@@ -128,6 +128,7 @@ void HTTP::requestHandler(Spine::Reactor &theReactor,
 
 HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 {
+  using namespace boost::placeholders;
   try
   {
     // Banner
