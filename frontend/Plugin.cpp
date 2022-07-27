@@ -11,6 +11,7 @@
 #include <boost/bind/bind.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
+#include <grid-files/common/GeneralFunctions.h>
 #include <json/json.h>
 #include <macgyver/Base64.h>
 #include <macgyver/Exception.h>
@@ -22,7 +23,6 @@
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
 #include <timeseries/ParameterFactory.h>
-#include <grid-files/common/GeneralFunctions.h>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -562,9 +562,8 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
   }
 }
 
-
-std::list<std::pair<std::string, std::string>> getBackendMessages(
-    Spine::Reactor &theReactor, const std::string &url)
+std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor &theReactor,
+                                                                  const std::string &url)
 {
   try
   {
@@ -631,7 +630,6 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -820,11 +818,9 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
   }
 }
 
-
-
-
-
-std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spine::HTTP::Request &theRequest,std::string what)
+std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
+                                           const Spine::HTTP::Request &theRequest,
+                                           std::string what)
 {
   try
   {
@@ -837,7 +833,7 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
     if (!param.empty())
     {
       std::string tmp = toLowerString(param);
-      splitString(tmp,',',inputParamList);
+      splitString(tmp, ',', inputParamList);
     }
 
     Spine::Table table;
@@ -850,22 +846,23 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
     std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
 
     // Obtain backend QEngine statuses
-    std::list<std::pair<std::string, std::string>> messageList = getBackendMessages(theReactor, url);
+    std::list<std::pair<std::string, std::string>> messageList =
+        getBackendMessages(theReactor, url);
 
-    typedef std::map<std::string,uint> TimeCounter;
-    std::map<std::string,TimeCounter> producers;
+    typedef std::map<std::string, uint> TimeCounter;
+    std::map<std::string, TimeCounter> producers;
 
     uint backendCount = messageList.size();
 
     for (auto b = messageList.begin(); b != messageList.end(); ++b)
     {
       std::vector<std::string> lines;
-      lineSplit(b->second.c_str(),lines);
+      lineSplit(b->second.c_str(), lines);
 
       for (auto line = lines.begin(); line != lines.end(); ++line)
       {
         std::vector<std::string> fields;
-        splitString(*line,' ',fields);
+        splitString(*line, ' ', fields);
 
         if (fields.size() >= 9)
         {
@@ -877,8 +874,8 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
 
             std::string tmp1 = toLowerString(fields[7]);
             std::string tmp2 = toLowerString(fields[8]);
-            splitString(tmp1,',',paramList1);
-            splitString(tmp2,',',paramList2);
+            splitString(tmp1, ',', paramList1);
+            splitString(tmp2, ',', paramList2);
 
             for (auto p = inputParamList.begin(); p != inputParamList.end(); ++p)
             {
@@ -899,20 +896,21 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
           }
           if (inputParamList.size() == matchCount)
           {
-            std::string tm = fields[3] + ":" +fields[4] + ":" +fields[5] + ":" +fields[6] + ":" + fields[1] + ":" + fields[2];
+            std::string tm = fields[3] + ":" + fields[4] + ":" + fields[5] + ":" + fields[6] + ":" +
+                             fields[1] + ":" + fields[2];
             auto prod = producers.find(fields[0]);
             if (prod == producers.end())
             {
               TimeCounter originTimes;
-              originTimes.insert(std::pair<std::string,uint>(tm,1));
-              producers.insert(std::pair<std::string,TimeCounter>(fields[0],originTimes));
+              originTimes.insert(std::pair<std::string, uint>(tm, 1));
+              producers.insert(std::pair<std::string, TimeCounter>(fields[0], originTimes));
             }
             else
             {
               auto originTime = prod->second.find(tm);
               if (originTime == prod->second.end())
               {
-                prod->second.insert(std::pair<std::string,uint>(tm,1));
+                prod->second.insert(std::pair<std::string, uint>(tm, 1));
               }
               else
               {
@@ -932,34 +930,34 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
         if (atime->second == backendCount)
         {
           std::vector<std::string> fields;
-          splitString(atime->first.c_str(),':',fields);
+          splitString(atime->first.c_str(), ':', fields);
 
           if (fields.size() == 6)
           {
-            table.set(0,row,prod->first);
-            table.set(1,row,fields[4]);
-            table.set(2,row,fields[5]);
-            if (!timeFormat.empty()  &&  strcasecmp(timeFormat.c_str(),"iso") != 0  && timeFormatter)
+            table.set(0, row, prod->first);
+            table.set(1, row, fields[4]);
+            table.set(2, row, fields[5]);
+            if (!timeFormat.empty() && strcasecmp(timeFormat.c_str(), "iso") != 0 && timeFormatter)
             {
               // Analysis time
               boost::posix_time::ptime aTime = toTimeStamp(fields[0]);
-              table.set(3,row,timeFormatter->format(aTime));
+              table.set(3, row, timeFormatter->format(aTime));
 
               boost::posix_time::ptime fTime = toTimeStamp(fields[1]);
-              table.set(4,row,timeFormatter->format(fTime));
+              table.set(4, row, timeFormatter->format(fTime));
 
               boost::posix_time::ptime lTime = toTimeStamp(fields[2]);
-              table.set(5,row,timeFormatter->format(lTime));
+              table.set(5, row, timeFormatter->format(lTime));
 
               boost::posix_time::ptime mTime = toTimeStamp(fields[3]);
-              table.set(6,row,timeFormatter->format(mTime));
+              table.set(6, row, timeFormatter->format(mTime));
             }
             else
             {
-              table.set(3,row,fields[0]);
-              table.set(4,row,fields[1]);
-              table.set(5,row,fields[2]);
-              table.set(6,row,fields[3]);
+              table.set(3, row, fields[0]);
+              table.set(4, row, fields[1]);
+              table.set(5, row, fields[2]);
+              table.set(6, row, fields[3]);
             }
             cnt++;
             row++;
@@ -986,8 +984,6 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,const Spin
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
-
-
 
 // ----------------------------------------------------------------------
 /*!
@@ -1025,10 +1021,10 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
       return requestQEngineStatus(theReactor, theRequest);
 
     if (what == "gridgenerations")
-      return requestStatus(theReactor, theRequest,"gridgenerations");
+      return requestStatus(theReactor, theRequest, "gridgenerations");
 
     if (what == "gridgenerationsqd")
-      return requestStatus(theReactor, theRequest,"gridgenerationsqd");
+      return requestStatus(theReactor, theRequest, "gridgenerationsqd");
 
     if (what == "activerequests")
       return requestActiveRequests(theReactor, theRequest, theResponse);
@@ -1250,8 +1246,18 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReacto
     std::unique_ptr<Spine::TableFormatter> tableFormatter(
         Spine::TableFormatterFactory::create(tableFormat));
     boost::shared_ptr<Spine::Table> table(new Spine::Table());
-    Spine::TableFormatter::Names header_names{
-        "#", "cache_name", "hits", "misses", "hitrate", "hits/min", "created", "age"};
+    Spine::TableFormatter::Names header_names{"#",
+                                              "cache_name",
+                                              "maxsize",
+                                              "size",
+                                              "inserts",
+                                              "hits",
+                                              "misses",
+                                              "hitrate",
+                                              "hits/min",
+                                              "inserts/min",
+                                              "created",
+                                              "age"};
 
     auto now = boost::posix_time::microsec_clock::universal_time();
     auto cache_stats = getCacheStats();
@@ -1266,18 +1272,24 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReacto
     {
       const auto &name = item.first;
       const auto &stat = item.second;
-      auto duration = (now - stat.startTime()).total_seconds();
-      auto n = stat.hits() + stat.misses();
-      auto hitrate = (n == 0 ? 0.0 : stat.hits() * 100.0 / n);
-      auto hits_per_min = (duration == 0 ? 0.0 : 60.0 * stat.hits() / duration);
+      auto duration = (now - stat.starttime).total_seconds();
+      auto n = stat.hits + stat.misses;
+      auto hit_rate = (n == 0 ? 0.0 : stat.hits * 100.0 / n);
+      auto hits_per_min = (duration == 0 ? 0.0 : 60.0 * stat.hits / duration);
+      auto inserts_per_min = (duration == 0 ? 0.0 : 60 * stat.inserts / duration);
+
       data_table.set(0, row, Fmi::to_string(row));
       data_table.set(1, row, name);
-      data_table.set(2, row, Fmi::to_string(stat.hits()));
-      data_table.set(3, row, Fmi::to_string(stat.misses()));
-      data_table.set(4, row, Fmi::to_string("%.1f", hitrate));
-      data_table.set(5, row, Fmi::to_string("%.1f", hits_per_min));
-      data_table.set(6, row, timeFormatter->format(stat.startTime()));
-      data_table.set(7, row, Fmi::to_simple_string(now - stat.startTime()));
+      data_table.set(2, row, Fmi::to_string(stat.maxsize));
+      data_table.set(3, row, Fmi::to_string(stat.size));
+      data_table.set(4, row, Fmi::to_string(stat.inserts));
+      data_table.set(5, row, Fmi::to_string(stat.hits));
+      data_table.set(6, row, Fmi::to_string(stat.misses));
+      data_table.set(7, row, Fmi::to_string("%.1f", hit_rate));
+      data_table.set(8, row, Fmi::to_string("%.1f", hits_per_min));
+      data_table.set(9, row, Fmi::to_string("%.1f", inserts_per_min));
+      data_table.set(10, row, timeFormatter->format(stat.starttime));
+      data_table.set(11, row, Fmi::to_simple_string(now - stat.starttime));
       row++;
     }
 
@@ -1481,18 +1493,18 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     itsHTTP.reset(new HTTP(theReactor, theConfig));
 
     if (!theReactor->addContentHandler(
-            this, "/admin", boost::bind(&Plugin::callRequestHandler, this,
-					bph::_1, bph::_2, bph::_3)))
+            this,
+            "/admin",
+            boost::bind(&Plugin::callRequestHandler, this, bph::_1, bph::_2, bph::_3)))
       throw Fmi::Exception(BCP, "Failed to register admin content handler");
 
     if (!theReactor->addContentHandler(
-            this, "/", boost::bind(&Plugin::baseContentHandler, this,
-				   bph::_1, bph::_2, bph::_3)))
+            this, "/", boost::bind(&Plugin::baseContentHandler, this, bph::_1, bph::_2, bph::_3)))
       throw Fmi::Exception(BCP, "Failed to register base content handler");
 
 #ifndef NDEBUG
-    if (!theReactor->addContentHandler(this, "/sleep",
-				       boost::bind(&sleep, bph::_1, bph::_2, bph::_3)))
+    if (!theReactor->addContentHandler(
+            this, "/sleep", boost::bind(&sleep, bph::_1, bph::_2, bph::_3)))
       throw Fmi::Exception(BCP, "Failed to register sleep content handler");
 #endif
   }

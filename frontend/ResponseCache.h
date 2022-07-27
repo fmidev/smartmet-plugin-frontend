@@ -44,9 +44,12 @@ class ResponseCache
                           ContentEncodingType content_encoding,
                           const boost::shared_ptr<std::string>& buffer);
 
-  const Fmi::Cache::CacheStats& getMetaDataCacheStats() const { return itsMetaDataCache.statistics(); }
-  const Fmi::Cache::CacheStats& getMemoryCacheStats() const { return itsBufferCache.getMemoryCacheStats(); }
-  const Fmi::Cache::CacheStats& getFileCacheStats() const { return itsBufferCache.getFileCacheStats(); }
+  Fmi::Cache::CacheStats getMetaDataCacheStats() const { return itsMetaDataCache.statistics(); }
+  Fmi::Cache::CacheStats getMemoryCacheStats() const
+  {
+    return itsBufferCache.getMemoryCacheStats();
+  }
+  Fmi::Cache::CacheStats getFileCacheStats() const { return itsBufferCache.getFileCacheStats(); }
 
  private:
   // Cache ETag -> Bufferhash
