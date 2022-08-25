@@ -18,6 +18,7 @@
 #include <macgyver/StringConversion.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
+#include <spine/Exceptions.h>
 #include <spine/SmartMet.h>
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
@@ -1475,19 +1476,9 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
       if (!config.lookupValue("user", itsUsername) || !config.lookupValue("password", itsPassword))
         throw Fmi::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
     }
-    catch (const libconfig::ParseException &e)
-    {
-      throw Fmi::Exception(BCP,
-                           std::string("Configuration error ' ") + e.getError() + "' on line " +
-                               Fmi::to_string(e.getLine()));
-    }
-    catch (const libconfig::ConfigException &)
-    {
-      throw Fmi::Exception(BCP, "Configuration error");
-    }
     catch (...)
     {
-      throw Fmi::Exception::Trace(BCP, "Configuration error!");
+      Spine::Exceptions::handle("Frontend plugin");
     }
 
     itsHTTP.reset(new HTTP(theReactor, theConfig));

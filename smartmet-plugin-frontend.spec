@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 22.7.27
+Version: 22.8.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -23,20 +23,20 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 22.7.27
-BuildRequires: smartmet-library-spine-devel >= 22.7.27
-BuildRequires: smartmet-library-grid-files-devel >= 22.5.24
+BuildRequires: smartmet-library-spine-devel >= 22.8.25
+BuildRequires: smartmet-library-grid-files-devel >= 22.6.23
 BuildRequires: smartmet-engine-sputnik-devel >= 22.6.17
 BuildRequires: gdal34-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 22.7.27
+BuildRequires: smartmet-library-macgyver-devel >= 22.8.23
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 22.7.27
-Requires: smartmet-server >= 22.5.16
+Requires: smartmet-library-macgyver >= 22.8.23
+Requires: smartmet-server >= 22.8.19
 Requires: smartmet-engine-sputnik >= 22.6.17
-Requires: smartmet-library-spine >= 22.7.27
+Requires: smartmet-library-spine >= 22.8.25
 Requires: smartmet-library-timeseries >= 22.7.27
-Requires: smartmet-library-grid-files >= 22.5.24
+Requires: smartmet-library-grid-files >= 22.6.23
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Aug 25 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.8.25-1.fmi
+- Use a generic exception handler for configuration file errors
+
 * Wed Jul 27 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.7.27-1.fmi
 - Repackaged since macgyver CacheStats ABI changed
 
