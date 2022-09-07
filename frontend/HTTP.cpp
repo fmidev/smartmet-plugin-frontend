@@ -67,12 +67,13 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     Proxy::ProxyStatus proxyStatus = Proxy::ProxyStatus::PROXY_SUCCESS;
 
     // Use Proxy class to forward the request to backend server
+    std::string resource = theRequest.getResource();
     proxyStatus = itsProxy->HTTPForward(theReactor,
                                         theRequest,
                                         theResponse,
                                         theHost->IP(),
                                         theHost->Port(),
-                                        theService->URI(),
+                                        resource,
                                         theHost->Name());
 
     // Check the Proxy status
