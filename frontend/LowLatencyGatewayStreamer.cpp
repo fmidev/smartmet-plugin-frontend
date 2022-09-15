@@ -140,6 +140,8 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
       response.setHeader("Content-Length", std::to_string(cachedBuffer->size()));
 
       response.setHeader("X-Frontend-Cache-Hit", "true");
+      if (!metadata.etag.empty() && metadata.etag != "0")
+        response.setHeader("ETag", metadata.etag);
 
       response.setStatus(Spine::HTTP::Status::ok);
       response.setContent(cachedBuffer);
