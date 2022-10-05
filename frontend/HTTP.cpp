@@ -26,9 +26,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
   try
   {
     // Choose the backend host by URI
-    std::string theResource(theRequest.getResource());
-
-    BackendServicePtr theService = itsSputnikProcess->getServices().getService(theResource);
+    BackendServicePtr theService = itsSputnikProcess->getServices().getService(theRequest);
 
     if (theService.get() == nullptr)
     {
