@@ -66,6 +66,14 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
 
     // Use Proxy class to forward the request to backend server
     std::string resource = theRequest.getResource();
+
+    // HOTFIX. Must be implemented in a better way
+    // FIXME: save required service name in smartmet-engine-sputnik instead of guessing here
+    const std::string hostName = theHost->Name();
+    if (resource.substr(0, hostName.length() + 2) == "/" + hostName + "/") {
+      resource = resource.substr(hostName.length() + 1);
+    }
+
     proxyStatus = itsProxy->HTTPForward(theReactor,
                                         theRequest,
                                         theResponse,
