@@ -1,5 +1,6 @@
 #include "HTTP.h"
 #include "Proxy.h"
+#include <boost/algorithm/string.hpp>
 #include <boost/bind/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
@@ -12,6 +13,8 @@
 #include <spine/Reactor.h>
 #include <iostream>
 #include <stdexcept>
+
+namespace ba = boost::algorithm;
 
 namespace SmartMet
 {
@@ -67,11 +70,25 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     // Use Proxy class to forward the request to backend server
     std::string resource = theRequest.getResource();
 
-    // HOTFIX. Must be implemented in a better way
-    // FIXME: save required service name in smartmet-engine-sputnik instead of guessing here
     const std::string hostName = theHost->Name();
-    if (resource.substr(0, hostName.length() + 2) == "/" + hostName + "/") {
-      resource = resource.substr(hostName.length() + 1);
+    const std::string hostPrefix = "/" + hostName;
+
+    if (ba::starts_with(resource, theService->URI())) {
+        // Direct match: can use initial resource URI.
+        // Unfortunatelly it is unknown here whether theService.URI() defines
+        // the prefix or requires exact match. Otherwise one could use exact match
+        // or prefix match.
+    } else if (ba::starts_with(resource, hostPrefix + "/")) {
+        // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
+        resource = resource.substr(0, hostPrefix.length());
+    }
+
+    if (not ba::starts_with(resource, theService->URI())) {
+        // Something unexpected happened.
+        std::cout << Spine::log_time_str() << " Request resource '" << theRequest.getResource()
+                  << "' does not begin with either of '" << theService->URI()
+                  << "' and '" << (hostPrefix + theService->URI()) << "'" << std::endl;
+        return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
     }
 
     proxyStatus = itsProxy->HTTPForward(theReactor,

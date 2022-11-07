@@ -29,7 +29,8 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
     PROXY_SUCCESS,
     PROXY_FAIL_REMOTE_HOST = 200,   // socket closed etc
     PROXY_FAIL_SERVICE = 300,       // service not found etc
-    PROXY_FAIL_REMOTE_DENIED = 400  // backend shutting down or too high load
+    PROXY_FAIL_REMOTE_DENIED = 400, // backend shutting down or too high load
+    PROXY_INTERNAL_ERROR = 500
   };
 
   Proxy(std::size_t uncompressedMemoryCacheSize,
