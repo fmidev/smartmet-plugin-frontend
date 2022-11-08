@@ -267,7 +267,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
 
     auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
 
-    boost::shared_ptr<Spine::Table> table = sputnik->backends(service);
+    std::shared_ptr<Spine::Table> table = sputnik->backends(service);
 
     boost::shared_ptr<Spine::TableFormatter> formatter(
         Spine::TableFormatterFactory::create(format));

@@ -40,7 +40,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     }
 
     // BackendServer where we're connecting to
-    const boost::shared_ptr<BackendServer> theHost = theService->Backend();
+    const std::shared_ptr<BackendServer> theHost = theService->Backend();
 
     if (theHost.get() == nullptr)
     {
@@ -73,22 +73,33 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     const std::string hostName = theHost->Name();
     const std::string hostPrefix = "/" + hostName;
 
-    if (ba::starts_with(resource, theService->URI())) {
-        // Direct match: can use initial resource URI.
-        // Unfortunatelly it is unknown here whether theService.URI() defines
-        // the prefix or requires exact match. Otherwise one could use exact match
-        // or prefix match.
-    } else if (ba::starts_with(resource, hostPrefix + "/")) {
-        // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
-        resource = resource.substr(0, hostPrefix.length());
-    }
-
-    if (not ba::starts_with(resource, theService->URI())) {
-        // Something unexpected happened.
-        std::cout << Spine::log_time_str() << " Request resource '" << theRequest.getResource()
-                  << "' does not begin with either of '" << theService->URI()
-                  << "' and '" << (hostPrefix + theService->URI()) << "'" << std::endl;
-        return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
+    if (theService->DefinesPrefix()) {
+        if (ba::starts_with(resource, theService->URI())) {
+            // Direct match IRU prefix: can use initial resource URI.
+        } else if (ba::starts_with(resource, hostPrefix + "/")) {
+            // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
+            resource = resource.substr(0, hostPrefix.length());
+        }
+        if (not ba::starts_with(resource, theService->URI())) {
+            // Something unexpected happened.
+            std::cout << Spine::log_time_str() << " Request resource '" << theRequest.getResource()
+                      << "' does not begin with either of '" << theService->URI()
+                      << "' and '" << (hostPrefix + theService->URI()) << "'" << std::endl;
+            return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
+        }
+    } else {
+        if (resource == theService->URI()) {
+            // Direct match: can use initial resource URI.
+        } else if (resource == hostPrefix + theService->URI()) {
+            // Host prefix found. Remove it when sending request to backend
+            resource = theService->URI();
+        } else {
+            // Something unexpected happened.
+            std::cout << Spine::log_time_str() << " Request resource '" << theRequest.getResource()
+                      << "' is neither of '" << theService->URI()
+                      << "' and '" << (hostPrefix + theService->URI()) << "'" << std::endl;
+            return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
+        }
     }
 
     proxyStatus = itsProxy->HTTPForward(theReactor,
