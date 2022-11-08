@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 22.10.25
+Version: 22.11.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Tue Nov  8 2022 Andris Pavēnis <andris.pavenis@fmi.fi> 22.11.8-1.fmi
+- Handle separately cases when URI prefix is used and is not used
+
 * Tue Oct 25 2022 Andris Pavenis <andris.pavenis@fmi.fi> 22.10.25-1.fmi
 - [BRAINSTORM-2445] Hot-fix to support URLs in format /backend_name/...
 
