@@ -78,7 +78,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
             // Direct match IRU prefix: can use initial resource URI.
         } else if (ba::starts_with(resource, hostPrefix + "/")) {
             // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
-            resource = resource.substr(0, hostPrefix.length());
+            resource = resource.substr(hostPrefix.length());
         }
         if (not ba::starts_with(resource, theService->URI())) {
             // Something unexpected happened.
