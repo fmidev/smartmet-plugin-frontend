@@ -5,6 +5,7 @@
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
+#include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
@@ -30,8 +31,8 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
       idler(backendIoService),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds)
 {
-  std::cout << "Backend ASIO pool size = " << theBackendThreadCount << std::endl;
-  std::cout << "Backend timeout = " << itsBackendTimeoutInSeconds << " seconds" << std::endl;
+  std::cout << fmt::format("Backend ASIO pool size = {}", theBackendThreadCount) << std::endl;
+  std::cout << fmt::format("Backend timeout = {} seconds", itsBackendTimeoutInSeconds) << std::endl;
   try
   {
     for (int i = 0; i < theBackendThreadCount; ++i)
@@ -70,7 +71,8 @@ void Proxy::shutdown()
 {
   try
   {
-    std::cout << Spine::log_time_str() << "  -- Shutdown requested (Proxy)" << std::endl;
+    std::cout << fmt::format("{}  -- Shutdown requested (Proxy)", Spine::log_time_str())
+              << std::endl;
     itsBackendThreads.interrupt_all();
   }
   catch (...)
@@ -140,15 +142,21 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
     std::string httpStatus = responseStreamer->getPeekString(9, 4);
     if (httpStatus == "3210")
     {
-      std::cout << Spine::log_time_str() << " *** Remote " << theHostName << ':' << theBackendPort
-                << " shutting down, resending to another backend" << std::endl;
+      std::cout << fmt::format("{} *** Remote {}:{} shutting down, resending to another backend",
+                               Spine::log_time_str(),
+                               theHostName,
+                               theBackendPort)
+                << std::endl;
       return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
     }
 
     if (httpStatus == "1234")
     {
-      std::cout << Spine::log_time_str() << " *** Remote " << theHostName << ':' << theBackendPort
-                << " has high load, resending to another backend" << std::endl;
+      std::cout << fmt::format("{} *** Remote {}:{} has high load, resending to another backend",
+                               Spine::log_time_str(),
+                               theHostName,
+                               theBackendPort)
+                << std::endl;
       return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
     }
 

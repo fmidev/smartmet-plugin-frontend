@@ -7,6 +7,7 @@
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 #include <engines/sputnik/Engine.h>
+#include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
@@ -44,7 +45,8 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
 
     if (theHost.get() == nullptr)
     {
-      std::cout << Spine::log_time_str() << " Service backend value is null" << std::endl;
+      std::cout << fmt::format("{} Service backend value is null", Spine::log_time_str())
+                << std::endl;
 
       // 502 Service Not Found
       theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
@@ -56,8 +58,11 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     {
       itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
 
-      std::cout << Spine::log_time_str() << " Backend " << theHost->Name() << ':' << theHost->Port()
-                << " is marked as dead. Retiring backend server." << std::endl;
+      std::cout << fmt::format("{} Backend {}:{} is marked as dead. Retiring backend server.",
+                               Spine::log_time_str(),
+                               theHost->Name(),
+                               theHost->Port())
+                << std::endl;
 
       return Proxy::ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
@@ -73,33 +78,52 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     const std::string hostName = theHost->Name();
     const std::string hostPrefix = "/" + hostName;
 
-    if (theService->DefinesPrefix()) {
-        if (ba::starts_with(resource, theService->URI())) {
-            // Direct match IRU prefix: can use initial resource URI.
-        } else if (ba::starts_with(resource, hostPrefix + "/")) {
-            // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
-            resource = resource.substr(hostPrefix.length());
-        }
-        if (not ba::starts_with(resource, theService->URI())) {
-            // Something unexpected happened.
-            std::cout << Spine::log_time_str() << " Request resource '" << theRequest.getResource()
-                      << "' does not begin with either of '" << theService->URI()
-                      << "' and '" << (hostPrefix + theService->URI()) << "'" << std::endl;
-            return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
-        }
-    } else {
-        if (resource == theService->URI()) {
-            // Direct match: can use initial resource URI.
-        } else if (resource == hostPrefix + theService->URI()) {
-            // Host prefix found. Remove it when sending request to backend
-            resource = theService->URI();
-        } else {
-            // Something unexpected happened.
-            std::cout << Spine::log_time_str() << " Request resource '" << theRequest.getResource()
-                      << "' is neither of '" << theService->URI()
-                      << "' and '" << (hostPrefix + theService->URI()) << "'" << std::endl;
-            return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
-        }
+    if (theService->DefinesPrefix())
+    {
+      if (ba::starts_with(resource, theService->URI()))
+      {
+        // Direct match IRU prefix: can use initial resource URI.
+      }
+      else if (ba::starts_with(resource, hostPrefix + "/"))
+      {
+        // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
+        resource = resource.substr(hostPrefix.length());
+      }
+      if (not ba::starts_with(resource, theService->URI()))
+      {
+        // Something unexpected happened.
+        std::cout << fmt::format(
+                         "{} Request resource '{}' does not beging with either of '{}' and '{}'",
+                         Spine::log_time_str(),
+                         theRequest.getResource(),
+                         theService->URI(),
+                         hostPrefix + theService->URI())
+                  << std::endl;
+        return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
+      }
+    }
+    else
+    {
+      if (resource == theService->URI())
+      {
+        // Direct match: can use initial resource URI.
+      }
+      else if (resource == hostPrefix + theService->URI())
+      {
+        // Host prefix found. Remove it when sending request to backend
+        resource = theService->URI();
+      }
+      else
+      {
+        // Something unexpected happened.
+        std::cout << fmt::format("{} Request resource '{}' is neither of '{}' and '{}'",
+                                 Spine::log_time_str(),
+                                 theRequest.getResource(),
+                                 theService->URI(),
+                                 hostPrefix + theService->URI())
+                  << std::endl;
+        return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
+      }
     }
 
     proxyStatus = itsProxy->HTTPForward(theReactor,
@@ -115,8 +139,13 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     {
       // Immediately remove the backend server from the service providing pool
       // if there was a problem connecting to backend server.
-      std::cout << Spine::log_time_str() << " Backend Server connection to " << theHost->Name()
-                << ':' << theHost->Port() << " failed, retiring the backend server." << std::endl;
+      std::cout
+          << fmt::format(
+                 "{{} Backend Server connection to {}:{} failed, retiring the backend server.",
+                 Spine::log_time_str(),
+                 theHost->Name(),
+                 theHost->Port())
+          << std::endl;
 
       itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
     }
@@ -150,7 +179,8 @@ void HTTP::requestHandler(Spine::Reactor &theReactor,
       theStatus = transport(theReactor, theRequest, theResponse);
 
       if (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
-        std::cout << Spine::log_time_str() << " Resending URI " << theRequest.getURI() << std::endl;
+        std::cout << fmt::format("{} Resending URI {}", Spine::log_time_str(), theRequest.getURI())
+                  << std::endl;
     } while (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED);
 
     return;

@@ -1,6 +1,8 @@
 #include "LowLatencyGatewayStreamer.h"
 #include "Proxy.h"
+#include <fmt/format.h>
 #include <macgyver/StringConversion.h>
+#include <spine/Convenience.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -204,9 +206,11 @@ bool LowLatencyGatewayStreamer::sendAndListen()
 
     if (!!err)
     {
-      std::cout << boost::posix_time::second_clock::local_time() << " Backend connection to "
-                << itsIP << " failed with message '" << err.message() << "'" << std::endl;
-
+      std::cout << fmt::format("{} Backend connection to {} failed with message '{}'",
+                               Spine::log_time_str(),
+                               itsIP,
+                               err.message())
+                << std::endl;
       return false;
     }
 
@@ -223,9 +227,11 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
     if (!!err)
     {
-      std::cout << boost::posix_time::second_clock::local_time() << " Backend write to " << itsIP
-                << " failed with message '" << err.message() << "'" << std::endl;
-
+      std::cout << fmt::format("{} Backend write to {} failed with message '{}'",
+                               Spine::log_time_str(),
+                               itsIP,
+                               err.message())
+                << std::endl;
       return false;
     }
 
@@ -365,12 +371,15 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
       case Spine::HTTP::ParsingStatus::FAILED:
       {
         // Garbled response, handle error
-        std::cout << boost::posix_time::second_clock::local_time() << " Cache query to backend at "
-                  << itsIP << ":" << itsPort << " returned garbled response." << std::endl
-                  << "Query: " << std::endl
-                  << itsOriginalRequest.getQueryString() << std::endl
-                  << "Response buffer: " << std::endl
-                  << itsResponseHeaderBuffer << std::endl;
+        std::cout << fmt::format(
+                         "{} Cache query to backend at {}:{} returned garbled response.\nQuery: "
+                         "{}\nResponse buffer: {}",
+                         Spine::log_time_str(),
+                         itsIP,
+                         itsPort,
+                         itsOriginalRequest.getQueryString(),
+                         itsResponseHeaderBuffer)
+                  << std::endl;
 
         itsGatewayStatus = GatewayStatus::FAILED;
 
@@ -518,8 +527,11 @@ void LowLatencyGatewayStreamer::sendContentRequest()
 
     if (!!err)
     {
-      std::cout << boost::posix_time::second_clock::local_time() << " Backend connection to "
-                << itsIP << " failed with message '" << err.message() << "'" << std::endl;
+      std::cout << fmt::format("{} Backend connection to {} failed with message '{}'",
+                               Spine::log_time_str(),
+                               itsIP,
+                               err.message())
+                << std::endl;
 
       itsGatewayStatus = GatewayStatus::FAILED;
 
@@ -544,8 +556,11 @@ void LowLatencyGatewayStreamer::sendContentRequest()
     }
     else
     {
-      std::cout << boost::posix_time::second_clock::local_time() << " Backend write to " << itsIP
-                << " failed with message '" << err.message() << "'" << std::endl;
+      std::cout << fmt::format("{} Backed write to {} failed with message '{}'",
+                               Spine::log_time_str(),
+                               itsIP,
+                               err.message())
+                << std::endl;
 
       itsGatewayStatus = GatewayStatus::FAILED;
     }
@@ -578,9 +593,11 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
       case Spine::HTTP::ParsingStatus::FAILED:
       {
         // Garbled response, handle error
-        std::cout << boost::posix_time::second_clock::local_time() << " Data query to backend at "
-                  << itsIP << ":" << itsPort << " return garbled response" << std::endl;
-
+        std::cout << fmt::format("{} Data query to backend at {}:{} returned garbled response",
+                                 Spine::log_time_str(),
+                                 itsIP,
+                                 itsPort)
+                  << std::endl;
         itsGatewayStatus = GatewayStatus::FAILED;
         return;
       }
@@ -817,9 +834,12 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
       // Backend timed out or client disconnected
       if (itsHasTimedOut)
       {
-        std::cout << boost::posix_time::second_clock::local_time() << " Connection to backend at "
-                  << itsIP << ":" << itsPort << " timed out in " << itsBackendTimeoutInSeconds
-                  << " seconds" << std::endl;
+        std::cout << fmt::format("{} Connection to backend at {}:{} timed out in {} seconds",
+                                 Spine::log_time_str(),
+                                 itsIP,
+                                 itsPort,
+                                 itsBackendTimeoutInSeconds)
+                  << std::endl;
 
         itsGatewayStatus = GatewayStatus::FAILED;
       }
@@ -830,8 +850,12 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
     }
     else
     {
-      std::cout << boost::posix_time::second_clock::local_time() << " Connection to backend at "
-                << itsIP << ":" << itsPort << " abnormally terminated. Reason: " << err.message()
+      std::cout << fmt::format(
+                       "{} Connection to backend at {}:{} abnormally terminated. Reason: '{}'",
+                       Spine::log_time_str(),
+                       itsIP,
+                       itsPort,
+                       err.message())
                 << std::endl;
 
       itsGatewayStatus = GatewayStatus::FAILED;

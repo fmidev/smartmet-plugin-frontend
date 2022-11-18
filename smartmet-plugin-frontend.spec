@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 22.11.8
-Release: 2%{?dist}.fmi
+Version: 22.11.18
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Fri Nov 18 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.11.18-1.fmi
+- Try to avoid overlapping error messages by using fmt::format
+
 * Tue Nov  8 2022 Andris Pavenis <andris.pavenis@fmi.fi> 22.11.8-2.fmi
 - [BRAINSTORM-2445] Hot-fix to support URLs in format /backend_name/... (iteration 2)
 
