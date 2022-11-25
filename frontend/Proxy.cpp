@@ -116,6 +116,15 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
 
     fwdRequest.setHeader("Connection", "close");
 
+    // Establish used protocol. At FMI this is normally set by the F5 load balancer,
+    // but in some environments the Frontend server must do this by itself
+    auto protocol = fwdRequest.getHeader("X-Forwarded-Proto");
+    if (!protocol)
+    {
+      auto* proto = (theReactor.isEncrypted() ? "https" : "http");
+      fwdRequest.setHeader("X-Forwarded-Proto", proto);
+    }
+
     boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
         new LowLatencyGatewayStreamer(shared_from_this(),
                                       theReactor,
