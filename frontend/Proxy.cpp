@@ -55,9 +55,7 @@ ResponseCache& Proxy::getCache(ResponseCache::ContentEncodingType type)
     {
       case ResponseCache::ContentEncodingType::GZIP:
         return itsCompressedResponseCache;
-      case ResponseCache::ContentEncodingType::NONE:
-        return itsUncompressedResponseCache;
-      default:  // Unreachable, compiler needs this
+      default:
         return itsUncompressedResponseCache;
     }
   }
@@ -84,9 +82,9 @@ void Proxy::shutdown()
 Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
                                       const Spine::HTTP::Request& theRequest,
                                       Spine::HTTP::Response& theResponse,
-                                      std::string& theBackendIP,
+                                      const std::string& theBackendIP,
                                       int theBackendPort,
-                                      std::string& theBackendURI,
+                                      const std::string& theBackendURI,
                                       const std::string& theHostName)
 {
   try
@@ -121,7 +119,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
     auto protocol = fwdRequest.getHeader("X-Forwarded-Proto");
     if (!protocol)
     {
-      auto* proto = (theReactor.isEncrypted() ? "https" : "http");
+      const auto* proto = (theReactor.isEncrypted() ? "https" : "http");
       fwdRequest.setHeader("X-Forwarded-Proto", proto);
     }
 

@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 22.11.25
+Version: 22.11.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -32,7 +32,7 @@ BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 22.10.20
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 22.10.20
-Requires: smartmet-server >= 22.11.7
+Requires: smartmet-server >= 22.11.25
 Requires: smartmet-engine-sputnik >= 22.11.25
 Requires: smartmet-library-spine >= 22.11.25
 Requires: smartmet-library-timeseries >= 22.10.25
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Mon Nov 28 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.11.28-1.fmi
+- Silenced compiler warnings
+
 * Fri Nov 25 2022 Mika Heiskanen <mika.heiskanen@fmi.fi> - 22.11.25-1.fmi
 - Determine X-Forwarder-Proto header automatically if not provided by a load balancer
 

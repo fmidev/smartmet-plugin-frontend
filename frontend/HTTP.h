@@ -33,9 +33,13 @@ class HTTP
   void sputnikMessageHandler(std::string* theMessage);
 
   // Constructor and destructor
-  //
   HTTP(Spine::Reactor* theReactor, const char* theConfig);
   ~HTTP();
+
+  HTTP(const HTTP& other) = delete;
+  HTTP(HTTP&& other) = delete;
+  HTTP& operator=(const HTTP& other) = delete;
+  HTTP& operator=(HTTP&& other) = delete;
 
   void shutdown();
 

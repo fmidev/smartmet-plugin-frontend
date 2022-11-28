@@ -43,7 +43,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     // BackendServer where we're connecting to
     const std::shared_ptr<BackendServer> theHost = theService->Backend();
 
-    if (theHost.get() == nullptr)
+    if (!theHost)
     {
       std::cout << fmt::format("{} Service backend value is null", Spine::log_time_str())
                 << std::endl;

@@ -30,6 +30,11 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   ~LowLatencyGatewayStreamer() override;
 
+  LowLatencyGatewayStreamer(const LowLatencyGatewayStreamer& other) = delete;
+  LowLatencyGatewayStreamer(LowLatencyGatewayStreamer&& other) = delete;
+  LowLatencyGatewayStreamer& operator=(const LowLatencyGatewayStreamer& other) = delete;
+  LowLatencyGatewayStreamer& operator=(LowLatencyGatewayStreamer&& other) = delete;
+
   // Begin backend operations
   bool sendAndListen();
 

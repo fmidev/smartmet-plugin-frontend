@@ -27,9 +27,9 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
   enum class ProxyStatus
   {
     PROXY_SUCCESS,
-    PROXY_FAIL_REMOTE_HOST = 200,   // socket closed etc
-    PROXY_FAIL_SERVICE = 300,       // service not found etc
-    PROXY_FAIL_REMOTE_DENIED = 400, // backend shutting down or too high load
+    PROXY_FAIL_REMOTE_HOST = 200,    // socket closed etc
+    PROXY_FAIL_SERVICE = 300,        // service not found etc
+    PROXY_FAIL_REMOTE_DENIED = 400,  // backend shutting down or too high load
     PROXY_INTERNAL_ERROR = 500
   };
 
@@ -47,9 +47,9 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
   ProxyStatus HTTPForward(Spine::Reactor& theReactor,
                           const Spine::HTTP::Request& theRequest,
                           Spine::HTTP::Response& TheResponse,
-                          std::string& theBackendIP,
+                          const std::string& theBackendIP,
                           int theBackendPort,
-                          std::string& theBackendURI,
+                          const std::string& theBackendURI,
                           const std::string& theHostName);
 
   ResponseCache& getCache(ResponseCache::ContentEncodingType type);

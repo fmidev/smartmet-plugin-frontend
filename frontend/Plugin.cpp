@@ -445,28 +445,28 @@ BackendFiles buildSpineQEngineContents(
     std::size_t maxsize = 0;
     for (const auto &backend : theFiles)
     {
-      for (const auto &producer : backend.second)
-        maxsize = std::max(maxsize, producer.second.size());
+      for (const auto &prod : backend.second)
+        maxsize = std::max(maxsize, prod.second.size());
     }
 
     BackendFiles spineFiles;
 
     for (const auto &backend : theFiles)
     {
-      for (const auto &producer : backend.second)
+      for (const auto &prod : backend.second)
       {
-        auto outputIt = spineFiles.find(producer.first);
+        auto outputIt = spineFiles.find(prod.first);
         if (outputIt == spineFiles.end())
         {
-          spineFiles.insert(std::make_pair(producer.first, producer.second));
+          spineFiles.insert(std::make_pair(prod.first, prod.second));
         }
         else
         {
           ProducerFiles tempResult(maxsize);
           auto last_modified = std::set_intersection(outputIt->second.begin(),
                                                      outputIt->second.end(),
-                                                     producer.second.begin(),
-                                                     producer.second.end(),
+                                                     prod.second.begin(),
+                                                     prod.second.end(),
                                                      tempResult.begin(),
                                                      qEngineSort);
           outputIt->second = ProducerFiles(tempResult.begin(), last_modified);
@@ -536,7 +536,7 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
       boost::asio::streambuf response;
       boost::system::error_code error;
 
-      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0u)
+      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0U)
       {
         if (error == boost::asio::error::eof)  // Reads until socket is closed
           break;
@@ -821,7 +821,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
 
 std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
                                            const Spine::HTTP::Request &theRequest,
-                                           std::string what)
+                                           const std::string &what)
 {
   try
   {
@@ -850,25 +850,25 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
     std::list<std::pair<std::string, std::string>> messageList =
         getBackendMessages(theReactor, url);
 
-    typedef std::map<std::string, uint> TimeCounter;
+    using TimeCounter = std::map<std::string, uint>;
     std::map<std::string, TimeCounter> producers;
 
     uint backendCount = messageList.size();
 
-    for (auto b = messageList.begin(); b != messageList.end(); ++b)
+    for (const auto &b : messageList)
     {
       std::vector<std::string> lines;
-      lineSplit(b->second.c_str(), lines);
+      lineSplit(b.second.c_str(), lines);
 
-      for (auto line = lines.begin(); line != lines.end(); ++line)
+      for (const auto &line : lines)
       {
         std::vector<std::string> fields;
-        splitString(*line, ' ', fields);
+        splitString(line, ' ', fields);
 
         if (fields.size() >= 9)
         {
           std::size_t matchCount = 0;
-          if (inputParamList.size() > 0)
+          if (!inputParamList.empty())
           {
             std::set<std::string> paramList1;
             std::set<std::string> paramList2;
@@ -878,16 +878,16 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
             splitString(tmp1, ',', paramList1);
             splitString(tmp2, ',', paramList2);
 
-            for (auto p = inputParamList.begin(); p != inputParamList.end(); ++p)
+            for (const auto &p : inputParamList)
             {
-              auto f1 = paramList1.find(*p);
+              auto f1 = paramList1.find(p);
               if (f1 != paramList1.end())
               {
                 matchCount++;
               }
               else
               {
-                auto f2 = paramList2.find(*p);
+                auto f2 = paramList2.find(p);
                 if (f2 != paramList2.end())
                 {
                   matchCount++;
@@ -923,10 +923,10 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
       }
     }
 
-    for (auto prod = producers.begin(); prod != producers.end(); ++prod)
+    for (const auto &prod : producers)
     {
       uint cnt = 0;
-      for (auto atime = prod->second.rbegin(); atime != prod->second.rend() && cnt == 0; ++atime)
+      for (auto atime = prod.second.rbegin(); atime != prod.second.rend() && cnt == 0; ++atime)
       {
         if (atime->second == backendCount)
         {
@@ -935,7 +935,7 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
 
           if (fields.size() == 6)
           {
-            table.set(0, row, prod->first);
+            table.set(0, row, prod.first);
             table.set(1, row, fields[4]);
             table.set(2, row, fields[5]);
             if (!timeFormat.empty() && strcasecmp(timeFormat.c_str(), "iso") != 0 && timeFormatter)
@@ -1160,7 +1160,7 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor &theReactor,
+std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor & /* theReactor */,
                                                   const Spine::HTTP::Request &theRequest,
                                                   Spine::HTTP::Response &theResponse)
 {
@@ -1418,8 +1418,6 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
     // Parse user and password
 
     std::vector<std::string> splitHeader;
-    std::string truePassword;
-    std::string trueUser;
     std::string trueDigest;
     std::string givenDigest;
 
@@ -1455,8 +1453,7 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
  */
 // ----------------------------------------------------------------------
 
-Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
-    : SmartMetPlugin(), itsModuleName("Frontend")
+Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleName("Frontend")
 {
   try
   {
@@ -1667,7 +1664,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       std::string firstMessage = exception.what();
       boost::algorithm::replace_all(firstMessage, "\n", " ");
       firstMessage = firstMessage.substr(0, 300);
-      theResponse.setHeader("X-Frontend-Error", firstMessage.c_str());
+      theResponse.setHeader("X-Frontend-Error", firstMessage);
     }
 #if 0
     catch (...)

@@ -26,6 +26,11 @@ class Plugin : public SmartMetPlugin
   Plugin(Spine::Reactor* theReactor, const char* theConfig);
   ~Plugin() override = default;
 
+  Plugin(const Plugin& other) = delete;
+  Plugin(Plugin&& other) = delete;
+  Plugin& operator=(const Plugin& other) = delete;
+  Plugin& operator=(Plugin&& other) = delete;
+
   const std::string& getPluginName() const override;
   int getRequiredAPIVersion() const override;
   bool queryIsFast(const Spine::HTTP::Request& theRequest) const override;
@@ -68,14 +73,14 @@ class Plugin : public SmartMetPlugin
 
   std::pair<std::string, bool> requestContinue(SmartMet::Spine::Reactor& theReactor,
                                                const SmartMet::Spine::HTTP::Request& theRequest);
-  std::pair<std::string, bool> listRequests(Spine::Reactor& theReactor,
-                                            const Spine::HTTP::Request& theRequest,
-                                            Spine::HTTP::Response& theResponse);
+  static std::pair<std::string, bool> listRequests(Spine::Reactor& theReactor,
+                                                   const Spine::HTTP::Request& theRequest,
+                                                   Spine::HTTP::Response& theResponse);
   std::pair<std::string, bool> requestCacheStats(Spine::Reactor& theReactor,
                                                  const Spine::HTTP::Request& theRequest,
                                                  Spine::HTTP::Response& theResponse);
 
-  Fmi::Cache::CacheStatistics getCacheStats() const;
+  Fmi::Cache::CacheStatistics getCacheStats() const final;
 };  // class Plugin
 
 }  // namespace Frontend
