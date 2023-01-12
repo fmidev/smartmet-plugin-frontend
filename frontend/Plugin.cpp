@@ -23,6 +23,7 @@
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
+#include <spine/TcpMultiQuery.h>
 #include <timeseries/ParameterFactory.h>
 #include <sstream>
 #include <stdexcept>
@@ -504,23 +505,11 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
     // Get the backends which provide services
     auto backendList = sputnik->getBackendList();  // type is Services::BackendList
 
-    // Get Qengine status from backends
-    boost::asio::io_service io_service;
-    bip::tcp::resolver resolver(io_service);
-    std::list<std::pair<std::string, std::string>> qEngineContentList;
+    Spine::TcpMultiQuery multi_query(5);
+
     for (auto &backend : backendList)
     {
-      bip::tcp::resolver::query query(backend.get<1>(), Fmi::to_string(backend.get<2>()));
-      bip::tcp::resolver::iterator endpoint = resolver.resolve(query);
-
-      bip::tcp::socket socket(io_service);
-      boost::asio::connect(socket, endpoint);
-
-      boost::asio::streambuf request;
-      std::ostream request_stream(&request);
-      //	  request_stream << "GET " << "/" << backend.get<0>() <<
-      //"/admin?what=qengine&format=json"
-      //<< " HTTP/1.0\r\n";
+      std::ostringstream request_stream;
       request_stream << "GET "
                      << "/admin?what=qengine&format=json";
       if (!theTimeFormat.empty())
@@ -529,30 +518,34 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
       request_stream << "Accept: */*\r\n";
       request_stream << "Connection: close\r\n\r\n";
 
-      //		  std::cout << text.str() << std::endl;
+      multi_query.add_query(
+          backend.get<1>(), // ID is the same as host name/IP address
+	  backend.get<1>(),
+	  Fmi::to_string(backend.get<2>()),
+	  request_stream.str());
+    }
 
-      boost::asio::write(socket, request);
+    multi_query.execute();
 
-      boost::asio::streambuf response;
-      boost::system::error_code error;
-
-      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0U)
+    std::list<std::pair<std::string, std::string>> qEngineContentList;
+    for (auto &backend : backendList)
+    {
+      const auto result = multi_query[backend.get<1>()];
+      if (result.error_code)
       {
-        if (error == boost::asio::error::eof)  // Reads until socket is closed
-          break;
-
-        // Should there be some error handling in here? Now the JSON parser
-        // may just fail on a bad response.
+	qEngineContentList.emplace_back(
+          std::make_pair(
+            backend.get<1>(),
+	    "ERROR: " + result.error_code.message()));
       }
+      else
+      {
+        std::string rawResponse = result.body;
+        size_t bodyStart = rawResponse.find("\r\n\r\n");
+        std::string body = rawResponse.substr(bodyStart);
 
-      std::stringstream responseStream;
-      responseStream << &response;
-
-      std::string rawResponse = responseStream.str();
-      size_t bodyStart = rawResponse.find("\r\n\r\n");
-      std::string body = rawResponse.substr(bodyStart);
-
-      qEngineContentList.emplace_back(std::make_pair(backend.get<0>(), body));
+        qEngineContentList.emplace_back(std::make_pair(backend.get<0>(), body));
+      }
     }
 
     return qEngineContentList;
