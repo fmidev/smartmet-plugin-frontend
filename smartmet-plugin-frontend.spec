@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 23.1.12
+Version: 23.1.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Fri Jan 13 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.1.13-1.fmi
+- Testing (2023-01-13)
+
 * Thu Jan 12 2023 Andris Pavenis <andris.pavenis@fmi.fi> 23.1.12-1.fmi
 - Plugin::getBackendQEngineStatuses: use SmartMet::Spine::TcpMultiQuery (not yet completely ready)getBackendQEngineStatuses
 
