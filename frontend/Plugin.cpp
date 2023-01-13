@@ -28,6 +28,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <fmt/format.h>
 
 using boost::posix_time::ptime;
 using boost::posix_time::second_clock;
@@ -507,6 +508,10 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
 
     Spine::TcpMultiQuery multi_query(5);
 
+    // FIXME: Why backendList contains repeated addresses? Work around that for now
+    int counter = 0;
+    std::vector<std::pair<std::string, std::string> > id_mapping;
+
     for (auto &backend : backendList)
     {
       std::ostringstream request_stream;
@@ -518,8 +523,11 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
       request_stream << "Accept: */*\r\n";
       request_stream << "Connection: close\r\n\r\n";
 
+      const std::string id = fmt::format("%05d", ++counter);
+      id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
+
       multi_query.add_query(
-          backend.get<1>(), // ID is the same as host name/IP address
+          id,
 	  backend.get<1>(),
 	  Fmi::to_string(backend.get<2>()),
 	  request_stream.str());
@@ -528,14 +536,15 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
     multi_query.execute();
 
     std::list<std::pair<std::string, std::string>> qEngineContentList;
-    for (auto &backend : backendList)
+    for (auto &item : id_mapping)
     {
-      const auto result = multi_query[backend.get<1>()];
+      const auto result = multi_query[item.second];
       if (result.error_code)
       {
+        // FIXME: what to output here
 	qEngineContentList.emplace_back(
           std::make_pair(
-            backend.get<1>(),
+            item.first,
 	    "ERROR: " + result.error_code.message()));
       }
       else
@@ -544,7 +553,7 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
         size_t bodyStart = rawResponse.find("\r\n\r\n");
         std::string body = rawResponse.substr(bodyStart);
 
-        qEngineContentList.emplace_back(std::make_pair(backend.get<0>(), body));
+        qEngineContentList.emplace_back(std::make_pair(item.first, body));
       }
     }
 
