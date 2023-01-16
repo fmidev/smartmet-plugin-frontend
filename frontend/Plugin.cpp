@@ -23,10 +23,12 @@
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
 #include <spine/TableFormatterOptions.h>
+#include <spine/TcpMultiQuery.h>
 #include <timeseries/ParameterFactory.h>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <fmt/format.h>
 
 using boost::posix_time::ptime;
 using boost::posix_time::second_clock;
@@ -504,23 +506,15 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
     // Get the backends which provide services
     auto backendList = sputnik->getBackendList();  // type is Services::BackendList
 
-    // Get Qengine status from backends
-    boost::asio::io_service io_service;
-    bip::tcp::resolver resolver(io_service);
-    std::list<std::pair<std::string, std::string>> qEngineContentList;
+    Spine::TcpMultiQuery multi_query(5);
+
+    // FIXME: Why backendList contains repeated addresses? Work around that for now
+    int counter = 0;
+    std::vector<std::pair<std::string, std::string> > id_mapping;
+
     for (auto &backend : backendList)
     {
-      bip::tcp::resolver::query query(backend.get<1>(), Fmi::to_string(backend.get<2>()));
-      bip::tcp::resolver::iterator endpoint = resolver.resolve(query);
-
-      bip::tcp::socket socket(io_service);
-      boost::asio::connect(socket, endpoint);
-
-      boost::asio::streambuf request;
-      std::ostream request_stream(&request);
-      //	  request_stream << "GET " << "/" << backend.get<0>() <<
-      //"/admin?what=qengine&format=json"
-      //<< " HTTP/1.0\r\n";
+      std::ostringstream request_stream;
       request_stream << "GET "
                      << "/admin?what=qengine&format=json";
       if (!theTimeFormat.empty())
@@ -529,30 +523,43 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
       request_stream << "Accept: */*\r\n";
       request_stream << "Connection: close\r\n\r\n";
 
-      //		  std::cout << text.str() << std::endl;
+      const std::string id = fmt::format("{0:05d}", ++counter);
+      id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
 
-      boost::asio::write(socket, request);
+      multi_query.add_query(
+          id,
+	  backend.get<1>(),
+	  Fmi::to_string(backend.get<2>()),
+	  request_stream.str());
+    }
 
-      boost::asio::streambuf response;
-      boost::system::error_code error;
+    multi_query.execute();
 
-      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0U)
+    std::list<std::pair<std::string, std::string>> qEngineContentList;
+    for (auto &item : id_mapping)
+    {
+      const auto result = multi_query[item.second];
+      if (result.error_code)
       {
-        if (error == boost::asio::error::eof)  // Reads until socket is closed
-          break;
-
-        // Should there be some error handling in here? Now the JSON parser
-        // may just fail on a bad response.
+	std::cout << "Frontend::getBackendQEngineStatuses: failed to get response from backend "
+		  << item.first << ": " << result.error_code.message()
+		  << std::endl;
+        // FIXME: do we need to output error message to qEngineContentList?
       }
+      else
+      {
+        std::string rawResponse = result.body;
+        size_t bodyStart = rawResponse.find("\r\n\r\n");
+	if (bodyStart == std::string::npos) {
+	  std::cout << "Frontend::getBackendMessages: body not found in response from backend "
+		    << item.first << std::endl;
+	  // FIXME: put something into qEngineContentList indicating an error
+	} else {
+	  std::string body = rawResponse.substr(bodyStart);
 
-      std::stringstream responseStream;
-      responseStream << &response;
-
-      std::string rawResponse = responseStream.str();
-      size_t bodyStart = rawResponse.find("\r\n\r\n");
-      std::string body = rawResponse.substr(bodyStart);
-
-      qEngineContentList.emplace_back(std::make_pair(backend.get<0>(), body));
+	  qEngineContentList.emplace_back(std::make_pair(item.first, body));
+	}
+      }
     }
 
     return qEngineContentList;
@@ -579,49 +586,59 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
     // Get the backends which provide services
     auto backendList = sputnik->getBackendList();  // type is Services::BackendList
 
-    // Get Qengine status from backends
-    boost::asio::io_service io_service;
-    bip::tcp::resolver resolver(io_service);
-    std::list<std::pair<std::string, std::string>> messageList;
+    Spine::TcpMultiQuery multi_query(5);
+
+    int counter = 0;
+    std::vector<std::pair<std::string, std::string> > id_mapping;
+
     for (auto &backend : backendList)
     {
-      bip::tcp::resolver::query query(backend.get<1>(), Fmi::to_string(backend.get<2>()));
-      bip::tcp::resolver::iterator endpoint = resolver.resolve(query);
-
-      bip::tcp::socket socket(io_service);
-      boost::asio::connect(socket, endpoint);
-
-      boost::asio::streambuf request;
-      std::ostream request_stream(&request);
+      std::ostringstream request_stream;
       //    request_stream << "GET " << "/" << backend.get<0>() <<
       //"/admin?what=qengine&format=json"
       //<< " HTTP/1.0\r\n";
       request_stream << "GET " << url << " HTTP/1.0\r\n";
       request_stream << "Accept: */*\r\n";
       request_stream << "Connection: close\r\n\r\n";
+      const std::string id = fmt::format("{0:05d}", ++counter);
+      id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
 
-      boost::asio::write(socket, request);
+      multi_query.add_query(
+          id,
+	  backend.get<1>(),
+	  Fmi::to_string(backend.get<2>()),
+	  request_stream.str());
+    }
 
-      boost::asio::streambuf response;
-      boost::system::error_code error;
+    multi_query.execute();
 
-      while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error) != 0u)
+    std::list<std::pair<std::string, std::string>> messageList;
+    for (auto &item : id_mapping)
+    {
+      const auto result = multi_query[item.second];
+      if (result.error_code)
       {
-        if (error == boost::asio::error::eof)  // Reads until socket is closed
-          break;
-
-        // Should there be some error handling in here? Now the JSON parser
-        // may just fail on a bad response.
+	std::cout << "Frontend::getBackendMessages: failed to get response from backend "
+		  << item.first << ": " << result.error_code.message()
+		  << std::endl;
+        // FIXME: do we need to output error message to messageList?
       }
-
-      std::stringstream responseStream;
-      responseStream << &response;
-
-      std::string rawResponse = responseStream.str();
-      size_t bodyStart = rawResponse.find("\r\n\r\n");
-      std::string body = rawResponse.substr(bodyStart);
-
-      messageList.emplace_back(std::make_pair(backend.get<0>(), body));
+      else
+      {
+	std::string rawResponse = result.body;
+	size_t bodyStart = rawResponse.find("\r\n\r\n");
+	if (bodyStart == std::string::npos)
+	{
+	  std::cout << "Frontend::getBackendMessages: body not found in response from backend "
+		    << item.first << std::endl;
+	  // FIXME: put something into messageList indicating an error
+	}
+	else
+	{
+	  std::string body = rawResponse.substr(bodyStart);
+	  messageList.emplace_back(std::make_pair(item.first, body));
+	}
+      }
     }
 
     return messageList;
