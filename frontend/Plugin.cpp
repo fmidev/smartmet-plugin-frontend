@@ -11,6 +11,7 @@
 #include <boost/bind/bind.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
+#include <fmt/format.h>
 #include <grid-files/common/GeneralFunctions.h>
 #include <json/json.h>
 #include <macgyver/Base64.h>
@@ -19,6 +20,7 @@
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
 #include <spine/Exceptions.h>
+#include <spine/HostInfo.h>
 #include <spine/SmartMet.h>
 #include <spine/Table.h>
 #include <spine/TableFormatterFactory.h>
@@ -28,7 +30,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
-#include <fmt/format.h>
 
 using boost::posix_time::ptime;
 using boost::posix_time::second_clock;
@@ -510,7 +511,7 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
 
     // FIXME: Why backendList contains repeated addresses? Work around that for now
     int counter = 0;
-    std::vector<std::pair<std::string, std::string> > id_mapping;
+    std::vector<std::pair<std::string, std::string>> id_mapping;
 
     for (auto &backend : backendList)
     {
@@ -527,10 +528,7 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
       id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
 
       multi_query.add_query(
-          id,
-	  backend.get<1>(),
-	  Fmi::to_string(backend.get<2>()),
-	  request_stream.str());
+          id, backend.get<1>(), Fmi::to_string(backend.get<2>()), request_stream.str());
     }
 
     multi_query.execute();
@@ -541,24 +539,26 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
       const auto result = multi_query[item.second];
       if (result.error_code)
       {
-	std::cout << "Frontend::getBackendQEngineStatuses: failed to get response from backend "
-		  << item.first << ": " << result.error_code.message()
-		  << std::endl;
+        std::cout << "Frontend::getBackendQEngineStatuses: failed to get response from backend "
+                  << item.first << ": " << result.error_code.message() << std::endl;
         // FIXME: do we need to output error message to qEngineContentList?
       }
       else
       {
         std::string rawResponse = result.body;
         size_t bodyStart = rawResponse.find("\r\n\r\n");
-	if (bodyStart == std::string::npos) {
-	  std::cout << "Frontend::getBackendMessages: body not found in response from backend "
-		    << item.first << std::endl;
-	  // FIXME: put something into qEngineContentList indicating an error
-	} else {
-	  std::string body = rawResponse.substr(bodyStart);
+        if (bodyStart == std::string::npos)
+        {
+          std::cout << "Frontend::getBackendMessages: body not found in response from backend "
+                    << item.first << std::endl;
+          // FIXME: put something into qEngineContentList indicating an error
+        }
+        else
+        {
+          std::string body = rawResponse.substr(bodyStart);
 
-	  qEngineContentList.emplace_back(std::make_pair(item.first, body));
-	}
+          qEngineContentList.emplace_back(std::make_pair(item.first, body));
+        }
       }
     }
 
@@ -589,7 +589,7 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
     Spine::TcpMultiQuery multi_query(5);
 
     int counter = 0;
-    std::vector<std::pair<std::string, std::string> > id_mapping;
+    std::vector<std::pair<std::string, std::string>> id_mapping;
 
     for (auto &backend : backendList)
     {
@@ -604,10 +604,7 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
       id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
 
       multi_query.add_query(
-          id,
-	  backend.get<1>(),
-	  Fmi::to_string(backend.get<2>()),
-	  request_stream.str());
+          id, backend.get<1>(), Fmi::to_string(backend.get<2>()), request_stream.str());
     }
 
     multi_query.execute();
@@ -618,26 +615,25 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
       const auto result = multi_query[item.second];
       if (result.error_code)
       {
-	std::cout << "Frontend::getBackendMessages: failed to get response from backend "
-		  << item.first << ": " << result.error_code.message()
-		  << std::endl;
+        std::cout << "Frontend::getBackendMessages: failed to get response from backend "
+                  << item.first << ": " << result.error_code.message() << std::endl;
         // FIXME: do we need to output error message to messageList?
       }
       else
       {
-	std::string rawResponse = result.body;
-	size_t bodyStart = rawResponse.find("\r\n\r\n");
-	if (bodyStart == std::string::npos)
-	{
-	  std::cout << "Frontend::getBackendMessages: body not found in response from backend "
-		    << item.first << std::endl;
-	  // FIXME: put something into messageList indicating an error
-	}
-	else
-	{
-	  std::string body = rawResponse.substr(bodyStart);
-	  messageList.emplace_back(std::make_pair(item.first, body));
-	}
+        std::string rawResponse = result.body;
+        size_t bodyStart = rawResponse.find("\r\n\r\n");
+        if (bodyStart == std::string::npos)
+        {
+          std::cout << "Frontend::getBackendMessages: body not found in response from backend "
+                    << item.first << std::endl;
+          // FIXME: put something into messageList indicating an error
+        }
+        else
+        {
+          std::string body = rawResponse.substr(bodyStart);
+          messageList.emplace_back(std::make_pair(item.first, body));
+        }
       }
     }
 
@@ -1662,6 +1658,8 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       Fmi::Exception exception(BCP, "Request processing exception!", nullptr);
       exception.addParameter("URI", theRequest.getURI());
+      exception.addParameter("ClientIP", theRequest.getClientIP());
+      exception.addParameter("HostName", Spine::HostInfo::getHostName(theRequest.getClientIP()));
       exception.printError();
 
       if (isdebug)
