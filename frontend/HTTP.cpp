@@ -57,6 +57,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     if (!itsSputnikProcess->getServices().queryBackendAlive(theHost->Name(), theHost->Port()))
     {
       itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
+      theReactor.removeBackendRequests(theHost->Name(), theHost->Port());
 
       std::cout << fmt::format("{} Backend {}:{} is marked as dead. Retiring backend server.",
                                Spine::log_time_str(),
