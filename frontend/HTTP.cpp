@@ -140,15 +140,15 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     {
       // Immediately remove the backend server from the service providing pool
       // if there was a problem connecting to backend server.
-      std::cout
-          << fmt::format(
-                 "{{} Backend Server connection to {}:{} failed, retiring the backend server.",
-                 Spine::log_time_str(),
-                 theHost->Name(),
-                 theHost->Port())
-          << std::endl;
+      std::cout << fmt::format(
+                       "{} Backend Server connection to {}:{} failed, retiring the backend server.",
+                       Spine::log_time_str(),
+                       theHost->Name(),
+                       theHost->Port())
+                << std::endl;
 
       itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
+      theReactor.removeBackendRequests(theHost->Name(), theHost->Port());
     }
     else
     {

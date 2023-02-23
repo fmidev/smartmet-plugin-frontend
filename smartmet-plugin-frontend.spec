@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 23.2.22
-Release: 1%{?dist}.fmi
+Version: 23.2.23
+Release: 2%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -24,7 +24,7 @@ BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 23.1.31
 BuildRequires: smartmet-library-spine-devel >= 23.2.22
-BuildRequires: smartmet-library-grid-files-devel >= 23.2.20
+BuildRequires: smartmet-library-grid-files-devel >= 23.2.23
 BuildRequires: smartmet-engine-sputnik-devel >= 22.11.25
 BuildRequires: gdal34-devel
 BuildRequires: jsoncpp-devel
@@ -36,7 +36,7 @@ Requires: smartmet-server >= 23.2.1
 Requires: smartmet-engine-sputnik >= 22.11.25
 Requires: smartmet-library-spine >= 23.2.22
 Requires: smartmet-library-timeseries >= 23.1.31
-Requires: smartmet-library-grid-files >= 23.2.20
+Requires: smartmet-library-grid-files >= 23.2.23
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
@@ -68,6 +68,12 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Feb 23 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.2.23-2.fmi
+- Fixed warning message syntax when retiring a backend
+
+* Thu Feb 23 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.2.23-1.fmi
+- Improved handling of retired backends
+
 * Wed Feb 22 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.2.22-1.fmi
 - Fixed frontend to remove load balancing counters for a retired backend
 
