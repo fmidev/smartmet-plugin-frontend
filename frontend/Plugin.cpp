@@ -8,7 +8,6 @@
 #include "HTTP.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <boost/bind/bind.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
 #include <fmt/format.h>
@@ -34,10 +33,6 @@
 using boost::posix_time::ptime;
 using boost::posix_time::second_clock;
 using boost::posix_time::seconds;
-
-namespace bip = boost::asio::ip;
-
-namespace bph = boost::placeholders;
 
 namespace SmartMet
 {
@@ -74,6 +69,8 @@ using ProducerFiles = std::list<QEngineFile>;               // list of files per
 using BackendFiles = std::map<std::string, ProducerFiles>;  // key is producer
 using AllFiles = std::map<std::string, BackendFiles>;
 
+using TimeCounter = std::map<std::string, uint>;
+
 struct QEngineFile
 {
   std::string producer;
@@ -104,7 +101,7 @@ struct QEngineFile
   QEngineFile() = default;
 };
 
-QEngineFile buildQEngineFile(const Json::Value &jsonObject)
+QEngineFile build_qengine_file(const Json::Value &jsonObject)
 {
   try
   {
@@ -120,7 +117,7 @@ QEngineFile buildQEngineFile(const Json::Value &jsonObject)
     boost::algorithm::split(
         paramlist, params, boost::algorithm::is_any_of(" ,"), boost::token_compress_on);
 
-    return QEngineFile(producer, path, paramlist, originTime, minTime, maxTime);
+    return {producer, path, paramlist, originTime, minTime, maxTime};
   }
   catch (...)
   {
@@ -128,13 +125,13 @@ QEngineFile buildQEngineFile(const Json::Value &jsonObject)
   }
 }
 
-bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
+bool qengine_sort(const QEngineFile &lhs, const QEngineFile &rhs)
 {
   try
   {
-    if (first.originTime != second.originTime)
-      return first.originTime < second.originTime;
-    return (first.path < second.path);
+    if (lhs.originTime != rhs.originTime)
+      return lhs.originTime < rhs.originTime;
+    return (lhs.path < rhs.path);
   }
   catch (...)
   {
@@ -142,7 +139,7 @@ bool qEngineSort(const QEngineFile &first, const QEngineFile &second)
   }
 }
 
-bool producerHasParam(const QEngineFile &file, const std::string &param)
+bool producer_has_param(const QEngineFile &file, const std::string &param)
 {
   try
   {
@@ -158,6 +155,60 @@ bool producerHasParam(const QEngineFile &file, const std::string &param)
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// Find longest list of files
+std::size_t max_filelist_size(const AllFiles &theFiles)
+{
+  std::size_t maxsize = 0;
+  for (const auto &backend : theFiles)
+  {
+    for (const auto &prod : backend.second)
+      maxsize = std::max(maxsize, prod.second.size());
+  }
+  return maxsize;
+}
+
+// Collect all files for that wanted producer or all producers if the given producer is empty
+
+AllFiles collect_files(const std::list<std::pair<std::string, std::string>> &backendContents,
+                       const std::string &producer)
+{
+  AllFiles files;
+  for (const auto &contentPair : backendContents)
+  {
+    // Individual backend contents
+    BackendFiles theseFiles;
+
+    Json::Value jvalue;
+    Json::Reader reader;
+
+    // Skip servers which returned error HTML or some other unparseable response
+    if (reader.parse(contentPair.second, jvalue))
+    {
+      for (const auto &jsonObject : jvalue)
+      {
+        QEngineFile thisFile = build_qengine_file(jsonObject);
+
+        // Keep only desired producer, or all if the requested producer is empty
+        if (producer.empty() || producer == thisFile.producer)
+        {
+          auto it = theseFiles.find(thisFile.producer);
+          if (it != theseFiles.end())
+            it->second.push_back(thisFile);
+          else
+          {
+            ProducerFiles thisProducer;
+            thisProducer.push_back(thisFile);
+            theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
+          }
+        }
+      }
+    }
+
+    files.insert(std::make_pair(contentPair.first, theseFiles));
+  }
+  return files;
 }
 
 // ----------------------------------------------------------------------
@@ -408,49 +459,9 @@ BackendFiles buildSpineQEngineContents(
 {
   try
   {
-    AllFiles theFiles;
+    AllFiles theFiles = collect_files(backendContents, producer);
 
-    for (const auto &contentPair : backendContents)
-    {
-      // Individual backend contents
-      BackendFiles theseFiles;
-
-      Json::Value jvalue;
-      Json::Reader reader;
-
-      // Skip servers which returned error HTML or some other unparseable response
-      if (reader.parse(contentPair.second, jvalue))
-      {
-        for (const auto &jsonObject : jvalue)
-        {
-          QEngineFile thisFile = buildQEngineFile(jsonObject);
-
-          // Keep only desired producer, or all if the requested producer is empty
-          if (producer.empty() || producer == thisFile.producer)
-          {
-            auto it = theseFiles.find(thisFile.producer);
-            if (it != theseFiles.end())
-              it->second.push_back(thisFile);
-            else
-            {
-              ProducerFiles thisProducer;
-              thisProducer.push_back(thisFile);
-              theseFiles.insert(std::make_pair(thisFile.producer, thisProducer));
-            }
-          }
-        }
-      }
-
-      theFiles.insert(std::make_pair(contentPair.first, theseFiles));
-    }
-
-    // Find maximum size of the file list
-    std::size_t maxsize = 0;
-    for (const auto &backend : theFiles)
-    {
-      for (const auto &prod : backend.second)
-        maxsize = std::max(maxsize, prod.second.size());
-    }
+    auto maxsize = max_filelist_size(theFiles);
 
     BackendFiles spineFiles;
 
@@ -471,7 +482,7 @@ BackendFiles buildSpineQEngineContents(
                                                      prod.second.begin(),
                                                      prod.second.end(),
                                                      tempResult.begin(),
-                                                     qEngineSort);
+                                                     qengine_sort);
           outputIt->second = ProducerFiles(tempResult.begin(), last_modified);
         }
       }
@@ -739,7 +750,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
         unsigned int matches = 0;
         for (auto &param : paramTokens)
         {
-          if (producerHasParam(latest, param))
+          if (producer_has_param(latest, param))
           {
             ++matches;
           }
@@ -774,7 +785,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
             continue;
           }
           std::string paramString = TimeSeries::ParameterFactory::instance().name(paramId);
-          if (producerHasParam(latest, paramString))
+          if (producer_has_param(latest, paramString))
           {
             ++matches;
           }
@@ -795,7 +806,8 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     }
 
     // Sort results by origintime
-    iHasAllParameters.sort(boost::bind(qEngineSort, bph::_2, bph::_1));
+    iHasAllParameters.sort([](const QEngineFile &lhs, const QEngineFile &rhs)
+                           { return qengine_sort(lhs, rhs); });
 
     // Build result table
     Spine::Table table;
@@ -832,6 +844,86 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
   }
 }
 
+std::size_t count_matches(const std::vector<std::string> &inputParamList,
+                          const std::vector<std::string> fields)
+{
+  if (inputParamList.empty())
+    return 0;
+
+  std::set<std::string> paramList1;
+  std::set<std::string> paramList2;
+
+  std::string tmp1 = toLowerString(fields[7]);
+  std::string tmp2 = toLowerString(fields[8]);
+  splitString(tmp1, ',', paramList1);
+  splitString(tmp2, ',', paramList2);
+
+  std::size_t matchCount = 0;
+  for (const auto &p : inputParamList)
+  {
+    auto f1 = paramList1.find(p);
+    if (f1 != paramList1.end())
+      matchCount++;
+    else
+    {
+      auto f2 = paramList2.find(p);
+      if (f2 != paramList2.end())
+        matchCount++;
+    }
+  }
+  return matchCount;
+}
+
+void update_producers(std::map<std::string, TimeCounter> &producers,
+                      const std::vector<std::string> &fields)
+{
+  auto tm = fmt::format(
+      "{}:{}:{}:{}:{}:{}", fields[3], fields[4], fields[5], fields[6], fields[1], fields[2]);
+  auto prod = producers.find(fields[0]);
+  if (prod == producers.end())
+  {
+    TimeCounter originTimes;
+    originTimes.insert(std::pair<std::string, uint>(tm, 1));
+    producers.insert(std::pair<std::string, TimeCounter>(fields[0], originTimes));
+  }
+  else
+  {
+    auto originTime = prod->second.find(tm);
+    if (originTime == prod->second.end())
+      prod->second.insert(std::pair<std::string, uint>(tm, 1));
+    else
+      originTime->second++;
+  }
+}
+
+std::map<std::string, TimeCounter> extract_producers(
+    const std::list<std::pair<std::string, std::string>> &messageList,
+    const std::vector<std::string> &inputParamList)
+{
+  std::map<std::string, TimeCounter> producers;
+
+  for (const auto &b : messageList)
+  {
+    std::vector<std::string> lines;
+    lineSplit(b.second.c_str(), lines);
+
+    for (const auto &line : lines)
+    {
+      std::vector<std::string> fields;
+      splitString(line, ' ', fields);
+
+      if (fields.size() >= 9)
+      {
+        std::size_t matchCount = count_matches(inputParamList, fields);
+        if (inputParamList.size() == matchCount)
+          update_producers(producers, fields);
+      }
+    }
+  }
+
+  return producers;
+}
+
 std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
                                            const Spine::HTTP::Request &theRequest,
                                            const std::string &what)
@@ -863,84 +955,15 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
     std::list<std::pair<std::string, std::string>> messageList =
         getBackendMessages(theReactor, url);
 
-    using TimeCounter = std::map<std::string, uint>;
-    std::map<std::string, TimeCounter> producers;
-
-    uint backendCount = messageList.size();
-
-    for (const auto &b : messageList)
-    {
-      std::vector<std::string> lines;
-      lineSplit(b.second.c_str(), lines);
-
-      for (const auto &line : lines)
-      {
-        std::vector<std::string> fields;
-        splitString(line, ' ', fields);
-
-        if (fields.size() >= 9)
-        {
-          std::size_t matchCount = 0;
-          if (!inputParamList.empty())
-          {
-            std::set<std::string> paramList1;
-            std::set<std::string> paramList2;
-
-            std::string tmp1 = toLowerString(fields[7]);
-            std::string tmp2 = toLowerString(fields[8]);
-            splitString(tmp1, ',', paramList1);
-            splitString(tmp2, ',', paramList2);
-
-            for (const auto &p : inputParamList)
-            {
-              auto f1 = paramList1.find(p);
-              if (f1 != paramList1.end())
-              {
-                matchCount++;
-              }
-              else
-              {
-                auto f2 = paramList2.find(p);
-                if (f2 != paramList2.end())
-                {
-                  matchCount++;
-                }
-              }
-            }
-          }
-          if (inputParamList.size() == matchCount)
-          {
-            std::string tm = fields[3] + ":" + fields[4] + ":" + fields[5] + ":" + fields[6] + ":" +
-                             fields[1] + ":" + fields[2];
-            auto prod = producers.find(fields[0]);
-            if (prod == producers.end())
-            {
-              TimeCounter originTimes;
-              originTimes.insert(std::pair<std::string, uint>(tm, 1));
-              producers.insert(std::pair<std::string, TimeCounter>(fields[0], originTimes));
-            }
-            else
-            {
-              auto originTime = prod->second.find(tm);
-              if (originTime == prod->second.end())
-              {
-                prod->second.insert(std::pair<std::string, uint>(tm, 1));
-              }
-              else
-              {
-                originTime->second++;
-              }
-            }
-          }
-        }
-      }
-    }
+    std::map<std::string, TimeCounter> producers = extract_producers(messageList, inputParamList);
 
     for (const auto &prod : producers)
     {
       uint cnt = 0;
       for (auto atime = prod.second.rbegin(); atime != prod.second.rend() && cnt == 0; ++atime)
       {
+        uint backendCount = messageList.size();
+
         if (atime->second == backendCount)
         {
           std::vector<std::string> fields;
@@ -1250,7 +1273,7 @@ std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor & /* theReactor
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReactor,
+std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor & /* theReactor */,
                                                        const Spine::HTTP::Request &theRequest,
                                                        Spine::HTTP::Response &theResponse)
 {
@@ -1290,7 +1313,7 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor &theReacto
       auto n = stat.hits + stat.misses;
       auto hit_rate = (n == 0 ? 0.0 : stat.hits * 100.0 / n);
       auto hits_per_min = (duration == 0 ? 0.0 : 60.0 * stat.hits / duration);
-      auto inserts_per_min = (duration == 0 ? 0.0 : 60 * stat.inserts / duration);
+      auto inserts_per_min = (duration == 0 ? 0.0 : 60.0 * stat.inserts / duration);
 
       data_table.set(0, row, Fmi::to_string(row));
       data_table.set(1, row, name);
@@ -1493,19 +1516,31 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
 
     itsHTTP.reset(new HTTP(theReactor, theConfig));
 
-    if (!theReactor->addContentHandler(
-            this,
-            "/admin",
-            boost::bind(&Plugin::callRequestHandler, this, bph::_1, bph::_2, bph::_3)))
+    if (!theReactor->addContentHandler(this,
+                                       "/admin",
+                                       [this](Spine::Reactor &theReactor,
+                                              const Spine::HTTP::Request &theRequest,
+                                              Spine::HTTP::Response &theResponse) {
+                                         callRequestHandler(theReactor, theRequest, theResponse);
+                                       }))
       throw Fmi::Exception(BCP, "Failed to register admin content handler");
 
-    if (!theReactor->addContentHandler(
-            this, "/", boost::bind(&Plugin::baseContentHandler, this, bph::_1, bph::_2, bph::_3)))
+    if (!theReactor->addContentHandler(this,
+                                       "/",
+                                       [this](Spine::Reactor &theReactor,
+                                              const Spine::HTTP::Request &theRequest,
+                                              Spine::HTTP::Response &theResponse) {
+                                         baseContentHandler(theReactor, theRequest, theResponse);
+                                       }))
       throw Fmi::Exception(BCP, "Failed to register base content handler");
 
 #ifndef NDEBUG
-    if (!theReactor->addContentHandler(
-            this, "/sleep", boost::bind(&sleep, bph::_1, bph::_2, bph::_3)))
+    if (!theReactor->addContentHandler(this,
+                                       "/sleep",
+                                       [this](Spine::Reactor &theReactor,
+                                              const Spine::HTTP::Request &theRequest,
+                                              Spine::HTTP::Response &theResponse)
+                                       { sleep(theReactor, theRequest, theResponse); }))
       throw Fmi::Exception(BCP, "Failed to register sleep content handler");
 #endif
   }

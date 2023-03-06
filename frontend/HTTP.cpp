@@ -1,7 +1,6 @@
 #include "HTTP.h"
 #include "Proxy.h"
 #include <boost/algorithm/string.hpp>
-#include <boost/bind/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
@@ -213,7 +212,10 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     itsSputnikProcess->launch(Engine::Sputnik::Frontend, theReactor);
 
     // Start the "Catcher in the Rye" process in SmartMet core
-    theReactor->setNoMatchHandler(boost::bind(&HTTP::requestHandler, this, _1, _2, _3));
+    theReactor->setNoMatchHandler([this](Spine::Reactor &theReactor,
+                                         const Spine::HTTP::Request &theRequest,
+                                         Spine::HTTP::Response &theResponse)
+                                  { requestHandler(theReactor, theRequest, theResponse); });
 
     // Get hold of the reactor pointer
     this->itsReactor = theReactor;

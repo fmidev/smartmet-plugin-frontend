@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 23.2.23
-Release: 2%{?dist}.fmi
+Version: 23.3.6
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -22,20 +22,20 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 23.1.31
-BuildRequires: smartmet-library-spine-devel >= 23.2.22
+BuildRequires: smartmet-library-timeseries-devel >= 23.2.16
+BuildRequires: smartmet-library-spine-devel >= 23.2.27
 BuildRequires: smartmet-library-grid-files-devel >= 23.2.23
-BuildRequires: smartmet-engine-sputnik-devel >= 22.11.25
+BuildRequires: smartmet-engine-sputnik-devel >= 23.3.6
 BuildRequires: gdal34-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 23.2.8
+BuildRequires: smartmet-library-macgyver-devel >= 23.3.3
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 23.2.8
+Requires: smartmet-library-macgyver >= 23.3.3
 Requires: smartmet-server >= 23.2.1
-Requires: smartmet-engine-sputnik >= 22.11.25
-Requires: smartmet-library-spine >= 23.2.22
-Requires: smartmet-library-timeseries >= 23.1.31
+Requires: smartmet-engine-sputnik >= 23.3.6
+Requires: smartmet-library-spine >= 23.2.27
+Requires: smartmet-library-timeseries >= 23.2.16
 Requires: smartmet-library-grid-files >= 23.2.23
 Requires: jsoncpp
 %if 0%{rhel} >= 7
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Mon Mar  6 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.3.6-1.fmi
+- Silenced CodeChecker warnings
+
 * Thu Feb 23 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.2.23-2.fmi
 - Fixed warning message syntax when retiring a backend
 

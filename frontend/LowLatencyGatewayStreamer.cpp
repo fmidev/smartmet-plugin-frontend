@@ -81,6 +81,40 @@ ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTT
   }
 }
 
+// Build metadata part of the response
+
+ResponseCache::CachedResponseMetaData build_metadata(const Spine::HTTP::Response& response)
+{
+  ResponseCache::CachedResponseMetaData meta;
+
+  // Safe to dereference, checked earlier
+  meta.mime_type = *response.getHeader("Content-Type");
+  meta.etag = *response.getHeader("ETag");
+
+  auto expires = response.getHeader("Expires");
+  if (expires)
+    meta.expires = *expires;
+
+  auto cache_control = response.getHeader("Cache-Control");
+  if (cache_control)
+    meta.cache_control = *cache_control;
+
+  auto vary = response.getHeader("Vary");
+  if (vary)
+    meta.vary = *vary;
+
+  auto access_control_allow_origin = response.getHeader("Access-Control-Allow-Origin");
+  if (access_control_allow_origin)
+    meta.access_control_allow_origin = *access_control_allow_origin;
+
+  meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
+  auto content_encoding = response.getHeader("Content-Encoding");
+  if (content_encoding && boost::algorithm::contains(*content_encoding, "gzip"))
+    meta.content_encoding = ResponseCache::ContentEncodingType::GZIP;
+
+  return meta;
+}
+
 Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalRequest,
                                          const boost::shared_ptr<std::string>& cachedBuffer,
                                          const ResponseCache::CachedResponseMetaData& metadata)
@@ -643,39 +677,11 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           }
           else
           {
-            // Cacheable response, build cache metadata
-
-            ResponseCache::CachedResponseMetaData meta;
-            meta.mime_type = *mime;
-            meta.etag = *etag;
-
-            auto expires = responsePtr->getHeader("Expires");
-            if (expires)
-              meta.expires = *expires;
-
-            auto cache_control = responsePtr->getHeader("Cache-Control");
-            if (cache_control)
-              meta.cache_control = *cache_control;
-
-            auto vary = responsePtr->getHeader("Vary");
-            if (vary)
-              meta.vary = *vary;
-
-            auto access_control_allow_origin =
-                responsePtr->getHeader("Access-Control-Allow-Origin");
-            if (access_control_allow_origin)
-              meta.access_control_allow_origin = *access_control_allow_origin;
-
-            meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
-            auto content_encoding = responsePtr->getHeader("Content-Encoding");
-            if (content_encoding && boost::algorithm::contains(*content_encoding, "gzip"))
-              meta.content_encoding = ResponseCache::ContentEncodingType::GZIP;
-
-            // Store for later use when writing to cache
-            itsBackendMetadata = meta;
+            // Cacheable response, build cache metadata and store it for later use when writing to
+            // the cache
+            itsBackendMetadata = build_metadata(*responsePtr);
 
             auto parse_end_iter = std::get<2>(ret);
-
             std::string bodyThusFar = std::string(parse_end_iter, itsResponseHeaderBuffer.cend());
 
             // Content to be cached is stored separately from the entire stream
