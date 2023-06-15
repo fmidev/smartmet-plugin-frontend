@@ -17,6 +17,7 @@
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <macgyver/TimeFormatter.h>
+#include <spine/ConfigTools.h>
 #include <spine/Convenience.h>
 #include <spine/Exceptions.h>
 #include <spine/HostInfo.h>
@@ -1506,6 +1507,8 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
       config.setIncludeDir(p.c_str());
 
       config.readFile(theConfig);
+      Spine::expandVariables(config);
+
       if (!config.lookupValue("user", itsUsername) || !config.lookupValue("password", itsPassword))
         throw Fmi::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
     }
