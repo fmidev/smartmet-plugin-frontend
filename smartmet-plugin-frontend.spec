@@ -22,9 +22,9 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 23.2.16
-BuildRequires: smartmet-library-spine-devel >= 23.2.27
-BuildRequires: smartmet-library-grid-files-devel >= 23.2.23
+BuildRequires: smartmet-library-timeseries-devel >= 23.7.10
+BuildRequires: smartmet-library-spine-devel >= 23.7.10
+BuildRequires: smartmet-library-grid-files-devel >= 23.7.10
 BuildRequires: smartmet-engine-sputnik-devel >= 23.3.6
 BuildRequires: gdal35-devel
 BuildRequires: jsoncpp-devel
@@ -34,9 +34,9 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 23.3.3
 Requires: smartmet-server >= 23.2.1
 Requires: smartmet-engine-sputnik >= 23.3.6
-Requires: smartmet-library-spine >= 23.2.27
-Requires: smartmet-library-timeseries >= 23.2.16
-Requires: smartmet-library-grid-files >= 23.2.23
+Requires: smartmet-library-spine >= 23.7.10
+Requires: smartmet-library-timeseries >= 23.7.10
+Requires: smartmet-library-grid-files >= 23.7.10
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
