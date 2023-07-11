@@ -40,18 +40,19 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
 {
   boost::hash<std::string> string_hash;
 
-  std::size_t buffer_hash = string_hash(*buffer);
+  // C++11 does not allow aggregate initialization when the struct has default initializers.
+  CachedResponseMetaData data;
+  data.buffer_hash = string_hash(*buffer);
+  data.mime_type = mime_type;
+  data.etag = etag;
+  data.cache_control = cache_control;
+  data.expires = expires;
+  data.vary = vary;
+  data.access_control_allow_origin = access_control_allow_origin;
+  data.content_encoding = content_encoding;
 
-  itsMetaDataCache.insert(etag,
-                          {buffer_hash,
-                           mime_type,
-                           etag,
-                           cache_control,
-                           expires,
-                           vary,
-                           access_control_allow_origin,
-                           content_encoding});
+  itsMetaDataCache.insert(etag, data);
 
-  itsBufferCache.insert(buffer_hash, buffer);
+  itsBufferCache.insert(data.buffer_hash, buffer);
 }
 }  // namespace SmartMet

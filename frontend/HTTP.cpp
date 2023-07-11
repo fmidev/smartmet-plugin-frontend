@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
+#include <spine/ConfigTools.h>
 #include <spine/Convenience.h>
 #include <spine/Reactor.h>
 #include <iostream>
@@ -241,6 +242,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.setIncludeDir(p.c_str());
 
       config.readFile(theConfig);
+      Spine::expandVariables(config);
 
       config.lookupValue("compressed_cache.memory_bytes", memorySize);
       config.lookupValue("compressed_cache.filesystem_bytes", filesystemSize);

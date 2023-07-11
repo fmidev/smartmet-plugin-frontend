@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 23.3.6
+Version: 23.7.10
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -29,10 +29,10 @@ BuildRequires: smartmet-engine-sputnik-devel >= 23.3.6
 BuildRequires: gdal35-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 23.3.3
+BuildRequires: smartmet-library-macgyver-devel >= 23.6.15
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 23.3.3
-Requires: smartmet-server >= 23.2.1
+Requires: smartmet-library-macgyver >= 23.6.15
+Requires: smartmet-server >= 23.5.19
 Requires: smartmet-engine-sputnik >= 23.3.6
 Requires: smartmet-library-spine >= 23.7.10
 Requires: smartmet-library-timeseries >= 23.7.10
@@ -53,7 +53,7 @@ SmartMet frontend plugin
 rm -rf $RPM_BUILD_ROOT
 
 %setup -q -n %{SPECNAME}
- 
+
 %build -q -n %{SPECNAME}
 make %{_smp_mflags}
 
@@ -68,6 +68,12 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Mon Jul 10 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.7.10-1.fmi
+- Silenced compiler warnings
+
+* Tue Jun 13 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.6.13-1.fmi
+- Support internal and environment variables in configuration files
+
 * Mon Mar  6 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.3.6-1.fmi
 - Silenced CodeChecker warnings
 

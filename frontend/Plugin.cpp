@@ -17,6 +17,7 @@
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <macgyver/TimeFormatter.h>
+#include <spine/ConfigTools.h>
 #include <spine/Convenience.h>
 #include <spine/Exceptions.h>
 #include <spine/HostInfo.h>
@@ -143,13 +144,8 @@ bool producer_has_param(const QEngineFile &file, const std::string &param)
 {
   try
   {
-    for (const auto &p : file.parameters)
-    {
-      if (param == p)
-        return true;
-    }
-
-    return false;
+    auto match = std::find(file.parameters.begin(), file.parameters.end(), param);
+    return match != file.parameters.end();
   }
   catch (...)
   {
@@ -748,7 +744,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
         // Get latest file
         QEngineFile &latest = *(--pair.second.end());
         unsigned int matches = 0;
-        for (auto &param : paramTokens)
+        for (const auto &param : paramTokens)
         {
           if (producer_has_param(latest, param))
           {
@@ -845,7 +841,7 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
 }
 
 std::size_t count_matches(const std::vector<std::string> &inputParamList,
-                          const std::vector<std::string> fields)
+                          const std::vector<std::string> &fields)
 {
   if (inputParamList.empty())
     return 0;
@@ -930,7 +926,6 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
 {
   try
   {
-    std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
     std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
     std::string timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "iso");
@@ -1506,6 +1501,8 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
       config.setIncludeDir(p.c_str());
 
       config.readFile(theConfig);
+      Spine::expandVariables(config);
+
       if (!config.lookupValue("user", itsUsername) || !config.lookupValue("password", itsPassword))
         throw Fmi::Exception(BCP, std::string("user or password not set in '") + theConfig + "'");
     }
@@ -1713,7 +1710,8 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       std::string firstMessage = exception.what();
       boost::algorithm::replace_all(firstMessage, "\n", " ");
-      firstMessage = firstMessage.substr(0, 300);
+      if(firstMessage.size() > 300)
+	firstMessage.resize(300);
       theResponse.setHeader("X-Frontend-Error", firstMessage);
     }
 #if 0

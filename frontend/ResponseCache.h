@@ -18,7 +18,7 @@ class ResponseCache
 
   struct CachedResponseMetaData
   {
-    std::size_t buffer_hash;
+    std::size_t buffer_hash = 0UL;
     std::string mime_type;
     std::string etag;
     std::string cache_control;
