@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 23.7.28
+Version: 23.8.31
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -22,21 +22,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 23.7.10
-BuildRequires: smartmet-library-spine-devel >= 23.7.28
-BuildRequires: smartmet-library-grid-files-devel >= 23.7.10
-BuildRequires: smartmet-engine-sputnik-devel >= 23.3.6
+BuildRequires: smartmet-library-timeseries-devel >= 23.7.28
+BuildRequires: smartmet-library-spine-devel >= 23.8.31
+BuildRequires: smartmet-library-grid-files-devel >= 23.8.21
+BuildRequires: smartmet-engine-sputnik-devel >= 23.7.28
 BuildRequires: gdal35-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 23.7.28
+BuildRequires: smartmet-library-macgyver-devel >= 23.8.31
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 23.7.28
-Requires: smartmet-server >= 23.5.19
-Requires: smartmet-engine-sputnik >= 23.3.6
-Requires: smartmet-library-spine >= 23.7.28
-Requires: smartmet-library-timeseries >= 23.7.10
-Requires: smartmet-library-grid-files >= 23.7.10
+Requires: smartmet-library-macgyver >= 23.8.31
+Requires: smartmet-server >= 23.8.30
+Requires: smartmet-engine-sputnik >= 23.7.28
+Requires: smartmet-library-spine >= 23.8.31
+Requires: smartmet-library-timeseries >= 23.7.28
+Requires: smartmet-library-grid-files >= 23.8.21
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
@@ -68,6 +68,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 
 %changelog
+* Thu Aug 31 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.8.31-1.fmi
+- Cache sizes in bytes can now be defined with strings such as "10G"
+
 * Fri Jul 28 2023 Andris Pavēnis <andris.pavenis@fmi.fi> 23.7.28-1.fmi
 - Repackage due to bulk ABI changes in macgyver/newbase/spine
 
