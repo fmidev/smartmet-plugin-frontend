@@ -23,6 +23,25 @@ namespace Plugin
 {
 namespace Frontend
 {
+namespace
+{
+std::size_t parse_size(const libconfig::Setting &setting, const char *name)
+{
+  switch (setting.getType())
+  {
+    case libconfig::Setting::TypeInt:
+      return static_cast<unsigned int>(setting);
+    case libconfig::Setting::TypeInt64:
+      return static_cast<unsigned long>(setting);
+    case libconfig::Setting::TypeString:
+      return Fmi::stosz(static_cast<const char *>(setting));
+    default:
+      throw Fmi::Exception(BCP, "Invalid type for size setting").addParameter("Setting", name);
+  }
+}
+
+}  // namespace
+
 Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                    const Spine::HTTP::Request &theRequest,
                                    Spine::HTTP::Response &theResponse)
@@ -244,12 +263,24 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.readFile(theConfig);
       Spine::expandVariables(config);
 
-      config.lookupValue("compressed_cache.memory_bytes", memorySize);
-      config.lookupValue("compressed_cache.filesystem_bytes", filesystemSize);
+      const char *comp_mem_bytes = "compressed_cache.memory_bytes";
+      const char *comp_file_bytes = "compressed_cache.filesystem_bytes";
+      const char *uncomp_mem_bytes = "uncompressed_cache.memory_bytes";
+      const char *uncomp_file_bytes = "uncompressed_cache.filesystem_bytes";
+
       config.lookupValue("compressed_cache.directory", filesystemCachePath);
-      config.lookupValue("uncompressed_cache.memory_bytes", uncomMemorySize);
-      config.lookupValue("uncompressed_cache.filesystem_bytes", uncomFilesystemSize);
+      if (config.exists(comp_mem_bytes))
+        memorySize = parse_size(config.lookup(comp_mem_bytes), comp_mem_bytes);
+      if (config.exists(comp_file_bytes))
+        filesystemSize = parse_size(config.lookup(comp_file_bytes), comp_file_bytes);
+
       config.lookupValue("uncompressed_cache.directory", uncomFilesystemCachePath);
+
+      if (config.exists(uncomp_mem_bytes))
+        uncomMemorySize = parse_size(config.lookup(uncomp_mem_bytes), uncomp_mem_bytes);
+      if (config.exists(uncomp_file_bytes))
+        uncomFilesystemSize = parse_size(config.lookup(uncomp_file_bytes), uncomp_file_bytes);
+
       config.lookupValue("backend.timeout", backendTimeoutInSeconds);
       config.lookupValue("backend.threads", backendThreadCount);
     }
