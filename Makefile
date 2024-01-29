@@ -60,6 +60,10 @@ format:
 install:
 	@mkdir -p $(plugindir)
 	$(INSTALL_PROG) $(LIBFILE) $(plugindir)/$(LIBFILE)
+	@mkdir -p $(sysconfdir)/smartmet
+	$(INSTALL_DATA) etc/smartmet-frontend.env $(sysconfdir)/smartmet/smartmet-frontend.env
+	@mkdir -p $(libdir)/../lib/systemd/system
+	$(INSTALL_DATA) systemd/smartmet-frontend.service $(libdir)/../lib/systemd/system/
 
 objdir:
 	@mkdir -p $(objdir)

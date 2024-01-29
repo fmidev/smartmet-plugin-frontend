@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 23.12.5
+Version: 24.1.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -22,21 +22,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 23.11.21
+BuildRequires: smartmet-library-timeseries-devel >= 24.1.4
 BuildRequires: smartmet-library-spine-devel >= 23.12.5
-BuildRequires: smartmet-library-grid-files-devel >= 23.12.4
+BuildRequires: smartmet-library-grid-files-devel >= 24.1.4
 BuildRequires: smartmet-engine-sputnik-devel >= 23.7.28
 BuildRequires: gdal35-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 23.11.21
+BuildRequires: smartmet-library-macgyver-devel >= 24.1.17
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 23.11.21
-Requires: smartmet-server >= 23.12.5
+Requires: smartmet-library-macgyver >= 24.1.17
+Requires: smartmet-server >= 24.1.29
 Requires: smartmet-engine-sputnik >= 23.7.28
 Requires: smartmet-library-spine >= 23.12.5
-Requires: smartmet-library-timeseries >= 23.11.21
-Requires: smartmet-library-grid-files >= 23.12.4
+Requires: smartmet-library-timeseries >= 24.1.4
+Requires: smartmet-library-grid-files >= 24.1.4
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
@@ -66,8 +66,15 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(0775,root,root,0775)
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
+%defattr(0644,root,root,0755)
+%config(noreplace) %{_sysconfdir}/smartmet/smartmet-frontend.env
+%{_unitdir}/smartmet-frontend.service
+
 
 %changelog
+* Mon Jan 29 2024 Mika Heiskanen <mheiskan@rhel8.dev.fmi.fi> - 24.1.29-1.fmi
+- Added systemd files
+
 * Tue Dec  5 2023 Mika Heiskanen <mika.heiskanen@fmi.fi> - 23.12.5-1.fmi
 - Repackaged due to an ABI change in SmartMetPlugin
 

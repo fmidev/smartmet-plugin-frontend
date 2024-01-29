@@ -1,0 +1,39 @@
+[Unit]
+
+Description=Smartmet Weather Server Frontend
+
+[Service]
+
+# Not a real daemon
+Type=simple
+
+EnvironmentFile=/etc/smartmet/smartmet-frontend.env
+ExecStart=/usr/sbin/smartmetd --configfile $CONFIGFILE
+
+LimitCORE=infinity
+# LimitCORE=0
+
+# RHEL7/RHEL8 do not yet support the CoredumpFilter setting
+# CoredumpFilter=default
+# CoredumpFilter=private-anonymous
+
+# Do not retry too fast if there are some I/O or similar issues
+Restart=always
+RestartSec=5s
+
+# We do not signal completion to systemd
+TimeoutStartSec=0
+
+# Wait for 30s for the server to stop before sending SIGTERM and another 30s before SIGKILL
+TimeoutStopSec=30s
+
+# Disable swapping
+MemorySwapMax=0M
+
+LimitNOFILE=999999999
+
+User=smartmet-server
+
+[Install]
+
+WantedBy=multi-user.target
