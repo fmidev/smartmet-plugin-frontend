@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.1.29
+Version: 24.2.20
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -22,9 +22,9 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 24.1.4
-BuildRequires: smartmet-library-spine-devel >= 23.12.5
-BuildRequires: smartmet-library-grid-files-devel >= 24.1.4
+BuildRequires: smartmet-library-timeseries-devel >= 24.2.20
+BuildRequires: smartmet-library-spine-devel >= 24.2.8
+BuildRequires: smartmet-library-grid-files-devel >= 24.2.20
 BuildRequires: smartmet-engine-sputnik-devel >= 23.7.28
 BuildRequires: gdal35-devel
 BuildRequires: jsoncpp-devel
@@ -34,9 +34,9 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 24.1.17
 Requires: smartmet-server >= 24.1.29
 Requires: smartmet-engine-sputnik >= 23.7.28
-Requires: smartmet-library-spine >= 23.12.5
-Requires: smartmet-library-timeseries >= 24.1.4
-Requires: smartmet-library-grid-files >= 24.1.4
+Requires: smartmet-library-spine >= 24.2.8
+Requires: smartmet-library-timeseries >= 24.2.20
+Requires: smartmet-library-grid-files >= 24.2.20
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
@@ -72,6 +72,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Feb 22 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.2.20-1.fmi
+- Added dummy isAdminQuery method
+
 * Mon Jan 29 2024 Mika Heiskanen <mheiskan@rhel8.dev.fmi.fi> - 24.1.29-1.fmi
 - Added systemd files
 
