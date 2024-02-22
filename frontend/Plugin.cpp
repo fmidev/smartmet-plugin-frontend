@@ -1710,8 +1710,8 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       std::string firstMessage = exception.what();
       boost::algorithm::replace_all(firstMessage, "\n", " ");
-      if(firstMessage.size() > 300)
-	firstMessage.resize(300);
+      if (firstMessage.size() > 300)
+        firstMessage.resize(300);
       theResponse.setHeader("X-Frontend-Error", firstMessage);
     }
 #if 0
@@ -1758,6 +1758,11 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 bool Plugin::queryIsFast(const Spine::HTTP::Request & /* theRequest */) const
 {
   return true;
+}
+
+bool Plugin::isAdminQuery(const SmartMet::Spine::HTTP::Request & /* theRequest */) const
+{
+  return false;
 }
 
 Fmi::Cache::CacheStatistics Plugin::getCacheStats() const
