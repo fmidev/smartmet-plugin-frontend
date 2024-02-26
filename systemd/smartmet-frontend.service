@@ -8,7 +8,7 @@ Description=Smartmet Weather Server Frontend
 Type=simple
 
 EnvironmentFile=/etc/smartmet/smartmet-frontend.env
-ExecStart=/usr/sbin/smartmetd --configfile $CONFIGFILE
+ExecStart=/usr/sbin/smartmetd --port=${PORT} --configfile ${CONFIGFILE}
 
 LimitCORE=infinity
 # LimitCORE=0
