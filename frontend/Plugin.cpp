@@ -8,6 +8,7 @@
 #include "HTTP.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/lexical_cast.hpp>
 #include <engines/sputnik/Engine.h>
 #include <engines/sputnik/Services.h>
 #include <fmt/format.h>
@@ -30,10 +31,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
-
-using boost::posix_time::ptime;
-using boost::posix_time::second_clock;
-using boost::posix_time::seconds;
 
 namespace SmartMet
 {
@@ -356,7 +353,7 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
     // Obtain logging information
     auto requests = theReactor.getActiveRequests();
 
-    auto now = boost::posix_time::microsec_clock::universal_time();
+    auto now = Fmi::MicrosecClock::universal_time();
 
     std::size_t row = 0;
     for (const auto &id_info : requests)
@@ -972,16 +969,16 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
             if (!timeFormat.empty() && strcasecmp(timeFormat.c_str(), "iso") != 0 && timeFormatter)
             {
               // Analysis time
-              boost::posix_time::ptime aTime = toTimeStamp(fields[0]);
+              Fmi::DateTime aTime = toTimeStamp(fields[0]);
               table.set(3, row, timeFormatter->format(aTime));
 
-              boost::posix_time::ptime fTime = toTimeStamp(fields[1]);
+              Fmi::DateTime fTime = toTimeStamp(fields[1]);
               table.set(4, row, timeFormatter->format(fTime));
 
-              boost::posix_time::ptime lTime = toTimeStamp(fields[2]);
+              Fmi::DateTime lTime = toTimeStamp(fields[2]);
               table.set(5, row, timeFormatter->format(lTime));
 
-              boost::posix_time::ptime mTime = toTimeStamp(fields[3]);
+              Fmi::DateTime mTime = toTimeStamp(fields[3]);
               table.set(6, row, timeFormatter->format(mTime));
             }
             else
@@ -1090,7 +1087,7 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::pauseUntil(const boost::posix_time::ptime &theTime)
+std::pair<std::string, bool> Plugin::pauseUntil(const Fmi::DateTime &theTime)
 {
   auto timestr = Fmi::to_iso_string(theTime);
   std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
@@ -1127,7 +1124,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor
     if (duration_opt)
     {
       auto duration = Fmi::TimeParser::parse_duration(*duration_opt);
-      auto deadline = boost::posix_time::second_clock::universal_time() + duration;
+      auto deadline = Fmi::SecondClock::universal_time() + duration;
       return pauseUntil(deadline);
     }
 
@@ -1169,7 +1166,7 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
     if (duration_opt)
     {
       auto duration = Fmi::TimeParser::parse_duration(*duration_opt);
-      auto deadline = boost::posix_time::second_clock::universal_time() + duration;
+      auto deadline = Fmi::SecondClock::universal_time() + duration;
       return pauseUntil(deadline);
     }
 
@@ -1291,7 +1288,7 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor & /* theRe
                                               "created",
                                               "age"};
 
-    auto now = boost::posix_time::microsec_clock::universal_time();
+    auto now = Fmi::MicrosecClock::universal_time();
     auto cache_stats = getCacheStats();
 
     Spine::Table data_table;
@@ -1377,7 +1374,7 @@ bool Plugin::isPaused() const
   if (!itsPauseDeadLine)
     return true;
 
-  auto now = boost::posix_time::microsec_clock::universal_time();
+  auto now = Fmi::MicrosecClock::universal_time();
 
   if (now < itsPauseDeadLine)
     return true;
@@ -1615,7 +1612,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
     // Now
 
-    ptime t_now = second_clock::universal_time();
+    Fmi::DateTime t_now = Fmi::SecondClock::universal_time();
 
     try
     {
@@ -1650,7 +1647,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 
       // Build cache expiration time info
 
-      ptime t_expires = t_now + seconds(expires_seconds);
+      Fmi::DateTime t_expires = t_now + Fmi::Seconds(expires_seconds);
 
       // The headers themselves
 
@@ -1679,7 +1676,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     {
       // Blocked by ip filter, masquerade as bad request
       theResponse.setStatus(Spine::HTTP::Status::bad_request, true);
-      std::cerr << boost::posix_time::second_clock::local_time()
+      std::cerr << Fmi::SecondClock::local_time()
            << " Attempt to access frontend admin from " << theRequest.getClientIP()
            << ". Not in whitelista." << std::endl;
     }
@@ -1717,7 +1714,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 #if 0
     catch (...)
     {
-      cerr << boost::posix_time::second_clock::local_time() << " error: " << e.what() << std::endl
+      cerr << Fmi::SecondClock::local_time() << " error: " << e.what() << std::endl
            << "Query: " << theRequest.getURI() << std::endl;
 
       std::string msg = std::string("Error: ") + e.what();
@@ -1730,7 +1727,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
     }
     catch (...)
     {
-      cerr << boost::posix_time::second_clock::local_time() << " error: "
+      cerr << Fmi::SecondClock::local_time() << " error: "
            << "Unknown exception" << std::endl
            << "Query: " << theRequest.getURI() << std::endl;
 

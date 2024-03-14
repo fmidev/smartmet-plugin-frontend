@@ -56,7 +56,7 @@ class Plugin : public SmartMetPlugin
 
   mutable Spine::MutexType itsPauseMutex;
   mutable bool itsPaused{false};
-  mutable boost::optional<boost::posix_time::ptime> itsPauseDeadLine{};
+  mutable boost::optional<Fmi::DateTime> itsPauseDeadLine{};
 
   std::pair<std::string, bool> request(Spine::Reactor& theReactor,
                                        const Spine::HTTP::Request& theRequest,
@@ -67,7 +67,7 @@ class Plugin : public SmartMetPlugin
   bool authenticateRequest(const Spine::HTTP::Request& theRequest,
                            Spine::HTTP::Response& theResponse);
 
-  std::pair<std::string, bool> pauseUntil(const boost::posix_time::ptime& theTime);
+  std::pair<std::string, bool> pauseUntil(const Fmi::DateTime& theTime);
 
   std::pair<std::string, bool> requestPause(SmartMet::Spine::Reactor& theReactor,
                                             const SmartMet::Spine::HTTP::Request& theRequest);

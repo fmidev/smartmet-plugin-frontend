@@ -31,7 +31,7 @@ std::string makeDateString()
 {
   try
   {
-    return Fmi::to_http_string(boost::posix_time::second_clock::universal_time());
+    return Fmi::to_http_string(Fmi::SecondClock::universal_time());
   }
   catch (...)
   {
