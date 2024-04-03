@@ -42,6 +42,14 @@ Requires: jsoncpp
 Requires: %{smartmet_boost}-date-time
 Requires: %{smartmet_boost}-thread
 %endif
+
+%if 0%{rhel} >= 9
+BuildRequires: systemd-rpm-macros
+Requires(preun): systemd
+Requires(post): systemd
+Requires(postun): systemd
+%endif
+
 Provides: %{SPECNAME}
 Obsoletes: smartmet-brainstorm-frontend < 16.11.1
 Obsoletes: smartmet-brainstorm-frontend-debuginfo < 16.11.1
