@@ -273,8 +273,8 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     itsOriginalRequest.removeHeader("X-Request-ETag");
 
     // Start the timeout timer
-    itsTimeoutTimer = boost::make_shared<boost::asio::deadline_timer>(
-        itsProxy->backendIoService, boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+    itsTimeoutTimer = boost::make_shared<DeadlineTimer>(
+        itsProxy->backendIoService, std::chrono::seconds(itsBackendTimeoutInSeconds));
 
     itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err)
                                 { me->handleTimeout(err); });
@@ -336,7 +336,7 @@ std::string LowLatencyGatewayStreamer::getChunk()
           { me->readDataResponse(err, bytes_transferred); });
 
       // Reset timeout timer
-      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+      itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
     }
 
     return returnedBuffer;
@@ -430,7 +430,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
             { me->readCacheResponse(err, bytes_transferred); });
 
         // Reset timeout timer
-        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+        itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
 
         break;
       }
@@ -458,7 +458,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
               { me->readDataResponse(err, bytes_transferred); });
 
           // Reset timeout timer
-          itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+          itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
 
           markFinishing();  // Remove backend communication from load balancing
 
@@ -586,7 +586,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
           { me->readDataResponseHeaders(err, bytes_transferred); });
 
       // Reset timeout timer
-      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+      itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
     }
     else
     {
@@ -647,7 +647,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             { me->readDataResponseHeaders(err, bytes_transferred); });
 
         // Reset timeout timer
-        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+        itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
 
         return;
       }
@@ -711,7 +711,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
         }
 
         // Reset timeout timer
-        itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+        itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
 
         itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
 
@@ -770,7 +770,7 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
           { me->readDataResponse(err, bytes_transferred); });
 
       // Reset timeout timer
-      itsTimeoutTimer->expires_from_now(boost::posix_time::seconds(itsBackendTimeoutInSeconds));
+      itsTimeoutTimer->expires_from_now(std::chrono::seconds(itsBackendTimeoutInSeconds));
     }
 
     itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed

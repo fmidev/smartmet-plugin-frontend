@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ResponseCache.h"
+#include <boost/asio.hpp>
 #include <boost/shared_ptr.hpp>
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
@@ -42,6 +43,8 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   virtual std::string getPeekString(int pos, int len);
 
  private:
+  using DeadlineTimer = boost::asio::basic_waitable_timer<std::chrono::system_clock>;
+
   // Requests content from backend
   void sendContentRequest();
 
@@ -110,7 +113,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   boost::asio::ip::tcp::socket itsBackendSocket;
 
   // Timer for backend timeouts
-  boost::shared_ptr<boost::asio::deadline_timer> itsTimeoutTimer;
+  boost::shared_ptr<DeadlineTimer> itsTimeoutTimer;
 
   // Flag to signal backend connection has timed out
   bool itsHasTimedOut = false;
