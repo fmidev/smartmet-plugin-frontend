@@ -31,12 +31,12 @@ BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 24.1.17
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 24.1.17
-Requires: smartmet-server >= 24.2.22
-Requires: smartmet-engine-sputnik >= 24.2.23
-Requires: smartmet-library-spine >= 24.2.8
-Requires: smartmet-library-timeseries >= 24.2.23
-Requires: smartmet-library-grid-files >= 24.2.23
+Requires: smartmet-library-macgyver >= 24.5.6
+Requires: smartmet-server >= 24.5.6
+Requires: smartmet-engine-sputnik >= 24.5.7
+Requires: smartmet-library-spine >= 24.5.6
+Requires: smartmet-library-timeseries >= 24.5.6
+Requires: smartmet-library-grid-files >= 24.5.6
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-date-time
