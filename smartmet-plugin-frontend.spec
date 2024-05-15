@@ -39,7 +39,6 @@ Requires: smartmet-library-timeseries >= 24.5.6
 Requires: smartmet-library-grid-files >= 24.5.6
 Requires: jsoncpp
 %if 0%{rhel} >= 7
-Requires: %{smartmet_boost}-date-time
 Requires: %{smartmet_boost}-thread
 %endif
 
