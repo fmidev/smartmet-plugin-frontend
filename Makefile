@@ -16,7 +16,6 @@ LIBS += -L$(libdir) \
 	-lsmartmet-macgyver \
 	-lsmartmet-timeseries \
 	-lsmartmet-grid-files \
-	-lboost_date_time \
 	-lboost_thread
 
 # What to install
