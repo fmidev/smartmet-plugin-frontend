@@ -43,7 +43,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   virtual std::string getPeekString(int pos, int len);
 
  private:
-  using DeadlineTimer = boost::asio::basic_waitable_timer<std::chrono::system_clock>;
+  using DeadlineTimer = boost::asio::basic_waitable_timer<std::chrono::steady_clock>;
 
   // Requests content from backend
   void sendContentRequest();
