@@ -53,9 +53,19 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
 
     if (theService.get() == nullptr)
     {
+      // In this case there were no available backends. If the request merely asked if the
+      // response has changed, return "304 Not Modified" instead of an error.
+
+      auto if_none_match = theRequest.getHeader("If-None-Match");
+      auto if_modified_since = theRequest.getHeader("If-Modified-Since");
+      if (if_none_match || if_modified_since)
+      {
+        theResponse.setStatus(Spine::HTTP::Status::not_modified);
+        return Proxy::ProxyStatus::PROXY_SUCCESS;
+      }
+
       // 404 Service Not Found
       theResponse.setStatus(Spine::HTTP::Status::not_found, true);
-
       return Proxy::ProxyStatus::PROXY_FAIL_SERVICE;
     }
 
