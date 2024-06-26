@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.2.26
+Version: 24.6.26
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -80,6 +80,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Jun 26 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.6.26-1.fmi
+- Return "304 Not Modified" if backends do not respond and If-None-Match or If-Modified-Since was requested
+
 * Mon Feb 26 2024 Mika Heiskanen <mheiskan@rhel8.dev.fmi.fi> - 24.2.26-1.fmi
 - Port is now configurable via the systemd env file, default port is 80
 
