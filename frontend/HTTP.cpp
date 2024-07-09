@@ -308,14 +308,14 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       throw Fmi::Exception::Trace(BCP, "Configuration error!");
     }
 
-    itsProxy = std::make_shared<Proxy>(memorySize,
-                                         filesystemSize,
-                                         std::filesystem::path(filesystemCachePath),
-                                         uncomMemorySize,
-                                         uncomFilesystemSize,
-                                         std::filesystem::path(uncomFilesystemCachePath),
-                                         backendThreadCount,
-                                         backendTimeoutInSeconds);
+    itsProxy = Proxy::create(memorySize,
+                             filesystemSize,
+                             std::filesystem::path(filesystemCachePath),
+                             uncomMemorySize,
+                             uncomFilesystemSize,
+                             std::filesystem::path(uncomFilesystemCachePath),
+                             backendThreadCount,
+                             backendTimeoutInSeconds);
   }
   catch (...)
   {
