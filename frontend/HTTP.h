@@ -4,7 +4,7 @@
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include "Proxy.h"
 
@@ -43,14 +43,14 @@ class HTTP
 
   void shutdown();
 
-  const boost::shared_ptr<Proxy>& getProxy() const { return itsProxy; }
+  const std::shared_ptr<Proxy>& getProxy() const { return itsProxy; }
 
  private:
   // Pointer to Sputnik instance
   Engine::Sputnik::Engine* itsSputnikProcess;
 
   // Non-owning
-  boost::shared_ptr<Proxy> itsProxy;
+  std::shared_ptr<Proxy> itsProxy;
 
   // Access to the Reactor object (non-owning)
   Spine::Reactor* itsReactor;

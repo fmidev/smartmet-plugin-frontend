@@ -17,10 +17,10 @@ namespace SmartMet
 {
 Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
              std::size_t uncompressedFilesystemCacheSize,
-             const boost::filesystem::path& uncompressedFileCachePath,
+             const std::filesystem::path& uncompressedFileCachePath,
              std::size_t compressedMemoryCacheSize,
              std::size_t compressedFilesystemCacheSize,
-             const boost::filesystem::path& compressedFileCachePath,
+             const std::filesystem::path& compressedFileCachePath,
              int theBackendThreadCount,
              int theBackendTimeoutInSeconds)
     : itsUncompressedResponseCache(
@@ -123,7 +123,7 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
       fwdRequest.setHeader("X-Forwarded-Proto", proto);
     }
 
-    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
+    std::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
         new LowLatencyGatewayStreamer(shared_from_this(),
                                       theReactor,
                                       theHostName,
