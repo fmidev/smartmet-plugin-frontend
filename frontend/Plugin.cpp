@@ -1131,7 +1131,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor
     std::cout << Spine::log_time_str() << " *** Frontend paused" << std::endl;
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = true;
-    itsPauseDeadLine = boost::none;
+    itsPauseDeadLine = std::nullopt;
     return {"Paused Frontend", true};
   }
   catch (...)
@@ -1173,7 +1173,7 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
     std::cout << Spine::log_time_str() << " *** Frontend continues" << std::endl;
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = false;
-    itsPauseDeadLine = boost::none;
+    itsPauseDeadLine = std::nullopt;
     return {"Frontend continues", true};
   }
   catch (...)
@@ -1384,7 +1384,7 @@ bool Plugin::isPaused() const
             << std::endl;
   Spine::UpgradeWriteLock writelock(readlock);
   itsPaused = false;
-  itsPauseDeadLine = boost::none;
+  itsPauseDeadLine = std::nullopt;
 
   return false;
 }
