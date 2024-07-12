@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.6.26
+Version: 24.7.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -79,6 +79,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Jul 12 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.12-1.fmi
+- Replace many boost library types with C++ standard library ones
+
 * Wed Jun 26 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.6.26-1.fmi
 - Return "304 Not Modified" if backends do not respond and If-None-Match or If-Modified-Since was requested
 
