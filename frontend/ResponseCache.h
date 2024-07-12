@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <macgyver/Cache.h>
 #include <spine/SmartMetCache.h>
 #include <string>
@@ -30,9 +30,9 @@ class ResponseCache
 
   ResponseCache(std::size_t memoryCacheSize,
                 std::size_t filesystemCacheSize,
-                const boost::filesystem::path& fileCachePath);
+                const std::filesystem::path& fileCachePath);
 
-  std::pair<boost::shared_ptr<std::string>, CachedResponseMetaData> getCachedBuffer(
+  std::pair<std::shared_ptr<std::string>, CachedResponseMetaData> getCachedBuffer(
       const std::string& etag);
 
   void insertCachedBuffer(const std::string& etag,
@@ -42,7 +42,7 @@ class ResponseCache
                           const std::string& vary,
                           const std::string& access_control_allow_origin,
                           ContentEncodingType content_encoding,
-                          const boost::shared_ptr<std::string>& buffer);
+                          const std::shared_ptr<std::string>& buffer);
 
   Fmi::Cache::CacheStats getMetaDataCacheStats() const { return itsMetaDataCache.statistics(); }
   Fmi::Cache::CacheStats getMemoryCacheStats() const

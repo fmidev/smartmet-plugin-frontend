@@ -4,7 +4,7 @@ namespace SmartMet
 {
 ResponseCache::ResponseCache(std::size_t memoryCacheSize,
                              std::size_t filesystemCacheSize,
-                             const boost::filesystem::path& fileCachePath)
+                             const std::filesystem::path& fileCachePath)
     : itsMetaDataCache((memoryCacheSize + filesystemCacheSize) /
                        8192)  // Buffer cache sizes are in bytes, this in units
       ,
@@ -12,7 +12,7 @@ ResponseCache::ResponseCache(std::size_t memoryCacheSize,
 {
 }
 
-std::pair<boost::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData>
+std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData>
 ResponseCache::getCachedBuffer(const std::string& etag)
 {
   auto mdata = itsMetaDataCache.find(etag);
@@ -36,7 +36,7 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
                                        const std::string& vary,
                                        const std::string& access_control_allow_origin,
                                        ResponseCache::ContentEncodingType content_encoding,
-                                       const boost::shared_ptr<std::string>& buffer)
+                                       const std::shared_ptr<std::string>& buffer)
 {
   boost::hash<std::string> string_hash;
 

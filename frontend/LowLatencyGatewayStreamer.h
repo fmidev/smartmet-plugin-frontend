@@ -2,7 +2,7 @@
 
 #include "ResponseCache.h"
 #include <boost/asio.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
 
@@ -21,7 +21,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
     FAILED
   };
 
-  LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
+  LowLatencyGatewayStreamer(const std::shared_ptr<Proxy>& theProxy,
                             Spine::Reactor& theReactor,
                             std::string theHostName,
                             std::string theIP,
@@ -113,7 +113,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   boost::asio::ip::tcp::socket itsBackendSocket;
 
   // Timer for backend timeouts
-  boost::shared_ptr<DeadlineTimer> itsTimeoutTimer;
+  std::shared_ptr<DeadlineTimer> itsTimeoutTimer;
 
   // Flag to signal backend connection has timed out
   bool itsHasTimedOut = false;
@@ -122,7 +122,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   int itsBackendTimeoutInSeconds;
 
   // Handle to the proxy (contains caches, etc)
-  boost::shared_ptr<Proxy> itsProxy;
+  std::shared_ptr<Proxy> itsProxy;
 
   // Reference to the reactor for decrementing backend activity count when done
   Spine::Reactor& itsReactor;

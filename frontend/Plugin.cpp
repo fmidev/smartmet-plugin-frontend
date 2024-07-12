@@ -316,7 +316,7 @@ std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
 
     std::shared_ptr<Spine::Table> table = sputnik->backends(service);
 
-    boost::shared_ptr<Spine::TableFormatter> formatter(
+    std::shared_ptr<Spine::TableFormatter> formatter(
         Spine::TableFormatterFactory::create(format));
     Spine::TableFormatter::Names names;
     names.push_back("Backend");
@@ -1131,7 +1131,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor
     std::cout << Spine::log_time_str() << " *** Frontend paused" << std::endl;
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = true;
-    itsPauseDeadLine = boost::none;
+    itsPauseDeadLine = std::nullopt;
     return {"Paused Frontend", true};
   }
   catch (...)
@@ -1173,7 +1173,7 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
     std::cout << Spine::log_time_str() << " *** Frontend continues" << std::endl;
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = false;
-    itsPauseDeadLine = boost::none;
+    itsPauseDeadLine = std::nullopt;
     return {"Frontend continues", true};
   }
   catch (...)
@@ -1274,7 +1274,7 @@ std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor & /* theRe
     std::string tableFormat = Spine::optional_string(theRequest.getParameter("format"), "html");
     std::unique_ptr<Spine::TableFormatter> tableFormatter(
         Spine::TableFormatterFactory::create(tableFormat));
-    boost::shared_ptr<Spine::Table> table(new Spine::Table());
+    std::shared_ptr<Spine::Table> table(new Spine::Table());
     Spine::TableFormatter::Names header_names{"#",
                                               "cache_name",
                                               "maxsize",
@@ -1384,7 +1384,7 @@ bool Plugin::isPaused() const
             << std::endl;
   Spine::UpgradeWriteLock writelock(readlock);
   itsPaused = false;
-  itsPauseDeadLine = boost::none;
+  itsPauseDeadLine = std::nullopt;
 
   return false;
 }
@@ -1493,7 +1493,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
       libconfig::Config config;
 
       // Enable sensible relative include paths
-      boost::filesystem::path p = theConfig;
+      std::filesystem::path p = theConfig;
       p.remove_filename();
       config.setIncludeDir(p.c_str());
 
@@ -1638,7 +1638,7 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
       }
       theResponse.setContent(ret);
 
-      boost::shared_ptr<Spine::TableFormatter> formatter(
+      std::shared_ptr<Spine::TableFormatter> formatter(
           Spine::TableFormatterFactory::create(format));
       theResponse.setHeader("Content-Type", formatter->mimetype());
 

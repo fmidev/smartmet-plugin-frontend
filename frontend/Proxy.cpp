@@ -15,12 +15,13 @@
 
 namespace SmartMet
 {
-Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
+Proxy::Proxy(Proxy::Private,
+             std::size_t uncompressedMemoryCacheSize,
              std::size_t uncompressedFilesystemCacheSize,
-             const boost::filesystem::path& uncompressedFileCachePath,
+             const std::filesystem::path& uncompressedFileCachePath,
              std::size_t compressedMemoryCacheSize,
              std::size_t compressedFilesystemCacheSize,
-             const boost::filesystem::path& compressedFileCachePath,
+             const std::filesystem::path& compressedFileCachePath,
              int theBackendThreadCount,
              int theBackendTimeoutInSeconds)
     : itsUncompressedResponseCache(
@@ -45,6 +46,28 @@ Proxy::Proxy(std::size_t uncompressedMemoryCacheSize,
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+std::shared_ptr<Proxy>
+Proxy::create(std::size_t uncompressedMemoryCacheSize,
+        std::size_t uncompressedFilesystemCacheSize,
+        const std::filesystem::path& uncompressedFileCachePath,
+        std::size_t compressedMemoryCacheSize,
+        std::size_t compressedFilesystemCacheSize,
+        const std::filesystem::path& compressedFileCachePath,
+        int theBackendThreadCount,
+        int theBackendTimeoutInSeconds)
+{
+  return std::make_shared<Proxy>(
+        Private(),
+        uncompressedMemoryCacheSize,
+        uncompressedFilesystemCacheSize,
+        uncompressedFileCachePath,
+        compressedMemoryCacheSize,
+        compressedFilesystemCacheSize,
+        compressedFileCachePath,
+        theBackendThreadCount,
+        theBackendTimeoutInSeconds);
 }
 
 ResponseCache& Proxy::getCache(ResponseCache::ContentEncodingType type)
@@ -123,8 +146,9 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
       fwdRequest.setHeader("X-Forwarded-Proto", proto);
     }
 
-    boost::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
-        new LowLatencyGatewayStreamer(shared_from_this(),
+    std::shared_ptr<Proxy> sptr = shared_from_this();
+    std::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
+        new LowLatencyGatewayStreamer(sptr,
                                       theReactor,
                                       theHostName,
                                       theBackendIP,

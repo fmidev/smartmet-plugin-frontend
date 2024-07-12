@@ -3,9 +3,9 @@
 #include "ResponseCache.h"
 
 #include <boost/asio.hpp>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <boost/functional/hash.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <boost/thread/condition.hpp>
 #include <boost/thread/thread.hpp>
 
@@ -16,9 +16,11 @@
 
 namespace SmartMet
 {
-class Proxy : public boost::enable_shared_from_this<Proxy>
+class Proxy : public std::enable_shared_from_this<Proxy>
 {
   friend class LowLatencyGatewayStreamer;
+
+  struct Private{ explicit Private() = default; };
 
  public:
   // Return codes for proxy transactions. Based on these return values
@@ -33,12 +35,23 @@ class Proxy : public boost::enable_shared_from_this<Proxy>
     PROXY_INTERNAL_ERROR = 500
   };
 
-  Proxy(std::size_t uncompressedMemoryCacheSize,
+  Proxy(Private,
+        std::size_t uncompressedMemoryCacheSize,
         std::size_t uncompressedFilesystemCacheSize,
-        const boost::filesystem::path& uncompressedFileCachePath,
+        const std::filesystem::path& uncompressedFileCachePath,
         std::size_t compressedMemoryCacheSize,
         std::size_t compressedFilesystemCacheSize,
-        const boost::filesystem::path& compressedFileCachePath,
+        const std::filesystem::path& compressedFileCachePath,
+        int theBackendThreadCount,
+        int theBackendTimeoutInSeconds);
+
+  static std::shared_ptr<Proxy>
+  create(std::size_t uncompressedMemoryCacheSize,
+        std::size_t uncompressedFilesystemCacheSize,
+        const std::filesystem::path& uncompressedFileCachePath,
+        std::size_t compressedMemoryCacheSize,
+        std::size_t compressedFilesystemCacheSize,
+        const std::filesystem::path& compressedFileCachePath,
         int theBackendThreadCount,
         int theBackendTimeoutInSeconds);
 
