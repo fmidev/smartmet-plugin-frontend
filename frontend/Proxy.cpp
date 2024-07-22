@@ -2,7 +2,6 @@
 #include "LowLatencyGatewayStreamer.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
