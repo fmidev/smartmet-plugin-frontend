@@ -77,7 +77,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   Spine::HTTP::Request itsOriginalRequest;
 
   // Buffer for socket operations
-  boost::array<char, 8192> itsSocketBuffer;
+  std::array<char, 8192> itsSocketBuffer;
 
   // This buffer will be sent to client
   std::string itsClientDataBuffer;
