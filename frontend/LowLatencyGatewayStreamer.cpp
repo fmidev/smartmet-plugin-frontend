@@ -199,7 +199,7 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
     itsReactor.stopBackendRequest(itsHostName, itsPort);
 }
 
-LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const std::shared_ptr<Proxy>& theProxy,
+LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const std::shared_ptr<Proxy> theProxy,
                                                      Spine::Reactor& theReactor,
                                                      std::string theHostName,
                                                      std::string theIP,

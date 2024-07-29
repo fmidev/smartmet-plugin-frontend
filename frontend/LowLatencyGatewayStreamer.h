@@ -21,7 +21,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
     FAILED
   };
 
-  LowLatencyGatewayStreamer(const std::shared_ptr<Proxy>& theProxy,
+  LowLatencyGatewayStreamer(const std::shared_ptr<Proxy> theProxy,
                             Spine::Reactor& theReactor,
                             std::string theHostName,
                             std::string theIP,
