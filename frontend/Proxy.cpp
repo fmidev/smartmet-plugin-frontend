@@ -31,8 +31,8 @@ Proxy::Proxy(Proxy::Private,
       idler(backendIoService),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds)
 {
-  std::cout << fmt::format("Backend ASIO pool size = {}", theBackendThreadCount) << std::endl;
-  std::cout << fmt::format("Backend timeout = {} seconds", itsBackendTimeoutInSeconds) << std::endl;
+  std::cout << fmt::format(fmt::runtime("Backend ASIO pool size = {}"), theBackendThreadCount) << std::endl;
+  std::cout << fmt::format(fmt::runtime("Backend timeout = {} seconds"), itsBackendTimeoutInSeconds) << std::endl;
   try
   {
     for (int i = 0; i < theBackendThreadCount; ++i)
