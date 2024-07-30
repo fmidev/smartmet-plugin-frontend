@@ -222,7 +222,7 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
 
 // Factory method
 std::shared_ptr<LowLatencyGatewayStreamer>
-LowLatencyGatewayStreamer::create(const std::shared_ptr<Proxy>& theProxy,
+LowLatencyGatewayStreamer::create(const std::shared_ptr<Proxy> theProxy,
                                   Spine::Reactor& theReactor,
                                   const std::string& theHostName,
                                   const std::string& theIP,
