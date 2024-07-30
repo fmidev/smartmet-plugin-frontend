@@ -13,6 +13,8 @@ class Proxy;
 class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
                                   public boost::enable_shared_from_this<LowLatencyGatewayStreamer>
 {
+  struct Private { explicit Private() = default; };
+
  public:
   enum class GatewayStatus
   {
@@ -21,13 +23,23 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
     FAILED
   };
 
-  LowLatencyGatewayStreamer(const std::shared_ptr<Proxy> theProxy,
+  LowLatencyGatewayStreamer(Private,
+                            const std::shared_ptr<Proxy> theProxy,
                             Spine::Reactor& theReactor,
                             std::string theHostName,
                             std::string theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,
                             const Spine::HTTP::Request& theOriginalRequest);
+
+  static std::shared_ptr<LowLatencyGatewayStreamer>
+  create(const std::shared_ptr<Proxy>& theProxy,
+         Spine::Reactor& theReactor,
+         const std::string& theHostName,
+         const std::string& theIP,
+         unsigned short thePort,
+         int theBackendTimeoutInSeconds,
+         const Spine::HTTP::Request& theOriginalRequest);
 
   ~LowLatencyGatewayStreamer() override;
 

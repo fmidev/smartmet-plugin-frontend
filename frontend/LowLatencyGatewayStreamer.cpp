@@ -199,7 +199,8 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
     itsReactor.stopBackendRequest(itsHostName, itsPort);
 }
 
-LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const std::shared_ptr<Proxy> theProxy,
+LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
+                                                     const std::shared_ptr<Proxy> theProxy,
                                                      Spine::Reactor& theReactor,
                                                      std::string theHostName,
                                                      std::string theIP,
@@ -217,6 +218,27 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const std::shared_ptr<Proxy
       itsReactor(theReactor)
 {
   itsReactor.startBackendRequest(itsHostName, itsPort);
+}
+
+// Factory method
+std::shared_ptr<LowLatencyGatewayStreamer>
+LowLatencyGatewayStreamer::create(const std::shared_ptr<Proxy>& theProxy,
+                                  Spine::Reactor& theReactor,
+                                  const std::string& theHostName,
+                                  const std::string& theIP,
+                                  unsigned short thePort,
+                                  int theBackendTimeoutInSeconds,
+                                  const Spine::HTTP::Request& theOriginalRequest)
+{
+  return std::make_shared<LowLatencyGatewayStreamer>(Private(),
+                                                     theProxy,
+                                                     theReactor,
+                                                     theHostName,
+                                                     theIP,
+                                                     thePort,
+                                                     theBackendTimeoutInSeconds,
+                                                     theOriginalRequest);
+
 }
 
 // Mark the communication almost finished for load balancing purposes

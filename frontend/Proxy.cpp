@@ -145,14 +145,14 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
     }
 
     std::shared_ptr<Proxy> sptr = shared_from_this();
-    std::shared_ptr<LowLatencyGatewayStreamer> responseStreamer(
-        new LowLatencyGatewayStreamer(sptr,
-                                      theReactor,
-                                      theHostName,
-                                      theBackendIP,
-                                      theBackendPort,
-                                      itsBackendTimeoutInSeconds,
-                                      fwdRequest));
+    std::shared_ptr<LowLatencyGatewayStreamer> responseStreamer =
+        LowLatencyGatewayStreamer::create(sptr,
+                                          theReactor,
+                                          theHostName,
+                                          theBackendIP,
+                                          theBackendPort,
+                                          itsBackendTimeoutInSeconds,
+                                          fwdRequest);
 
     // Begin backend negotiation
     bool success = responseStreamer->sendAndListen();
