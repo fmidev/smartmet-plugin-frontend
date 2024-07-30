@@ -11,7 +11,7 @@ namespace SmartMet
 class Proxy;
 
 class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
-                                  public boost::enable_shared_from_this<LowLatencyGatewayStreamer>
+                                  public std::enable_shared_from_this<LowLatencyGatewayStreamer>
 {
   struct Private { explicit Private() = default; };
 
