@@ -302,8 +302,9 @@ bool LowLatencyGatewayStreamer::sendAndListen()
                                 { me->handleTimeout(err); });
 
     // Start to listen for the reply, headers not yet received
+    std::shared_ptr<LowLatencyGatewayStreamer> me = shared_from_this();
     itsBackendSocket.async_read_some(boost::asio::buffer(itsSocketBuffer),
-                                     [me = shared_from_this()](const boost::system::error_code& err,
+                                     [me](const boost::system::error_code& err,
                                                                std::size_t bytes_transferred)
                                      { me->readCacheResponse(err, bytes_transferred); });
 
