@@ -1,9 +1,8 @@
 #include "HTTP.h"
 #include "Proxy.h"
 #include <boost/algorithm/string.hpp>
-#include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <engines/sputnik/Engine.h>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
@@ -265,7 +264,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     try
     {
       // Enable sensible relative include paths
-      boost::filesystem::path p = theConfig;
+      std::filesystem::path p = theConfig;
       p.remove_filename();
       config.setIncludeDir(p.c_str());
 
@@ -308,14 +307,14 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       throw Fmi::Exception::Trace(BCP, "Configuration error!");
     }
 
-    itsProxy = boost::make_shared<Proxy>(memorySize,
-                                         filesystemSize,
-                                         boost::filesystem::path(filesystemCachePath),
-                                         uncomMemorySize,
-                                         uncomFilesystemSize,
-                                         boost::filesystem::path(uncomFilesystemCachePath),
-                                         backendThreadCount,
-                                         backendTimeoutInSeconds);
+    itsProxy = Proxy::create(memorySize,
+                             filesystemSize,
+                             std::filesystem::path(filesystemCachePath),
+                             uncomMemorySize,
+                             uncomFilesystemSize,
+                             std::filesystem::path(uncomFilesystemCachePath),
+                             backendThreadCount,
+                             backendTimeoutInSeconds);
   }
   catch (...)
   {

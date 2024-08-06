@@ -116,7 +116,7 @@ ResponseCache::CachedResponseMetaData build_metadata(const Spine::HTTP::Response
 }
 
 Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalRequest,
-                                         const boost::shared_ptr<std::string>& cachedBuffer,
+                                         const std::shared_ptr<std::string>& cachedBuffer,
                                          const ResponseCache::CachedResponseMetaData& metadata)
 {
   try
@@ -199,7 +199,8 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
     itsReactor.stopBackendRequest(itsHostName, itsPort);
 }
 
-LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
+LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
+                                                     const std::shared_ptr<Proxy> theProxy,
                                                      Spine::Reactor& theReactor,
                                                      std::string theHostName,
                                                      std::string theIP,
@@ -217,6 +218,27 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(const boost::shared_ptr<Pro
       itsReactor(theReactor)
 {
   itsReactor.startBackendRequest(itsHostName, itsPort);
+}
+
+// Factory method
+std::shared_ptr<LowLatencyGatewayStreamer>
+LowLatencyGatewayStreamer::create(const std::shared_ptr<Proxy> theProxy,
+                                  Spine::Reactor& theReactor,
+                                  const std::string& theHostName,
+                                  const std::string& theIP,
+                                  unsigned short thePort,
+                                  int theBackendTimeoutInSeconds,
+                                  const Spine::HTTP::Request& theOriginalRequest)
+{
+  return std::make_shared<LowLatencyGatewayStreamer>(Private(),
+                                                     theProxy,
+                                                     theReactor,
+                                                     theHostName,
+                                                     theIP,
+                                                     thePort,
+                                                     theBackendTimeoutInSeconds,
+                                                     theOriginalRequest);
+
 }
 
 // Mark the communication almost finished for load balancing purposes
@@ -273,15 +295,16 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     itsOriginalRequest.removeHeader("X-Request-ETag");
 
     // Start the timeout timer
-    itsTimeoutTimer = boost::make_shared<DeadlineTimer>(
+    itsTimeoutTimer = std::make_shared<DeadlineTimer>(
         itsProxy->backendIoService, std::chrono::seconds(itsBackendTimeoutInSeconds));
 
     itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err)
                                 { me->handleTimeout(err); });
 
     // Start to listen for the reply, headers not yet received
+    std::shared_ptr<LowLatencyGatewayStreamer> me = shared_from_this();
     itsBackendSocket.async_read_some(boost::asio::buffer(itsSocketBuffer),
-                                     [me = shared_from_this()](const boost::system::error_code& err,
+                                     [me](const boost::system::error_code& err,
                                                                std::size_t bytes_transferred)
                                      { me->readCacheResponse(err, bytes_transferred); });
 
@@ -471,7 +494,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           // See if we should send content-encoded response
           auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
 
-          std::pair<boost::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
+          std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
 
           // Try compressed cache first if allowed
           if (accepted_content_type == ResponseCache::ContentEncodingType::GZIP)
@@ -830,7 +853,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
                                  itsBackendMetadata.vary,
                                  itsBackendMetadata.access_control_allow_origin,
                                  itsBackendMetadata.content_encoding,
-                                 boost::make_shared<std::string>(itsCachedContent));
+                                 std::make_shared<std::string>(itsCachedContent));
       }
 
       itsGatewayStatus = GatewayStatus::FINISHED;

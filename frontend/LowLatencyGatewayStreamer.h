@@ -2,7 +2,7 @@
 
 #include "ResponseCache.h"
 #include <boost/asio.hpp>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <spine/HTTP.h>
 #include <spine/Reactor.h>
 
@@ -11,8 +11,10 @@ namespace SmartMet
 class Proxy;
 
 class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
-                                  public boost::enable_shared_from_this<LowLatencyGatewayStreamer>
+                                  public std::enable_shared_from_this<LowLatencyGatewayStreamer>
 {
+  struct Private { explicit Private() = default; };
+
  public:
   enum class GatewayStatus
   {
@@ -21,13 +23,23 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
     FAILED
   };
 
-  LowLatencyGatewayStreamer(const boost::shared_ptr<Proxy>& theProxy,
+  LowLatencyGatewayStreamer(Private,
+                            const std::shared_ptr<Proxy> theProxy,
                             Spine::Reactor& theReactor,
                             std::string theHostName,
                             std::string theIP,
                             unsigned short thePort,
                             int theBackendTimeoutInSeconds,
                             const Spine::HTTP::Request& theOriginalRequest);
+
+  static std::shared_ptr<LowLatencyGatewayStreamer>
+  create(const std::shared_ptr<Proxy> theProxy,
+         Spine::Reactor& theReactor,
+         const std::string& theHostName,
+         const std::string& theIP,
+         unsigned short thePort,
+         int theBackendTimeoutInSeconds,
+         const Spine::HTTP::Request& theOriginalRequest);
 
   ~LowLatencyGatewayStreamer() override;
 
@@ -77,7 +89,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   Spine::HTTP::Request itsOriginalRequest;
 
   // Buffer for socket operations
-  boost::array<char, 8192> itsSocketBuffer;
+  std::array<char, 8192> itsSocketBuffer;
 
   // This buffer will be sent to client
   std::string itsClientDataBuffer;
@@ -113,7 +125,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   boost::asio::ip::tcp::socket itsBackendSocket;
 
   // Timer for backend timeouts
-  boost::shared_ptr<DeadlineTimer> itsTimeoutTimer;
+  std::shared_ptr<DeadlineTimer> itsTimeoutTimer;
 
   // Flag to signal backend connection has timed out
   bool itsHasTimedOut = false;
@@ -122,7 +134,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   int itsBackendTimeoutInSeconds;
 
   // Handle to the proxy (contains caches, etc)
-  boost::shared_ptr<Proxy> itsProxy;
+  std::shared_ptr<Proxy> itsProxy;
 
   // Reference to the reactor for decrementing backend activity count when done
   Spine::Reactor& itsReactor;

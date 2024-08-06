@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.6.26
-Release: 1%{?dist}.fmi
+Version: 24.7.30
+Release: 2%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -22,21 +22,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 24.2.23
-BuildRequires: smartmet-library-spine-devel >= 24.2.8
-BuildRequires: smartmet-library-grid-files-devel >= 24.2.23
-BuildRequires: smartmet-engine-sputnik-devel >= 24.2.23
+BuildRequires: smartmet-library-timeseries-devel >= 24.7.12
+BuildRequires: smartmet-library-spine-devel >= 24.7.12
+BuildRequires: smartmet-library-grid-files-devel >= 24.7.12
+BuildRequires: smartmet-engine-sputnik-devel >= 24.7.12
 BuildRequires: gdal38-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 24.1.17
+BuildRequires: smartmet-library-macgyver-devel >= 24.7.12
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 24.5.6
-Requires: smartmet-server >= 24.5.6
-Requires: smartmet-engine-sputnik >= 24.5.7
-Requires: smartmet-library-spine >= 24.5.6
-Requires: smartmet-library-timeseries >= 24.5.6
-Requires: smartmet-library-grid-files >= 24.5.6
+Requires: smartmet-library-macgyver >= 24.7.12
+Requires: smartmet-server >= 24.7.12
+Requires: smartmet-engine-sputnik >= 24.7.12
+Requires: smartmet-library-spine >= 24.7.12
+Requires: smartmet-library-timeseries >= 24.7.12
+Requires: smartmet-library-grid-files >= 24.7.12
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-thread
@@ -79,6 +79,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jul 30 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.30-2.fmi
+- Fix use of std::enable_shared_from_this (iteraatio 2) and avoid boost::enable_shared_from_this
+
+* Tue Jul 30 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.30-1.fmi
+- Fix use of std::enable_shared_from_this
+
+* Fri Jul 12 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.12-1.fmi
+- Replace many boost library types with C++ standard library ones
+
 * Wed Jun 26 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.6.26-1.fmi
 - Return "304 Not Modified" if backends do not respond and If-None-Match or If-Modified-Since was requested
 
