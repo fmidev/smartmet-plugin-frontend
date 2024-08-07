@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.7.30
-Release: 2%{?dist}.fmi
+Version: 24.8.7
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -76,6 +76,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Aug  7 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.8.7-1.fmi
+- Update to gdal-3.8, geos-3.12, proj-94 and fmt-11
+
 * Tue Jul 30 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.7.30-2.fmi
 - Fix use of std::enable_shared_from_this (iteraatio 2) and avoid boost::enable_shared_from_this
 
