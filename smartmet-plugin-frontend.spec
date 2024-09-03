@@ -21,7 +21,7 @@ BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 24.8.7
 BuildRequires: smartmet-library-spine-devel >= 24.8.7
-BuildRequires: smartmet-library-grid-files-devel >= 24.8.7
+BuildRequires: smartmet-library-grid-files-devel >= 24.9.3
 BuildRequires: smartmet-engine-sputnik-devel >= 24.8.7
 BuildRequires: gdal38-devel
 BuildRequires: jsoncpp-devel
@@ -33,7 +33,7 @@ Requires: smartmet-server >= 24.8.7
 Requires: smartmet-engine-sputnik >= 24.8.7
 Requires: smartmet-library-spine >= 24.8.7
 Requires: smartmet-library-timeseries >= 24.8.7
-Requires: smartmet-library-grid-files >= 24.8.7
+Requires: smartmet-library-grid-files >= 24.9.3
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-thread
