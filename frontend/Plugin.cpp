@@ -1346,7 +1346,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminStringRequestHandler(
         this,
         "pause",
-        false,
+        true,
         std::bind(&Plugin::requestPause, this, p::_2),
         "Pause the frontend"))
   {
@@ -1356,7 +1356,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminStringRequestHandler(
         this,
         "continue",
-        false,
+        true,
         std::bind(&Plugin::requestContinue, this, p::_2),
         "Continue the frontend"))
   {
