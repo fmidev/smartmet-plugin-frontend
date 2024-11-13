@@ -1154,9 +1154,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
 
     // Only register the admin handler if it does not exist yet (it could be defined
     // by top level Spine::Reactor configuration)
-    Spine::HTTP::Request testAdmin;
-    testAdmin.setResource("/admin");
-    if (theReactor->getHandlerView(testAdmin))
+    if (theReactor->hasHandlerView("/admin"))
     {
       std::cout << "Warning: Admin handler already exists, not registering Frontend admin handler"
                 << std::endl;
