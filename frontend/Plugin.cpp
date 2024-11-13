@@ -38,28 +38,7 @@ namespace Plugin
 {
 namespace Frontend
 {
-namespace
-{
-bool sortRequestVector(const std::pair<std::string, std::string> &pair1,
-                       const std::pair<std::string, std::string> &pair2)
-{
-  return pair1.first < pair2.first;
-}
 
-std::vector<std::pair<std::string, std::string>> getRequests()
-{
-  std::vector<std::pair<std::string, std::string>> ret = {
-      {"qengine", "Available querydata"},
-      {"gridgenerations", "Available grid generations"},
-      {"gridgenerationsqd", "Available grid newbase generations"},
-      {"backends", "Backend information"},
-      {"activerequests", "Currently active requests"},
-      {"activebackends", "Currently active backends"},
-      {"cachestats", "Cache statistics"}};
-
-  return ret;
-}
-}  // namespace
 struct QEngineFile;
 
 // QEngine reporting types
@@ -267,31 +246,49 @@ void sleep(Spine::Reactor & /* theReactor */,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Gets Sputnik engine pointer or thhrow and exception if not available
+ */
+// ----------------------------------------------------------------------
+
+Engine::Sputnik::Engine* Frontend::Plugin::getSputnikEngine()
+{
+    Spine::Reactor* reactor = Spine::Reactor::instance;
+    void *engine = reactor->getSingleton("Sputnik", nullptr);
+    if (engine == nullptr)
+    {
+        throw Fmi::Exception(BCP, "Sputnik engine is not available");
+    }
+    Engine::Sputnik::Engine* sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
+    if (sputnik == nullptr)
+    {
+        throw Fmi::Exception(BCP, "Sputnik engine is not available (dynamic cast failed)");
+    }
+    return sputnik;
+}
+
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Perform a clusterinfo query
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
+void Frontend::Plugin::requestClusterInfo(const Spine::HTTP::Request& theRequest,
+                                          Spine::HTTP::Response& theResponse)
+try
 {
-  try
-  {
+    std::string content = "<html><head><title>Cluster info</title></head><body>";
+
     std::ostringstream out;
-
-    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (engine == nullptr)
-    {
-      out << "Sputnik engine is not available" << std::endl;
-      return {out.str(), false};
-    }
-
-    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
+    auto* sputnik = getSputnikEngine();
     sputnik->status(out);
-    return {out.str(), true};
-  }
-  catch (...)
-  {
+    theResponse.setContent(out.str());
+    theResponse.setHeader("Content-Type", "text/html; charset=utf-8");
+    theResponse.setStatus(Spine::HTTP::Status::ok);
+}
+catch (...)
+{
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
 }
 
 // ----------------------------------------------------------------------
@@ -300,93 +297,15 @@ std::pair<std::string, bool> requestClusterInfo(Spine::Reactor &theReactor)
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> requestBackendInfo(Spine::Reactor &theReactor,
-                                                const Spine::HTTP::Request &theRequest)
+std::unique_ptr<Spine::Table>
+Frontend::Plugin::requestBackendInfo(Spine::Reactor& theReactor,
+                                     const Spine::HTTP::Request& theRequest)
 {
-  try
-  {
+    auto *sputnik = getSputnikEngine();
     std::string service = Spine::optional_string(theRequest.getParameter("service"), "");
-    std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
-
-    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (engine == nullptr)
-      return {"Sputnik engine is not available", false};
-
-    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
-
-    std::shared_ptr<Spine::Table> table = sputnik->backends(service);
-
-    std::shared_ptr<Spine::TableFormatter> formatter(
-        Spine::TableFormatterFactory::create(format));
-    Spine::TableFormatter::Names names;
-    names.push_back("Backend");
-    names.push_back("IP");
-    names.push_back("Port");
-
-    auto out = formatter->format(*table, names, theRequest, Spine::TableFormatterOptions());
-
-    return {out, true};
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
+    return sputnik->backends(service);
 }
 
-// ----------------------------------------------------------------------
-/*!
- * \brief Perform an active requests query
- */
-// ----------------------------------------------------------------------
-
-std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
-                                                   const Spine::HTTP::Request &theRequest,
-                                                   Spine::HTTP::Response &theResponse)
-{
-  try
-  {
-    Spine::Table reqTable;
-    std::string format =
-        SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
-    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
-
-    // Obtain logging information
-    auto requests = theReactor.getActiveRequests();
-
-    auto now = Fmi::MicrosecClock::universal_time();
-
-    std::size_t row = 0;
-    for (const auto &id_info : requests)
-    {
-      const auto id = id_info.first;
-      const auto &time = id_info.second.time;
-      const auto &req = id_info.second.request;
-
-      auto duration = now - time;
-
-      std::size_t column = 0;
-      reqTable.set(column++, row, Fmi::to_string(id));
-      reqTable.set(column++, row, Fmi::to_iso_extended_string(time.time_of_day()));
-      reqTable.set(column++, row, Fmi::to_string(duration.total_milliseconds() / 1000.0));
-      reqTable.set(column++, row, req.getClientIP());
-      reqTable.set(column++, row, req.getURI());
-      ++row;
-    }
-
-    std::vector<std::string> headers = {"Id", "Time", "Duration", "ClientIP", "RequestString"};
-    auto out = formatter->format(reqTable, headers, theRequest, Spine::TableFormatterOptions());
-
-    // Set MIME
-    std::string mime = formatter->mimetype() + "; charset=UTF-8";
-    theResponse.setHeader("Content-Type", mime);
-
-    return {out, true};
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
 
 // ----------------------------------------------------------------------
 /*!
@@ -394,16 +313,12 @@ std::pair<std::string, bool> requestActiveRequests(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
-                                                   const Spine::HTTP::Request &theRequest,
-                                                   Spine::HTTP::Response &theResponse)
+std::unique_ptr<Spine::Table>
+Plugin::requestActiveBackends(Spine::Reactor &theReactor)
 {
   try
   {
-    Spine::Table reqTable;
-    std::string format =
-        SmartMet::Spine::optional_string(theRequest.getParameter("format"), "json");
-    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
+    std::unique_ptr<Spine::Table> reqTable = std::make_unique<Spine::Table>();
 
     // Obtain logging information
     auto backends = theReactor.getBackendRequestStatus();
@@ -418,21 +333,17 @@ std::pair<std::string, bool> requestActiveBackends(Spine::Reactor &theReactor,
         auto count = port_count.second;
 
         std::size_t column = 0;
-        reqTable.set(column++, row, host);
-        reqTable.set(column++, row, Fmi::to_string(port));
-        reqTable.set(column++, row, Fmi::to_string(count));
+        reqTable->set(column++, row, host);
+        reqTable->set(column++, row, Fmi::to_string(port));
+        reqTable->set(column++, row, Fmi::to_string(count));
         ++row;
       }
     }
 
     std::vector<std::string> headers = {"Host", "Port", "Count"};
-    auto out = formatter->format(reqTable, headers, theRequest, Spine::TableFormatterOptions());
-
-    // Set MIME
-    std::string mime = formatter->mimetype() + "; charset=UTF-8";
-    theResponse.setHeader("Content-Type", mime);
-
-    return {out, true};
+    reqTable->setNames(headers);
+    reqTable->setTitle("Active backends");
+    return reqTable;
   }
   catch (...)
   {
@@ -655,8 +566,9 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
-                                                  const Spine::HTTP::Request &theRequest)
+void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
+                                  const Spine::HTTP::Request &theRequest,
+                                  Spine::HTTP::Response &theResponse)
 {
   try
   {
@@ -729,7 +641,10 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
           Spine::TableFormatterFactory::create(format));
       auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
 
-      return {out, true};
+      theResponse.setContent(out);
+      theResponse.setHeader("Content-Type", formatter->mimetype() + "; charset=UTF-8");
+      theResponse.setStatus(Spine::HTTP::Status::ok);
+      return;
     }
 
     // There are some parameter tokens, return spine producers providing these parameters
@@ -829,7 +744,9 @@ std::pair<std::string, bool> requestQEngineStatus(Spine::Reactor &theReactor,
     std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
     auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
 
-    return {out, true};
+    theResponse.setContent(out);
+    theResponse.setHeader("Content-Type", formatter->mimetype() + "; charset=UTF-8");
+    theResponse.setStatus(Spine::HTTP::Status::ok);
   }
   catch (...)
   {
@@ -917,9 +834,10 @@ std::map<std::string, TimeCounter> extract_producers(
   return producers;
 }
 
-std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
-                                           const Spine::HTTP::Request &theRequest,
-                                           const std::string &what)
+std::unique_ptr<Spine::Table>
+Plugin::requestStatus(Spine::Reactor &theReactor,
+                           const Spine::HTTP::Request &theRequest,
+                           const std::string &what)
 {
   try
   {
@@ -934,7 +852,7 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
       splitString(tmp, ',', inputParamList);
     }
 
-    Spine::Table table;
+    std::unique_ptr<Spine::Table> table = std::make_unique<Spine::Table>();
     std::size_t row = 0;
 
     std::string url = "/admin?what=" + what + "&format=ascii&timeformat=iso";
@@ -963,30 +881,30 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
 
           if (fields.size() == 6)
           {
-            table.set(0, row, prod.first);
-            table.set(1, row, fields[4]);
-            table.set(2, row, fields[5]);
+            table->set(0, row, prod.first);
+            table->set(1, row, fields[4]);
+            table->set(2, row, fields[5]);
             if (!timeFormat.empty() && strcasecmp(timeFormat.c_str(), "iso") != 0 && timeFormatter)
             {
               // Analysis time
               Fmi::DateTime aTime = toTimeStamp(fields[0]);
-              table.set(3, row, timeFormatter->format(aTime));
+              table->set(3, row, timeFormatter->format(aTime));
 
               Fmi::DateTime fTime = toTimeStamp(fields[1]);
-              table.set(4, row, timeFormatter->format(fTime));
+              table->set(4, row, timeFormatter->format(fTime));
 
               Fmi::DateTime lTime = toTimeStamp(fields[2]);
-              table.set(5, row, timeFormatter->format(lTime));
+              table->set(5, row, timeFormatter->format(lTime));
 
               Fmi::DateTime mTime = toTimeStamp(fields[3]);
-              table.set(6, row, timeFormatter->format(mTime));
+              table->set(6, row, timeFormatter->format(mTime));
             }
             else
             {
-              table.set(3, row, fields[0]);
-              table.set(4, row, fields[1]);
-              table.set(5, row, fields[2]);
-              table.set(6, row, fields[3]);
+              table->set(3, row, fields[0]);
+              table->set(4, row, fields[1]);
+              table->set(5, row, fields[2]);
+              table->set(6, row, fields[3]);
             }
             cnt++;
             row++;
@@ -1004,76 +922,8 @@ std::pair<std::string, bool> requestStatus(Spine::Reactor &theReactor,
     theNames.push_back("MaxTime");
     theNames.push_back("ModificationTime");
 
-    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
-    auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
-    return {out, true};
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Perform an Admin query
- */
-// ----------------------------------------------------------------------
-
-std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
-                                             const Spine::HTTP::Request &theRequest,
-                                             Spine::HTTP::Response &theResponse)
-{
-  try
-  {
-    // Check authentication first
-    bool hasValidAuthentication = authenticateRequest(theRequest, theResponse);
-
-    if (!hasValidAuthentication)
-      return {"", true};
-
-    // We may return JSON, hence we should enable CORS
-    theResponse.setHeader("Access-Control-Allow-Origin", "*");
-
-    std::string what = Spine::optional_string(theRequest.getParameter("what"), "");
-
-    if (what.empty())
-      return {"No request specified", false};
-
-    if (what == "clusterinfo")
-      return requestClusterInfo(theReactor);
-
-    if (what == "backends")
-      return requestBackendInfo(theReactor, theRequest);
-
-    if (what == "qengine")
-      return requestQEngineStatus(theReactor, theRequest);
-
-    if (what == "gridgenerations")
-      return requestStatus(theReactor, theRequest, "gridgenerations");
-
-    if (what == "gridgenerationsqd")
-      return requestStatus(theReactor, theRequest, "gridgenerationsqd");
-
-    if (what == "activerequests")
-      return requestActiveRequests(theReactor, theRequest, theResponse);
-
-    if (what == "activebackends")
-      return requestActiveBackends(theReactor, theRequest, theResponse);
-
-    if (what == "pause")
-      return requestPause(theReactor, theRequest);
-
-    if (what == "continue")
-      return requestContinue(theReactor, theRequest);
-
-    if (what == "list")
-      return listRequests(theReactor, theRequest, theResponse);
-
-    if (what == "cachestats")
-      return requestCacheStats(theReactor, theRequest, theResponse);
-
-    return {"Unknown request: '" + what + "'", false};
+    table->setNames(theNames);
+    return table;
   }
   catch (...)
   {
@@ -1087,7 +937,7 @@ std::pair<std::string, bool> Plugin::request(Spine::Reactor &theReactor,
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::pauseUntil(const Fmi::DateTime &theTime)
+std::string Plugin::pauseUntil(const Fmi::DateTime &theTime)
 {
   auto timestr = Fmi::to_iso_string(theTime);
   std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
@@ -1095,7 +945,7 @@ std::pair<std::string, bool> Plugin::pauseUntil(const Fmi::DateTime &theTime)
   Spine::WriteLock lock(itsPauseMutex);
   itsPaused = true;
   itsPauseDeadLine = theTime;
-  return {"Paused Frontend until " + timestr, true};
+  return "Paused Frontend until " + timestr;
 }
 
 // ----------------------------------------------------------------------
@@ -1104,8 +954,7 @@ std::pair<std::string, bool> Plugin::pauseUntil(const Fmi::DateTime &theTime)
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor */,
-                                                  const Spine::HTTP::Request &theRequest)
+std::string Plugin::requestPause(const Spine::HTTP::Request &theRequest)
 {
   try
   {
@@ -1132,7 +981,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = true;
     itsPauseDeadLine = std::nullopt;
-    return {"Paused Frontend", true};
+    return "Paused Frontend";
   }
   catch (...)
   {
@@ -1146,8 +995,7 @@ std::pair<std::string, bool> Plugin::requestPause(Spine::Reactor & /* theReactor
  */
 // ----------------------------------------------------------------------
 
-std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReactor */,
-                                                     const Spine::HTTP::Request &theRequest)
+std::string Plugin::requestContinue(const Spine::HTTP::Request &theRequest)
 {
   try
   {
@@ -1174,184 +1022,7 @@ std::pair<std::string, bool> Plugin::requestContinue(Spine::Reactor & /* theReac
     Spine::WriteLock lock(itsPauseMutex);
     itsPaused = false;
     itsPauseDeadLine = std::nullopt;
-    return {"Frontend continues", true};
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Lists all requests supported by frontend plugin
- */
-// ----------------------------------------------------------------------
-
-std::pair<std::string, bool> Plugin::listRequests(Spine::Reactor & /* theReactor */,
-                                                  const Spine::HTTP::Request &theRequest,
-                                                  Spine::HTTP::Response &theResponse)
-{
-  try
-  {
-    // Parse formatting options
-    std::string tableFormat = Spine::optional_string(theRequest.getParameter("format"), "debug");
-
-    if (tableFormat == "wxml")
-    {
-      std::string response = "Wxml formatting not supported";
-      theResponse.setContent(response);
-      return {response, false};
-    }
-
-    std::unique_ptr<Spine::TableFormatter> tableFormatter(
-        Spine::TableFormatterFactory::create(tableFormat));
-
-    Spine::Table resultTable;
-    Spine::TableFormatter::Names headers{"Request", "Response"};
-
-    std::vector<std::pair<std::string, std::string>> requests = getRequests();
-    std::sort(requests.begin(), requests.end(), sortRequestVector);
-
-    unsigned int row = 0;
-    for (const auto &r : requests)
-    {
-      resultTable.set(0, row, r.first);
-      resultTable.set(1, row, r.second);
-      row++;
-    }
-
-    auto requests_out =
-        tableFormatter->format(resultTable, headers, theRequest, Spine::TableFormatterOptions());
-
-    if (tableFormat == "html" || tableFormat == "debug")
-      requests_out.insert(0, "<h1>Admin requests</h1>");
-
-    if (tableFormat != "html")
-      theResponse.setContent(requests_out);
-    else
-    {
-      // Only insert tags if using human readable mode
-      std::string ret =
-          "<html><head>"
-          "<title>SmartMet Admin</title>"
-          "<style>";
-      ret +=
-          "table { border: 1px solid black; }"
-          "td { border: 1px solid black; text-align:right;}"
-          "</style>"
-          "</head><body>";
-      ret += requests_out;
-      ret += "</body></html>";
-      theResponse.setContent(ret);
-    }
-
-    // Make MIME header and content
-    std::string mime = tableFormatter->mimetype() + "; charset=UTF-8";
-
-    theResponse.setHeader("Content-Type", mime);
-
-    return {requests_out, true};
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Cache statistics
- */
-// ----------------------------------------------------------------------
-
-std::pair<std::string, bool> Plugin::requestCacheStats(Spine::Reactor & /* theReactor */,
-                                                       const Spine::HTTP::Request &theRequest,
-                                                       Spine::HTTP::Response &theResponse)
-{
-  try
-  {
-    std::string tableFormat = Spine::optional_string(theRequest.getParameter("format"), "html");
-    std::unique_ptr<Spine::TableFormatter> tableFormatter(
-        Spine::TableFormatterFactory::create(tableFormat));
-    std::shared_ptr<Spine::Table> table(new Spine::Table());
-    Spine::TableFormatter::Names header_names{"#",
-                                              "cache_name",
-                                              "maxsize",
-                                              "size",
-                                              "inserts",
-                                              "hits",
-                                              "misses",
-                                              "hitrate",
-                                              "hits/min",
-                                              "inserts/min",
-                                              "created",
-                                              "age"};
-
-    auto now = Fmi::MicrosecClock::universal_time();
-    auto cache_stats = getCacheStats();
-
-    Spine::Table data_table;
-
-    auto timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "sql");
-    std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
-
-    size_t row = 1;
-    for (const auto &item : cache_stats)
-    {
-      const auto &name = item.first;
-      const auto &stat = item.second;
-      auto duration = (now - stat.starttime).total_seconds();
-      auto n = stat.hits + stat.misses;
-      auto hit_rate = (n == 0 ? 0.0 : stat.hits * 100.0 / n);
-      auto hits_per_min = (duration == 0 ? 0.0 : 60.0 * stat.hits / duration);
-      auto inserts_per_min = (duration == 0 ? 0.0 : 60.0 * stat.inserts / duration);
-
-      data_table.set(0, row, Fmi::to_string(row));
-      data_table.set(1, row, name);
-      data_table.set(2, row, Fmi::to_string(stat.maxsize));
-      data_table.set(3, row, Fmi::to_string(stat.size));
-      data_table.set(4, row, Fmi::to_string(stat.inserts));
-      data_table.set(5, row, Fmi::to_string(stat.hits));
-      data_table.set(6, row, Fmi::to_string(stat.misses));
-      data_table.set(7, row, Fmi::to_string("%.1f", hit_rate));
-      data_table.set(8, row, Fmi::to_string("%.1f", hits_per_min));
-      data_table.set(9, row, Fmi::to_string("%.1f", inserts_per_min));
-      data_table.set(10, row, timeFormatter->format(stat.starttime));
-      data_table.set(11, row, Fmi::to_simple_string(now - stat.starttime));
-      row++;
-    }
-
-    auto cache_stats_output = tableFormatter->format(
-        data_table, header_names, theRequest, Spine::TableFormatterOptions());
-
-    if (tableFormat == "html" || tableFormat == "debug")
-      cache_stats_output.insert(0, "<h1>CacheStatistics</h1>");
-
-    if (tableFormat != "html")
-      theResponse.setContent(cache_stats_output);
-    else
-    {
-      // Only insert tags if using human readable mode
-      std::string ret =
-          "<html><head>"
-          "<title>SmartMet Frontend</title>"
-          "<style>";
-      ret +=
-          "table { border: 1px solid black; }"
-          "td { border: 1px solid black; text-align:right;}"
-          "</style>"
-          "</head><body>";
-      ret += cache_stats_output;
-      ret += "</body></html>";
-      theResponse.setContent(ret);
-    }
-
-    // Make MIME header and content
-    std::string mime = tableFormatter->mimetype() + "; charset=UTF-8";
-
-    theResponse.setHeader("Content-Type", mime);
-    return {cache_stats_output, true};
+    return "Frontend continues";
   }
   catch (...)
   {
@@ -1391,31 +1062,6 @@ bool Plugin::isPaused() const
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Return true if a service requiring authentication is requested
- */
-// ----------------------------------------------------------------------
-
-bool isAuthenticationRequired(const Spine::HTTP::Request &theRequest)
-{
-  try
-  {
-    std::string what = Spine::optional_string(theRequest.getParameter("what"), "");
-
-    if (what == "pause")
-      return true;
-    if (what == "continue")
-      return true;
-
-    return false;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
  * \brief Authenticates the request
  */
 // ----------------------------------------------------------------------
@@ -1429,10 +1075,6 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
 
     if (!credentials)
     {
-      // Does not have authentication, lets ask for it if necessary
-      if (!isAuthenticationRequired(theRequest))
-        return true;
-
       theResponse.setStatus(Spine::HTTP::Status::unauthorized);
       theResponse.setHeader("WWW-Authenticate", "Basic realm=\"SmartMet Admin\"");
       theResponse.setHeader("Content-Type", "text/html; charset=UTF-8");
@@ -1510,14 +1152,26 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
 
     itsHTTP.reset(new HTTP(theReactor, theConfig));
 
-    if (!theReactor->addContentHandler(this,
-                                       "/admin",
-                                       [this](Spine::Reactor &theReactor,
-                                              const Spine::HTTP::Request &theRequest,
-                                              Spine::HTTP::Response &theResponse) {
-                                         callRequestHandler(theReactor, theRequest, theResponse);
-                                       }))
-      throw Fmi::Exception(BCP, "Failed to register admin content handler");
+    // Only register the admin handler if it does not exist yet (it could be defined
+    // by top level Spine::Reactor configuration)
+    Spine::HTTP::Request testAdmin;
+    testAdmin.setResource("/admin");
+    if (theReactor->getHandlerView(testAdmin))
+    {
+      std::cout << "Warning: Admin handler already exists, not registering Frontend admin handler"
+                << std::endl;
+    }
+    else
+    {
+      if (!theReactor->addContentHandler(this,
+                                        "/admin",
+                                         [this](Spine::Reactor &theReactor,
+                                                const Spine::HTTP::Request &theRequest,
+                                                Spine::HTTP::Response &theResponse) {
+                                           callRequestHandler(theReactor, theRequest, theResponse);
+                                         }))
+        throw Fmi::Exception(BCP, "Failed to register admin content handler");
+    }
 
     if (!theReactor->addContentHandler(this,
                                        "/",
@@ -1546,11 +1200,15 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
 
 // ----------------------------------------------------------------------
 /*!
- * \brief Initializator (trivial)
+ * \brief Initializator
  */
 // ----------------------------------------------------------------------
 
-void Plugin::init() {}
+void Plugin::init()
+{
+  Spine::Reactor* reactor = Spine::Reactor::instance;
+  registerAdminRequests(*reactor);
+}
 
 // ----------------------------------------------------------------------
 /*!
@@ -1605,144 +1263,121 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 {
   try
   {
-    // Default expiration time
-
-    const int expires_seconds = 60;
-    bool isdebug = false;
-
-    // Now
-
-    Fmi::DateTime t_now = Fmi::SecondClock::universal_time();
-
-    try
-    {
-      // Assume OK, the handler will override for example with 401 if necessary
-      theResponse.setStatus(Spine::HTTP::Status::ok);
-
-      std::pair<std::string, bool> response = request(theReactor, theRequest, theResponse);
-
-      // Response may have been set directly, and the returned value is empty
-
-      if (response.first.empty())
-        return;
-
-      // Make the response HTML in debug mode
-
-      std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
-
-      std::string ret = response.first;
-      if (format == "debug")
-      {
-        isdebug = true;
-        ret = ("<html><head><title>SmartMet Admin</title></head><body>" + ret + "</body></html>");
-      }
-      theResponse.setContent(ret);
-
-      std::shared_ptr<Spine::TableFormatter> formatter(
-          Spine::TableFormatterFactory::create(format));
-      theResponse.setHeader("Content-Type", formatter->mimetype());
-
-      // We allow JSON requests, hence we should enable CORS
-      theResponse.setHeader("Access-Control-Allow-Origin", "*");
-
-      // Build cache expiration time info
-
-      Fmi::DateTime t_expires = t_now + Fmi::Seconds(expires_seconds);
-
-      // The headers themselves
-
-      std::string cachecontrol = "public, max-age=" + Fmi::to_string(expires_seconds);
-      std::string expiration = Fmi::to_http_string(t_expires);
-      std::string modification = Fmi::to_http_string(t_now);
-
-      theResponse.setHeader("Cache-Control", cachecontrol);
-      theResponse.setHeader("Expires", expiration);
-      theResponse.setHeader("Last-Modified", modification);
-
-      if (response.first.empty())
-      {
-        std::cerr << "Warning: Empty input for request " << theRequest.getQueryString() << " from "
-                  << theRequest.getClientIP() << std::endl;
-      }
-
-#ifdef MYDEBUG
-      std::cout << "Output:" << std::endl << response << std::endl;
-
-#endif
-    }
-    /*
-     * Cannot find a source that is actually throwing this exception
-    catch (const Fmi::Exceptions::NotAuthorizedError &)
-    {
-      // Blocked by ip filter, masquerade as bad request
-      theResponse.setStatus(Spine::HTTP::Status::bad_request, true);
-      std::cerr << Fmi::SecondClock::local_time()
-           << " Attempt to access frontend admin from " << theRequest.getClientIP()
-           << ". Not in whitelista." << std::endl;
-    }
-    */
-    catch (...)
-    {
-      // Catching all exceptions
-
-      Fmi::Exception exception(BCP, "Request processing exception!", nullptr);
-      exception.addParameter("URI", theRequest.getURI());
-      exception.addParameter("ClientIP", theRequest.getClientIP());
-      exception.addParameter("HostName", Spine::HostInfo::getHostName(theRequest.getClientIP()));
-      exception.printError();
-
-      if (isdebug)
-      {
-        // Delivering the exception information as HTTP content
-        std::string fullMessage = exception.getHtmlStackTrace();
-        theResponse.setContent(fullMessage);
-        theResponse.setStatus(Spine::HTTP::Status::ok);
-      }
-      else
-      {
-        theResponse.setStatus(Spine::HTTP::Status::bad_request);
-      }
-
-      // Adding the first exception information into the response header
-
-      std::string firstMessage = exception.what();
-      boost::algorithm::replace_all(firstMessage, "\n", " ");
-      if (firstMessage.size() > 300)
-        firstMessage.resize(300);
-      theResponse.setHeader("X-Frontend-Error", firstMessage);
-    }
-#if 0
-    catch (...)
-    {
-      cerr << Fmi::SecondClock::local_time() << " error: " << e.what() << std::endl
-           << "Query: " << theRequest.getURI() << std::endl;
-
-      std::string msg = std::string("Error: ") + e.what();
-      theResponse.setContent(msg);
-      theResponse.setStatus(Spine::HTTP::Status::internal_server_error);
-      // Remove newlines, make sure length is reasonable
-      boost::algorithm::replace_all(msg, "\n", " ");
-      msg = msg.substr(0, 100);
-      theResponse.setHeader("X-Admin-Error", msg.c_str());
-    }
-    catch (...)
-    {
-      cerr << Fmi::SecondClock::local_time() << " error: "
-           << "Unknown exception" << std::endl
-           << "Query: " << theRequest.getURI() << std::endl;
-
-      theResponse.setHeader("X-Admin-Error", "Unknown exception");
-      std::string msg = "Error: Unknown exception";
-      theResponse.setContent(msg);
-      theResponse.setStatus(Spine::HTTP::Status::internal_server_error);
-    }
-#endif
+    using namespace SmartMet::Spine;
+    theReactor.executeAdminRequest(
+        theRequest,
+        theResponse,
+        [this](const Spine::HTTP::Request& request, Spine::HTTP::Response& response) -> bool
+        {
+          return authenticateRequest(request, response);
+        });
   }
   catch (...)
   {
+    // Not expected to be here: theReactor.executeAdminRequest() processes exceptions
+    // and should not throw
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+
+
+void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
+{
+  namespace p = std::placeholders;
+
+  if (!theReactor.addAdminCustomRequestHandler(
+            this,
+            "clusterinfo",
+            false,
+             std::bind(&Frontend::Plugin::requestClusterInfo, this, p::_2, p::_3),
+             "Get cluster info"))
+  {
+    throw Fmi::Exception(BCP, "Failed to register clusterinfo request handler");
+  }
+
+  if (!theReactor.addAdminTableRequestHandler(
+            this,
+            "backends",
+            false,
+            std::bind(&Frontend::Plugin::requestBackendInfo, this, p::_1, p::_2),
+            "Get backend info"))
+  {
+    throw Fmi::Exception(BCP, "Failed to register backends request handler");
+  }
+
+  if (!theReactor.addAdminCustomRequestHandler(
+        this,
+        "qengine",
+        false,
+        std::bind(&Plugin::requestQEngineStatus, this, p::_1, p::_2, p::_3),
+        "Available querydata"))
+  {
+    throw Fmi::Exception(BCP, "Failed to register qengine request handler");
+  }
+
+  if (!theReactor.addAdminTableRequestHandler(
+        this,
+        "gridgenerations",
+        false,
+        std::bind(&Plugin::requestStatus, this, p::_1, p::_2, "gridgenerations"),
+        "Available grid generations"))
+  {
+    throw Fmi::Exception(BCP, "Failed to register gridgenerations request handler");
+  }
+
+  if (!theReactor.addAdminTableRequestHandler(
+        this,
+        "gridgenerationsqd",
+        false,
+        std::bind(&Plugin::requestStatus, this, p::_1, p::_2, "gridgenerationsqd"),
+        "Available grid newbase generations"))
+  {
+    throw Fmi::Exception(BCP, "Failed to register gridgenerations request handler");
+  }
+
+  if (!theReactor.addAdminTableRequestHandler(
+        this,
+        "activebackends",
+        false,
+        std::bind(&Plugin::requestActiveBackends, this, p::_1),
+        "Active backends"))
+    {
+        throw Fmi::Exception(BCP, "Failed to register activebackends request handler");
+    }
+
+  if (!theReactor.addAdminStringRequestHandler(
+        this,
+        "pause",
+        false,
+        std::bind(&Plugin::requestPause, this, p::_2),
+        "Pause the frontend"))
+  {
+        throw Fmi::Exception(BCP, "Failed to register pause request handler");
+  }
+
+  if (!theReactor.addAdminStringRequestHandler(
+        this,
+        "continue",
+        false,
+        std::bind(&Plugin::requestContinue, this, p::_2),
+        "Continue the frontend"))
+  {
+        throw Fmi::Exception(BCP, "Failed to register continue request handler");
+  }
+
+  if (!theReactor.addAdminTableRequestHandler(
+        this,
+        "list:frontend",
+        false,
+        std::bind(&Spine::ContentHandlerMap::getTargetAdminRequests,
+                  &theReactor,
+                  Spine::ContentHandlerMap::HandlerTarget(this)),
+        "List available requests of frontend plugin"))
+  {
+        throw Fmi::Exception(BCP, "Failed to register list request handler");
+  }
+}
+
 
 // ----------------------------------------------------------------------
 /*!
