@@ -23,7 +23,7 @@ BuildRequires: smartmet-library-timeseries-devel >= 24.11.8
 BuildRequires: smartmet-library-spine-devel >= 24.11.13
 BuildRequires: smartmet-library-grid-files-devel >= 24.10.16
 BuildRequires: smartmet-engine-sputnik-devel >= 24.11.13
-BuildRequires: gdal38-devel
+BuildRequires: gdal310-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 24.10.28
