@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.6.26
+Version: 25.1.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -80,6 +80,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jan  7 2025 Andris Pavenis <andris.pavenis@fmi.fi> 25.1.7-1.fmi
+- Fix remoutely exploitable HTTP/HTTPS authentication header parsing bug
+
 * Wed Jun 26 2024 Mika Heiskanen <mika.heiskanen@fmi.fi> - 24.6.26-1.fmi
 - Return "304 Not Modified" if backends do not respond and If-None-Match or If-Modified-Since was requested
 
