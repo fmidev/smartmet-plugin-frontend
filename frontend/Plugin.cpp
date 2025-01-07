@@ -1454,6 +1454,17 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
 
     boost::algorithm::split(
         splitHeader, *credentials, boost::is_any_of(" "), boost::token_compress_on);
+    if (splitHeader.size() != 2)
+    {
+      theResponse.setStatus(Spine::HTTP::Status::unauthorized);
+      theResponse.setHeader("WWW-Authenticate", "Basic realm=\"SmartMet Admin\"");
+      theResponse.setHeader("Content-Type", "text/html; charset=UTF-8");
+
+      std::string content = "<html><body><h1>401 Unauthorized </h1></body></html>";
+      theResponse.setContent(content);
+
+      return false;
+    }
 
     givenDigest = splitHeader[1];  // Second field in the header: ( Basic aHR0cHdhdGNoOmY= )
 
