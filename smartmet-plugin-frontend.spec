@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 24.11.13
+Version: 25.1.7
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -76,6 +76,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jan  7 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.7-1.fmi
+- Fix remoutely exploitable HTTP/HTTPS authentication header parsing bug
+  (was vulnerable only when admin requests are handled by the frontend plugin directly)
+
 * Wed Nov 13 2024 Andris Pavēnis <andris.pavenis@fmi.fi> 24.11.13-1.fmi
 - Handle admin requests through SmartMet::Spine::ContentHandlerView
 
