@@ -1293,11 +1293,12 @@ void Plugin::requestHandler(Spine::Reactor &theReactor,
 void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
 {
   namespace p = std::placeholders;
+  using AdminRequestAccess = Spine::Reactor::AdminRequestAccess;
 
   if (!theReactor.addAdminCustomRequestHandler(
             this,
             "clusterinfo",
-            false,
+            AdminRequestAccess::Public,
              std::bind(&Frontend::Plugin::requestClusterInfo, this, p::_2, p::_3),
              "Get cluster info"))
   {
@@ -1307,7 +1308,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminTableRequestHandler(
             this,
             "backends",
-            false,
+            AdminRequestAccess::Public,
             std::bind(&Frontend::Plugin::requestBackendInfo, this, p::_1, p::_2),
             "Get backend info"))
   {
@@ -1317,7 +1318,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminCustomRequestHandler(
         this,
         "qengine",
-        false,
+        AdminRequestAccess::Public,
         std::bind(&Plugin::requestQEngineStatus, this, p::_1, p::_2, p::_3),
         "Available querydata"))
   {
@@ -1327,7 +1328,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminTableRequestHandler(
         this,
         "gridgenerations",
-        false,
+        AdminRequestAccess::Public,
         std::bind(&Plugin::requestStatus, this, p::_1, p::_2, "gridgenerations"),
         "Available grid generations"))
   {
@@ -1337,7 +1338,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminTableRequestHandler(
         this,
         "gridgenerationsqd",
-        false,
+        AdminRequestAccess::Public,
         std::bind(&Plugin::requestStatus, this, p::_1, p::_2, "gridgenerationsqd"),
         "Available grid newbase generations"))
   {
@@ -1347,7 +1348,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminTableRequestHandler(
         this,
         "activebackends",
-        false,
+        AdminRequestAccess::Public,
         std::bind(&Plugin::requestActiveBackends, this, p::_1),
         "Active backends"))
     {
@@ -1357,7 +1358,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminStringRequestHandler(
         this,
         "pause",
-        true,
+        AdminRequestAccess::RequiresAuthentication,
         std::bind(&Plugin::requestPause, this, p::_2),
         "Pause the frontend"))
   {
@@ -1367,7 +1368,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminStringRequestHandler(
         this,
         "continue",
-        true,
+        AdminRequestAccess::RequiresAuthentication,
         std::bind(&Plugin::requestContinue, this, p::_2),
         "Continue the frontend"))
   {
@@ -1377,7 +1378,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminTableRequestHandler(
         this,
         "list:frontend",
-        false,
+        AdminRequestAccess::Public,
         std::bind(&Spine::ContentHandlerMap::getTargetAdminRequests,
                   &theReactor,
                   Spine::ContentHandlerMap::HandlerTarget(this)),
