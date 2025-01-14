@@ -1374,18 +1374,6 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   {
         throw Fmi::Exception(BCP, "Failed to register continue request handler");
   }
-
-  if (!theReactor.addAdminTableRequestHandler(
-        this,
-        "list:frontend",
-        AdminRequestAccess::Public,
-        std::bind(&Spine::ContentHandlerMap::getTargetAdminRequests,
-                  &theReactor,
-                  Spine::ContentHandlerMap::HandlerTarget(this)),
-        "List available requests of frontend plugin"))
-  {
-        throw Fmi::Exception(BCP, "Failed to register list request handler");
-  }
 }
 
 
