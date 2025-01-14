@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.1.10
+Version: 25.1.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -76,6 +76,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jan 14 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.14-1.fmi
+- Remove admin request list:frontend
+
 * Fri Jan 10 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.10-1.fmi
 - Admin/info request update
 
