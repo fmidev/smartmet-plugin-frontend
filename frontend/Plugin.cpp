@@ -273,15 +273,19 @@ Engine::Sputnik::Engine* Frontend::Plugin::getSputnikEngine()
  */
 // ----------------------------------------------------------------------
 
-void Frontend::Plugin::requestClusterInfo(const Spine::HTTP::Request& theRequest,
+void Frontend::Plugin::requestClusterInfo(Spine::Reactor& theReactor,
+                                          const Spine::HTTP::Request& theRequest,
                                           Spine::HTTP::Response& theResponse)
 try
 {
+    const std::optional<std::string> adminUri = theReactor.getAdminUri();
+    const bool full = adminUri && theRequest.getResource() == *adminUri;
+
     std::string content = "<html><head><title>Cluster info</title></head><body>";
 
     std::ostringstream out;
     auto* sputnik = getSputnikEngine();
-    sputnik->status(out);
+    sputnik->status(out, full);
     theResponse.setContent(out.str());
     theResponse.setHeader("Content-Type", "text/html; charset=utf-8");
     theResponse.setStatus(Spine::HTTP::Status::ok);
@@ -302,8 +306,10 @@ Frontend::Plugin::requestBackendInfo(Spine::Reactor& theReactor,
                                      const Spine::HTTP::Request& theRequest)
 {
     auto *sputnik = getSputnikEngine();
+    const std::optional<std::string> adminUri = theReactor.getAdminUri();
+    const bool full = adminUri && theRequest.getResource() == *adminUri;
     std::string service = Spine::optional_string(theRequest.getParameter("service"), "");
-    return sputnik->backends(service);
+    return sputnik->backends(service, full);
 }
 
 
@@ -314,10 +320,14 @@ Frontend::Plugin::requestBackendInfo(Spine::Reactor& theReactor,
 // ----------------------------------------------------------------------
 
 std::unique_ptr<Spine::Table>
-Plugin::requestActiveBackends(Spine::Reactor &theReactor)
+Plugin::requestActiveBackends(Spine::Reactor &theReactor,
+                              const Spine::HTTP::Request &theRequest)
 {
   try
   {
+    const std::optional<std::string> adminUri = theReactor.getAdminUri();
+    const bool full = adminUri && theRequest.getResource() == *adminUri;
+
     std::unique_ptr<Spine::Table> reqTable = std::make_unique<Spine::Table>();
 
     // Obtain logging information
@@ -334,14 +344,20 @@ Plugin::requestActiveBackends(Spine::Reactor &theReactor)
 
         std::size_t column = 0;
         reqTable->set(column++, row, host);
-        reqTable->set(column++, row, Fmi::to_string(port));
-        reqTable->set(column++, row, Fmi::to_string(count));
+        if (full)
+        {
+          reqTable->set(column++, row, Fmi::to_string(port));
+          reqTable->set(column++, row, Fmi::to_string(count));
+        }
         ++row;
       }
     }
 
-    std::vector<std::string> headers = {"Host", "Port", "Count"};
-    reqTable->setNames(headers);
+    if (full)
+      reqTable->setNames({"Host", "Port", "Count"});
+    else
+      reqTable->setNames({"Host"});
+
     reqTable->setTitle("Active backends");
     return reqTable;
   }
@@ -1299,7 +1315,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
             this,
             "clusterinfo",
             AdminRequestAccess::Public,
-             std::bind(&Frontend::Plugin::requestClusterInfo, this, p::_2, p::_3),
+             std::bind(&Frontend::Plugin::requestClusterInfo, this, p::_1, p::_2, p::_3),
              "Get cluster info"))
   {
     throw Fmi::Exception(BCP, "Failed to register clusterinfo request handler");
@@ -1349,7 +1365,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
         this,
         "activebackends",
         AdminRequestAccess::Public,
-        std::bind(&Plugin::requestActiveBackends, this, p::_1),
+        std::bind(&Plugin::requestActiveBackends, this, p::_1, p::_2),
         "Active backends"))
     {
         throw Fmi::Exception(BCP, "Failed to register activebackends request handler");
