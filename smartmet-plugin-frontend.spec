@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.1.7
+Version: 25.1.17
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -20,9 +20,9 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 24.11.8
-BuildRequires: smartmet-library-spine-devel >= 25.1.10
+BuildRequires: smartmet-library-spine-devel >= 25.1.17
 BuildRequires: smartmet-library-grid-files-devel >= 24.10.16
-BuildRequires: smartmet-engine-sputnik-devel >= 24.11.13
+BuildRequires: smartmet-engine-sputnik-devel >= 25.1.17
 BuildRequires: gdal310-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
@@ -30,8 +30,8 @@ BuildRequires: smartmet-library-macgyver-devel >= 24.10.28
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 24.10.28
 Requires: smartmet-server >= 24.11.8
-Requires: smartmet-engine-sputnik >= 24.11.13
-Requires: smartmet-library-spine >= 25.1.10
+Requires: smartmet-engine-sputnik >= 24.1.17
+Requires: smartmet-library-spine >= 25.1.17
 Requires: smartmet-library-timeseries >= 24.11.8
 Requires: smartmet-library-grid-files >= 24.10.16
 Requires: jsoncpp
@@ -76,6 +76,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Jan 17 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.17-1.fmi
+- Hide internal information from /info responses
+
+* Tue Jan 14 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.14-1.fmi
+- Remove admin request list:frontend
+
+* Fri Jan 10 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.10-1.fmi
+- Admin/info request update
+
 * Tue Jan  7 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.1.7-1.fmi
 - Fix remoutely exploitable HTTP/HTTPS authentication header parsing bug
   (was vulnerable only when admin requests are handled by the frontend plugin directly)

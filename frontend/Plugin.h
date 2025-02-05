@@ -73,7 +73,8 @@ class Plugin : public SmartMetPlugin
    */
   Engine::Sputnik::Engine* getSputnikEngine();
 
-  void requestClusterInfo(const Spine::HTTP::Request& theRequest,
+  void requestClusterInfo(Spine::Reactor& theReactor,
+                          const Spine::HTTP::Request& theRequest,
                           Spine::HTTP::Response& theResponse);
 
   std::unique_ptr<Spine::Table> requestBackendInfo(Spine::Reactor& theReactor,
@@ -87,8 +88,8 @@ class Plugin : public SmartMetPlugin
                                               const Spine::HTTP::Request &theRequest,
                                               const std::string &what);
 
-  std::unique_ptr<Spine::Table> requestActiveBackends(Spine::Reactor& theReactor);
-
+  std::unique_ptr<Spine::Table> requestActiveBackends(Spine::Reactor& theReactor,
+                                                      const Spine::HTTP::Request &theRequest);
 
   std::string pauseUntil(const Fmi::DateTime& theTime);
 
