@@ -19,21 +19,21 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 24.11.8
-BuildRequires: smartmet-library-spine-devel >= 25.1.17
-BuildRequires: smartmet-library-grid-files-devel >= 24.10.16
-BuildRequires: smartmet-engine-sputnik-devel >= 25.1.17
+BuildRequires: smartmet-library-timeseries-devel >= 25.2.18
+BuildRequires: smartmet-library-spine-devel >= 25.2.18
+BuildRequires: smartmet-library-grid-files-devel >= 25.2.18
+BuildRequires: smartmet-engine-sputnik-devel >= 25.2.18
 BuildRequires: gdal310-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 24.10.28
+BuildRequires: smartmet-library-macgyver-devel >= 25.2.18
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 24.10.28
-Requires: smartmet-server >= 24.11.8
-Requires: smartmet-engine-sputnik >= 24.1.17
-Requires: smartmet-library-spine >= 25.1.17
-Requires: smartmet-library-timeseries >= 24.11.8
-Requires: smartmet-library-grid-files >= 24.10.16
+Requires: smartmet-library-macgyver >= 25.2.18
+Requires: smartmet-server >= 25.2.18
+Requires: smartmet-engine-sputnik >= 25.2.18
+Requires: smartmet-library-spine >= 25.2.18
+Requires: smartmet-library-timeseries >= 25.2.18
+Requires: smartmet-library-grid-files >= 25.2.18
 Requires: jsoncpp
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-thread
