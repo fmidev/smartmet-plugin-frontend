@@ -73,8 +73,8 @@ class Proxy : public std::enable_shared_from_this<Proxy>
   ResponseCache itsUncompressedResponseCache;
   ResponseCache itsCompressedResponseCache;
 
-  boost::asio::io_service backendIoService;
-  boost::asio::io_service::work idler;
+  boost::asio::io_context backendIoService;
+  boost::asio::executor_work_guard<boost::asio::io_context::executor_type> idler;
   boost::thread_group itsBackendThreads;
 
   int itsBackendTimeoutInSeconds;

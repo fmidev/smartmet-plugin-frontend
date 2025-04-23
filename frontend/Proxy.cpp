@@ -27,7 +27,7 @@ Proxy::Proxy(Proxy::Private,
       itsCompressedResponseCache(
           compressedMemoryCacheSize, compressedFilesystemCacheSize, compressedFileCachePath),
       backendIoService(theBackendThreadCount),
-      idler(backendIoService),
+      idler(backendIoService.get_executor()),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds)
 {
   std::cout << fmt::format(fmt::runtime("Backend ASIO pool size = {}"), theBackendThreadCount) << std::endl;
