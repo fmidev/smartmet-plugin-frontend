@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.8.20
+Version: 25.9.1
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -80,6 +80,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Sep  1 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.9.1-1.fmi
+- Update according to smartmet-library-spine ABI changes
+
 * Wed Aug 20 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.8.20-1.fmi
 - smartmet-frontend.service: add setting coredump filter (with override possibility)
 
