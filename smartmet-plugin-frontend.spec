@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.9.1
+Version: 25.9.9
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -83,6 +83,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Sep  9 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.9.9-1.fmi
+- Set CAP_NET_BIND_SERVICE for smartmet-frontend.service
+- Specify libjemmaloc.so in LD_PRELOAD (can be overriden in /etc/smartmet/smartmet-frontend.env)
+
 * Mon Sep  1 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.9.1-1.fmi
 - Update according to smartmet-library-spine ABI changes
 
