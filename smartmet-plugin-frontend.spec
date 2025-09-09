@@ -31,6 +31,7 @@ BuildRequires: gdal310-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 25.2.18
+BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 25.2.18
 Requires: smartmet-server >= 25.2.18
@@ -39,6 +40,7 @@ Requires: smartmet-library-spine >= 25.9.1
 Requires: smartmet-library-timeseries >= 25.2.18
 Requires: smartmet-library-grid-files >= 25.2.18
 Requires: jsoncpp
+Requires: jemalloc
 %if 0%{rhel} >= 7
 Requires: %{smartmet_boost}-thread
 %endif
@@ -76,6 +78,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/smartmet/plugins/%{DIRNAME}.so
 %defattr(0644,root,root,0755)
 %config(noreplace) %{_sysconfdir}/smartmet/smartmet-frontend.env
+%{_sysconfdir}/smartmet/smartmet-frontend.defaults.env
 %{_unitdir}/smartmet-frontend.service
 
 

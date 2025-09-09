@@ -7,15 +7,19 @@ Description=Smartmet Weather Server Frontend
 # Not a real daemon
 Type=simple
 
+EnvironmentFile=/etc/smartmet/smartmet-frontend.defaults.env
 EnvironmentFile=/etc/smartmet/smartmet-frontend.env
+
+# Give capabilities what we need and restrict to them only
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+NoNewPrivileges=true
+
 ExecStart=/usr/sbin/smartmetd --port=${PORT} --configfile ${CONFIGFILE}
 
 LimitCORE=infinity
 # LimitCORE=0
-
-# RHEL7/RHEL8 do not yet support the CoredumpFilter setting
-# CoredumpFilter=default
-# CoredumpFilter=private-anonymous
 
 # Do not retry too fast if there are some I/O or similar issues
 Restart=always
@@ -25,7 +29,7 @@ RestartSec=5s
 TimeoutStartSec=0
 
 # Wait for 30s for the server to stop before sending SIGTERM and another 30s before SIGKILL
-TimeoutStopSec=30s
+TimeoutStopSec=35s
 
 # Disable swapping
 MemorySwapMax=0M
@@ -35,7 +39,7 @@ LimitNOFILE=999999999
 User=smartmet-server
 
 # Run post step as root (prefix +) and target the main pid
-ExecStartPost=+/bin/sh -eu -c "echo ${COREDUMP_FILTER_MASK:-0x33} > /proc/$MAINPID/coredump_filter"
+ExecStartPost=+/bin/sh -eu -c "echo ${COREDUMP_FILTER} > /proc/$MAINPID/coredump_filter"
 
 [Install]
 
