@@ -252,18 +252,7 @@ void sleep(Spine::Reactor & /* theReactor */,
 
 Engine::Sputnik::Engine* Frontend::Plugin::getSputnikEngine()
 {
-    Spine::Reactor* reactor = Spine::Reactor::instance;
-    void *engine = reactor->getSingleton("Sputnik", nullptr);
-    if (engine == nullptr)
-    {
-        throw Fmi::Exception(BCP, "Sputnik engine is not available");
-    }
-    Engine::Sputnik::Engine* sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
-    if (sputnik == nullptr)
-    {
-        throw Fmi::Exception(BCP, "Sputnik engine is not available (dynamic cast failed)");
-    }
-    return sputnik;
+    return itsSputnikEngine.get();
 }
 
 
@@ -427,13 +416,7 @@ std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
 {
   try
   {
-    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (engine == nullptr)
-    {
-      throw Fmi::Exception(BCP, "Sputnik service discovery not available");
-    }
-
-    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
+    auto sputnik = theReactor.getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
 
     // Get the backends which provide services
     auto backendList = sputnik->getBackendList();  // type is Services::BackendList
@@ -506,13 +489,7 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
 {
   try
   {
-    auto *engine = theReactor.getSingleton("Sputnik", nullptr);
-    if (engine == nullptr)
-    {
-      throw Fmi::Exception(BCP, "Sputnik service discovery not available");
-    }
-
-    auto *sputnik = reinterpret_cast<Engine::Sputnik::Engine *>(engine);
+    auto sputnik = theReactor.getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
 
     // Get the backends which provide services
     auto backendList = sputnik->getBackendList();  // type is Services::BackendList
@@ -1232,6 +1209,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleNam
 void Plugin::init()
 {
   Spine::Reactor* reactor = Spine::Reactor::instance;
+  itsSputnikEngine = reactor->getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
   registerAdminRequests(*reactor);
 }
 

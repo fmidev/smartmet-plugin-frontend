@@ -47,7 +47,7 @@ class HTTP
 
  private:
   // Pointer to Sputnik instance
-  Engine::Sputnik::Engine* itsSputnikProcess;
+  std::shared_ptr<Engine::Sputnik::Engine> itsSputnikProcess;
 
   // Non-owning
   std::shared_ptr<Proxy> itsProxy;

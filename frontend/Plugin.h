@@ -59,6 +59,8 @@ class Plugin : public SmartMetPlugin
   mutable bool itsPaused{false};
   mutable std::optional<Fmi::DateTime> itsPauseDeadLine{};
 
+  std::shared_ptr<Engine::Sputnik::Engine> itsSputnikEngine;
+
   void registerAdminRequests(Spine::Reactor& theReactor);
 
   bool isPaused() const;

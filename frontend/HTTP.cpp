@@ -229,8 +229,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
               << "(compiled on " __DATE__ " " __TIME__ ")" << std::endl;
 
     // Launch a new instance of Sputnik on network ItsNetworkAddress
-    itsSputnikProcess =
-        reinterpret_cast<Engine::Sputnik::Engine *>(theReactor->getSingleton("Sputnik", nullptr));
+    itsSputnikProcess = theReactor->getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
 
     // Throw error if instance could not be created
     if (itsSputnikProcess == nullptr)
