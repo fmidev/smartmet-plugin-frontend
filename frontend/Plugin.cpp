@@ -16,6 +16,7 @@
 #include <json/json.h>
 #include <macgyver/Base64.h>
 #include <macgyver/Exception.h>
+#include <macgyver/Join.h>
 #include <macgyver/StringConversion.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/ConfigTools.h>
@@ -31,6 +32,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace SmartMet
 {
@@ -51,50 +53,75 @@ using TimeCounter = std::map<std::string, uint>;
 struct QEngineFile
 {
   std::string producer;
-  std::list<std::string> aliases;
+  std::vector<std::string> aliases;
   std::string refreshInterval;
   std::string path;
-  std::list<std::string> parameters;
+  std::vector<std::string> parameters;
+  std::vector<std::string> descriptions;
+  std::vector<std::string> levels;
   std::string projection;
   std::string originTime;
   std::string minTime;
   std::string maxTime;
+  std::string loadTime;
 
-  QEngineFile(std::string theProducer,
-              std::string thePath,
-              std::list<std::string> theParameters,
-              std::string theOriginTime,
-              std::string theMinTime,
-              std::string theMaxTime)
-      : producer(std::move(theProducer)),
-        path(std::move(thePath)),
-        parameters(std::move(theParameters)),
-        originTime(std::move(theOriginTime)),
-        minTime(std::move(theMinTime)),
-        maxTime(std::move(theMaxTime))
-  {
-  }
+  QEngineFile(const Json::Value& jsonObject);
 
   QEngineFile() = default;
 };
+
+
+QEngineFile::QEngineFile(const Json::Value& jsonObject)
+{
+  try
+  {
+    if (!jsonObject.isObject())
+      throw Fmi::Exception(BCP, "Invalid JSON object for QEngineFile");
+
+    const auto getStringField = [&jsonObject](const char* fieldName) -> std::string
+    {
+      if (!jsonObject.isMember(fieldName))
+        return "nan";
+      return jsonObject[fieldName].asString();
+    };
+
+    const auto getArrayField = [&jsonObject](const char* fieldName) -> std::vector<std::string>
+    {
+      if (!jsonObject.isMember(fieldName))
+        return {"nan"};
+
+      std::string tmp = jsonObject[fieldName].asString();
+      std::vector<std::string> result;
+      boost::algorithm::split(
+          result, tmp, boost::algorithm::is_any_of(" ,"), boost::token_compress_on);
+      return result;
+    };
+
+    producer = getStringField("Producer");
+    aliases = getArrayField("Aliases");
+    refreshInterval = getStringField("RI");
+    path = getStringField("Path");
+    parameters = getArrayField("Parameters");
+    descriptions = getArrayField("Descriptions");
+    levels = getArrayField("Levels");
+    projection = getStringField("Projection");
+    originTime = getStringField("OriginTime");
+    minTime = getStringField("MinTime");
+    maxTime = getStringField("MaxTime");
+    loadTime = getStringField("LoadTime");
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
 
 QEngineFile build_qengine_file(const Json::Value &jsonObject)
 {
   try
   {
-    std::string producer = jsonObject["Producer"].asString();
-    std::string path = jsonObject["Path"].asString();
-    std::string originTime = jsonObject["OriginTime"].asString();
-    std::string minTime = jsonObject["MinTime"].asString();
-    std::string maxTime = jsonObject["MaxTime"].asString();
-    std::string params = jsonObject["Parameters"].asString();
-
-    std::list<std::string> paramlist;
-
-    boost::algorithm::split(
-        paramlist, params, boost::algorithm::is_any_of(" ,"), boost::token_compress_on);
-
-    return {producer, path, paramlist, originTime, minTime, maxTime};
+    QEngineFile file(jsonObject);
+    return file;
   }
   catch (...)
   {
@@ -559,12 +586,49 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
  */
 // ----------------------------------------------------------------------
 
-void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
-                                  const Spine::HTTP::Request &theRequest,
-                                  Spine::HTTP::Response &theResponse)
+std::unique_ptr<Spine::Table>
+Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
+                             const Spine::HTTP::Request &theRequest)
 {
   try
   {
+    static const std::vector<std::string>& ContentTableHeaders =
+      *new std::vector<std::string>{"Producer",
+                                    "Aliases",
+                                    "RI",
+                                    "Path",
+                                    "Parameters",
+                                    "Descriptions",
+                                    "Levels",
+                                    "Projection",
+                                    "OriginTime",
+                                    "MinTime",
+                                    "MaxTime",
+                                    "LoadTime"};
+
+    auto table = std::make_unique<Spine::Table>();
+    table->setTitle("Available querydata (frontend)");
+    table->setNames(ContentTableHeaders);
+
+    std::size_t row = 0;
+    const auto putRow = [&table](std::size_t row, const QEngineFile &file)
+    {
+      std::size_t column = 0;
+
+      table->set(column++, row, file.producer);
+      table->set(column++, row, Fmi::join(file.aliases, " "));
+      table->set(column++, row, file.refreshInterval);
+      table->set(column++, row, file.path);
+      table->set(column++, row, Fmi::join(file.parameters, " "));
+      table->set(column++, row, Fmi::join(file.descriptions, " "));
+      table->set(column++, row, Fmi::join(file.levels, " "));
+      table->set(column++, row, file.projection);
+      table->set(column++, row, file.originTime);
+      table->set(column++, row, file.minTime);
+      table->set(column++, row, file.maxTime);
+      table->set(column++, row, file.loadTime);
+    };
+
     std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
     std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
     std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
@@ -592,10 +656,6 @@ void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
 
     if (tokens == 0)
     {
-      // Zero parameter tokens, print list of all spine producers
-      // Build the result table
-      Spine::Table table;
-      std::size_t row = 0;
       for (auto &pair : result)
       {
         if (pair.second.empty())
@@ -604,40 +664,12 @@ void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
           continue;
         }
 
-        std::size_t column = 0;
+        QEngineFile& curr = *(--pair.second.end());
 
-        table.set(column, row, pair.first);
-        ++column;
-
-        table.set(column, row, (--pair.second.end())->path);
-        ++column;
-
-        table.set(column, row, (--pair.second.end())->originTime);
-        ++column;
-
-        table.set(column, row, (--pair.second.end())->minTime);
-        ++column;
-
-        table.set(column, row, (--pair.second.end())->maxTime);
-
-        ++row;
+        putRow(row++, curr);
       }
 
-      Spine::TableFormatter::Names theNames;
-      theNames.push_back("Producer");
-      theNames.push_back("Path");
-      theNames.push_back("OriginTime");
-      theNames.push_back("MinTime");
-      theNames.push_back("MaxTime");
-
-      std::unique_ptr<Spine::TableFormatter> formatter(
-          Spine::TableFormatterFactory::create(format));
-      auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
-
-      theResponse.setContent(out);
-      theResponse.setHeader("Content-Type", formatter->mimetype() + "; charset=UTF-8");
-      theResponse.setStatus(Spine::HTTP::Status::ok);
-      return;
+      return table;
     }
 
     // There are some parameter tokens, return spine producers providing these parameters
@@ -647,6 +679,11 @@ void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
       {
         // Check if producer contains parameter
         // Get latest file
+        if (pair.second.empty())
+        {
+          std::cerr << "Warning: producer " << pair.first << " has no content" << std::endl;
+          continue;
+        }
         QEngineFile &latest = *(--pair.second.end());
         unsigned int matches = 0;
         for (const auto &param : paramTokens)
@@ -670,6 +707,11 @@ void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
       {
         // Check if producer contains parameter
         // Get latest file
+        if (pair.second.empty())
+        {
+          std::cerr << "Warning: producer " << pair.first << " has no content" << std::endl;
+          continue;
+        }
         QEngineFile &latest = *(--pair.second.end());
         unsigned int matches = 0;
         for (auto &param : paramTokens)
@@ -711,35 +753,12 @@ void Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
                            { return qengine_sort(lhs, rhs); });
 
     // Build result table
-    Spine::Table table;
-    std::size_t row = 0;
     for (auto &file : iHasAllParameters)
     {
-      std::size_t column = 0;
-
-      table.set(column, row, file.producer);
-      ++column;
-
-      table.set(column, row, file.path);
-      ++column;
-
-      table.set(column, row, file.originTime);
-      ++column;
-
-      ++row;
+      putRow(row++, file);
     }
 
-    Spine::TableFormatter::Names theNames;
-    theNames.push_back("Producer");
-    theNames.push_back("Path");
-    theNames.push_back("OriginTime");
-
-    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
-    auto out = formatter->format(table, theNames, theRequest, Spine::TableFormatterOptions());
-
-    theResponse.setContent(out);
-    theResponse.setHeader("Content-Type", formatter->mimetype() + "; charset=UTF-8");
-    theResponse.setStatus(Spine::HTTP::Status::ok);
+    return table;
   }
   catch (...)
   {
@@ -1309,11 +1328,11 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
     throw Fmi::Exception(BCP, "Failed to register backends request handler");
   }
 
-  if (!theReactor.addAdminCustomRequestHandler(
+  if (!theReactor.addAdminTableRequestHandler(
         this,
         "qengine",
         AdminRequestAccess::Public,
-        std::bind(&Plugin::requestQEngineStatus, this, p::_1, p::_2, p::_3),
+        std::bind(&Plugin::requestQEngineStatus, this, p::_1, p::_2),
         "Available querydata"))
   {
     throw Fmi::Exception(BCP, "Failed to register qengine request handler");
