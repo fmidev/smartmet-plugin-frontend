@@ -616,12 +616,12 @@ Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
       std::size_t column = 0;
 
       table->set(column++, row, file.producer);
-      table->set(column++, row, Fmi::join(file.aliases, " "));
+      table->set(column++, row, Fmi::join(file.aliases, ", "));
       table->set(column++, row, file.refreshInterval);
       table->set(column++, row, file.path);
-      table->set(column++, row, Fmi::join(file.parameters, " "));
-      table->set(column++, row, Fmi::join(file.descriptions, " "));
-      table->set(column++, row, Fmi::join(file.levels, " "));
+      table->set(column++, row, Fmi::join(file.parameters, ", "));
+      table->set(column++, row, Fmi::join(file.descriptions, ", "));
+      table->set(column++, row, Fmi::join(file.levels, ", "));
       table->set(column++, row, file.projection);
       table->set(column++, row, file.originTime);
       table->set(column++, row, file.minTime);
