@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.11.13
+Version: 25.11.18
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -83,6 +83,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Nov 18 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.11.18-1.fmi
+- Support logging frontend requests
+
 * Thu Nov 13 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.11.13-1.fmi
 - /info?what=qengine: separate list items with ", "
 
