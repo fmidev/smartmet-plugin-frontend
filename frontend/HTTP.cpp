@@ -239,10 +239,11 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     itsSputnikProcess->launch(Engine::Sputnik::Frontend, theReactor);
 
     // Start the "Catcher in the Rye" process in SmartMet core
-    theReactor->setNoMatchHandler([this](Spine::Reactor &theReactor,
-                                         const Spine::HTTP::Request &theRequest,
-                                         Spine::HTTP::Response &theResponse)
-                                  { requestHandler(theReactor, theRequest, theResponse); });
+    // Logging is controlled by Reactor. Just give a name for the access log to be created.
+    theReactor->setNoMatchHandler(
+      [this](Spine::Reactor &theReactor, const Spine::HTTP::Request &theRequest, Spine::HTTP::Response &theResponse)
+                                  { requestHandler(theReactor, theRequest, theResponse); },
+      std::optional<std::string>("frontend"));
 
     // Get hold of the reactor pointer
     this->itsReactor = theReactor;
