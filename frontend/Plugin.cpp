@@ -259,7 +259,7 @@ void sleep(Spine::Reactor & /* theReactor */,
     unsigned long t = Spine::optional_unsigned_long(theRequest.getParameter("t"), 1);
 
     if (t > 0)
-      ::sleep(t);
+      boost::this_thread::sleep(boost::posix_time::seconds(t));
 
     theResponse.setStatus(Spine::HTTP::Status::ok);
     theResponse.setContent("SmartMet Server\n");
