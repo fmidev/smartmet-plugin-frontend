@@ -85,7 +85,7 @@ QEngineFile::QEngineFile(const Json::Value& jsonObject)
       return jsonObject[fieldName].asString();
     };
 
-    const auto getArrayField = [&jsonObject](const char* fieldName) -> std::vector<std::string>
+    const auto getArrayField = [&jsonObject](const char* fieldName, const std::string& dlm) -> std::vector<std::string>
     {
       if (!jsonObject.isMember(fieldName))
         return {"nan"};
@@ -93,17 +93,17 @@ QEngineFile::QEngineFile(const Json::Value& jsonObject)
       std::string tmp = jsonObject[fieldName].asString();
       std::vector<std::string> result;
       boost::algorithm::split(
-          result, tmp, boost::algorithm::is_any_of(" ,"), boost::token_compress_on);
+          result, tmp, boost::algorithm::is_any_of(dlm), boost::token_compress_on);
       return result;
     };
 
     producer = getStringField("Producer");
-    aliases = getArrayField("Aliases");
+    aliases = getArrayField("Aliases", " ,");
     refreshInterval = getStringField("RI");
     path = getStringField("Path");
-    parameters = getArrayField("Parameters");
-    descriptions = getArrayField("Descriptions");
-    levels = getArrayField("Levels");
+    parameters = getArrayField("Parameters", " ,");
+    descriptions = getArrayField("Descriptions", ",");
+    levels = getArrayField("Levels", " ,");
     projection = getStringField("Projection");
     originTime = getStringField("OriginTime");
     minTime = getStringField("MinTime");
