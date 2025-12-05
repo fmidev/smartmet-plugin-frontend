@@ -1,0 +1,60 @@
+#pragma once
+
+#include "BackendInfoRec.h"
+#include "BackendInfoFilter.h"
+#include <functional>
+#include <optional>
+#include <string>
+#include <vector>
+#include <macgyver/DateTime.h>
+#include <spine/Table.h>
+#include <json/json.h>
+
+namespace SmartMet
+{
+namespace Plugin
+{
+namespace Frontend
+{
+
+class BackendInfoResponse
+{
+public:
+  using parser_t = std::function<std::shared_ptr<BackendInfoRec>(const Json::Value&, const std::string&)>;
+
+  /**
+   * @brief Constructor from a single backend server response JSON object
+   */
+  BackendInfoResponse(
+    const Json::Value& jsonObject,
+    parser_t recordFactory,
+    const BackendInfoFilter& recordFilter,
+    const std::string& timeFormat);
+
+  /**
+   * @brief Constructor: merges multiple BackendInfoResponse objects keeping only
+   *        common records for all responses
+   */
+  BackendInfoResponse(
+    const std::vector<std::unique_ptr<BackendInfoResponse>>& responses);
+
+  virtual ~BackendInfoResponse();
+
+  std::set<std::string> get_producers() const;
+
+  const std::vector<std::shared_ptr<BackendInfoRec>>& get_records(const std::string& producer) const;
+
+  std::unique_ptr<SmartMet::Spine::Table> to_table() const;
+
+  Json::Value as_json() const;
+
+private:
+  /**
+   * @brief Map of backend info records keyed by producer name
+   */
+  std::map<std::string, std::vector<std::shared_ptr<BackendInfoRec>>> records;
+};
+
+}  // namespace Frontend
+}  // namespace Plugin
+}  // namespace SmartMet

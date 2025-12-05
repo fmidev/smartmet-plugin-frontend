@@ -1,0 +1,90 @@
+[
+  {
+    "ProducerName": "mos_eurooppa_pinta",
+    "GeometryId": 1065,
+    "Timesteps": 125,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251214T120000",
+    "ModificationTime": "20251204T193152",
+    "FmiParameters": "CEIL-M,CLDSYM-N,DD-D,FF-MS,FFG-MS,HESSAA-N,HSADE1-N,ICING-N,ILSAA1-N,KINDEX-N,LR-KM,N-0TO1,POT-PRCNT,POTPRECF-N,POTPRECT-N,PRECFORM-N,PRECFORM2-N,PRECTYPE-N,RH-PRCNT,RR-3-MM,RRC-KGM2,RRL-KGM2,RRR-KGM2,SD-TM2,SMARTSYMBOL-N,T-K,TD-K,TMAX12H-K,TMIN12H-K,TSEA-K,U-MS,V-MS",
+    "ParameterAliases": "CloudBase,CloudSymbol,DewPoint,HourlyMaximumGust,Humidity,Icing,KIndex,LapseRate,MaximumTemperature,MinimumTemperature,PotentialPrecipitationForm,PotentialPrecipitationType,Precipitation1h,Precipitation3h,PrecipitationConv,PrecipitationForm,PrecipitationLarge,PrecipitationType,ProbabilityThunderstorm,SmartSymbol,Temperature,TemperatureSea,TotalCloudCover,WaterEquivalentOfSnow,WeatherSymbol,WeatherSymbol1,WeatherSymbol3,WindDirection,WindSpeedMS,WindUMS,WindVMS"
+  },
+  {
+    "ProducerName": "mos_eurooppa_pinta",
+    "GeometryId": 1065,
+    "Timesteps": 125,
+    "AnalysisTime": "20251205T000000",
+    "MinTime": "20251205T000000",
+    "MaxTime": "20251215T000000",
+    "ModificationTime": "20251205T073549",
+    "FmiParameters": "CEIL-M,CLDSYM-N,DD-D,FF-MS,FFG-MS,HESSAA-N,HSADE1-N,ICING-N,ILSAA1-N,KINDEX-N,LR-KM,N-0TO1,POT-PRCNT,POTPRECF-N,POTPRECT-N,PRECFORM-N,PRECFORM2-N,PRECTYPE-N,RH-PRCNT,RR-3-MM,RRC-KGM2,RRL-KGM2,RRR-KGM2,SD-TM2,SMARTSYMBOL-N,T-K,TD-K,TMAX12H-K,TMIN12H-K,TSEA-K,U-MS,V-MS",
+    "ParameterAliases": "CloudBase,CloudSymbol,DewPoint,HourlyMaximumGust,Humidity,Icing,KIndex,LapseRate,MaximumTemperature,MinimumTemperature,PotentialPrecipitationForm,PotentialPrecipitationType,Precipitation1h,Precipitation3h,PrecipitationConv,PrecipitationForm,PrecipitationLarge,PrecipitationType,ProbabilityThunderstorm,SmartSymbol,Temperature,TemperatureSea,TotalCloudCover,WaterEquivalentOfSnow,WeatherSymbol,WeatherSymbol1,WeatherSymbol3,WindDirection,WindSpeedMS,WindUMS,WindVMS"
+  },
+  {
+    "ProducerName": "ecmwf_eurooppa_pinta",
+    "GeometryId": 1007,
+    "Timesteps": 145,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251219T120000",
+    "ModificationTime": "20251204T200631",
+    "FmiParameters": null,
+    "ParameterAliases": null
+  },
+  {
+    "ProducerName": "ecmwf_eurooppa_pinta",
+    "GeometryId": 1008,
+    "Timesteps": 125,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251214T120000",
+    "ModificationTime": "20251204T200631",
+    "FmiParameters": null,
+    "ParameterAliases": null
+  },
+  {
+    "ProducerName": "ecmwf_eurooppa_pinta",
+    "GeometryId": 1090,
+    "Timesteps": 125,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251214T120000",
+    "ModificationTime": "20251204T200631",
+    "FmiParameters": null,
+    "ParameterAliases": null
+  },
+  {
+    "ProducerName": "ecmwf_maailma_pinta",
+    "GeometryId": 1007,
+    "Timesteps": 145,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251219T120000",
+    "ModificationTime": "20251204T200631",
+    "FmiParameters": "ALBEDO-0TO1,CAPE-JKG,CAPE1040-JKG,CAPE3KM-JKG,CIN-JKG,CLDSYM-N,CTI-N,DD-D,EL-HPA,EL-LAST-HPA,EL-LAST-M,EL-M,EVAP-KGM2,FF-MS,FFG-MS,HESSAA-N,HSADE1-N,ICING-N,ILSAA1-N,KINDEX-N,LC-0TO1,LFC-HPA,LFC-M,LPL-HPA,LPL-M,LR-KM,N-0TO1,NH-0TO1,NL-0TO1,NLM-PRCNT,NM-0TO1,P-HPA,P-PA,POT-PRCNT,POTPRECF-N,POTPRECT-N,PRECFORM-N,PRECFORM2-N,PRECTYPE-N,Q-KGKG,QNH-HPA,RADGLO-WM2,RADLW-WM2,RH-PRCNT,RR-1-MM,RR-3-MM,RR-KGM2,RRC-KGM2,RRL-KGM2,RRR-KGM2,RRRL-KGM2,RTOPLW-WM2,SD-TM2,SMARTSYMBOL-N,SNACC-KGM2,SNR-KGM2,T-K,TD-K,TG-K,TOTCWV-KGM2,TOZONE-KGM2,TPE-K,TSEA-K,TTI-N,U-MS,V-MS,VTI-N,VV-M,VV2-M,WEATHERNUMBER-N,Z-M2S2",
+    "ParameterAliases": "Albedo,CAPE,CIN,CloudSymbol,DewPoint,Evaporation,GeopHeight,GroundTemperature,HighCloudCover,HourlyMaximumGust,Humidity,Icing,KIndex,LandSeaMask,LapseRate,LowCloudCover,MediumCloudCover,MiddleAndLowCloudCover,PotentialPrecipitationForm,PotentialPrecipitationType,PrecipitableWater,Precipitation1h,Precipitation3h,PrecipitationAmount,PrecipitationConv,PrecipitationForm,PrecipitationLarge,PrecipitationRateLarge,PrecipitationType,Pressure,ProbabilityThunderstorm,QNH,RadiationGlobal,RadiationLW,RadiationNetTopAtmLW,SmartSymbol,SnowAccumulation,SnowfallRate,SoundingCAPE1040Surface,SoundingCAPE3kmSurface,SoundingCrossTotalsIndex,SoundingELHeightLastSurface,SoundingELHeightSurface,SoundingELPressureLastSurface,SoundingELPressureSurface,SoundingLFCHeightSurface,SoundingLFCPressureSurface,SoundingLPLHeightMostUnstable,SoundingLPLPressureMostUnstable,SoundingThetaE3km,SoundingTotalTotalsIndex,SoundingVerticalTotalsIndex,SpecificHumidity,Temperature,TemperatureSea,TotalCloudCover,TotalOzone,Visibility,Visibility2,WaterEquivalentOfSnow,WeatherNumber,WeatherSymbol,WeatherSymbol1,WeatherSymbol3,WindDirection,WindSpeedMS,WindUMS,WindVMS"
+  },
+  {
+    "ProducerName": "ecmwf_maailma_pinta",
+    "GeometryId": 1008,
+    "Timesteps": 125,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251214T120000",
+    "ModificationTime": "20251204T200631",
+    "FmiParameters": "ALBEDO-0TO1,BKN1-FT,BLTURB-N,BRN-N,CAPE-JKG,CAPE1040-JKG,CAPE3KM-JKG,CB-FT,CB-PRCNT,CBTCU-FL,CEIL-2-M,CEIL-M,CIN-JKG,CLDBASE-M,DD-D,EHI-N,EL-HPA,EL-LAST-HPA,EL-LAST-M,EL-M,EVAP-KGM2,EWSH-MS,FEW1-FT,FF-MS,FFG2-MS,H0C-M,ICING-N,LC-0TO1,LFC-HPA,LFC-M,LI-N,N-0TO1,N-PRCNT,NH-0TO1,NH-PRCNT,NL-0TO1,NL-PRCNT,NM-0TO1,NM-PRCNT,OVC1-FT,P-HPA,P-N,P-PA,POTPRECT-N,PRECTYPE-N,Q-KGKG,RR-KGM2,RRC-KGM2,RRL-KGM2,SCT1-FT,SD-TM2,SI-N,SNACC-KGM2,T-K,TD-K,TG-K,TOZONE-KGM2,TPE-K,TROPO-FL,TSEA-K,U-MS,V-MS,WSH-MS,Z-M2S2",
+    "ParameterAliases": "Albedo,BoundaryLayerTurbulence,CAPE,CIN,CbCloudBase,CbCloudCover,CbCloudTop,CloudBase,CloudBase2,DewPoint,Evaporation,FreezingLevel,GeopHeight,GroundTemperature,HighCloudCover,Icing,LandSeaMask,LowCloudCover,LowestBKNHeight,LowestFEWHeight,LowestOVCHeight,LowestSCTHeight,MediumCloudCover,PotentialPrecipitationType,PrecipitationAmount,PrecipitationConv,PrecipitationLarge,PrecipitationType,Pressure,PressureCode,SnowAccumulation,SoundingBulkRichardsonNumber,SoundingBulkShear6km,SoundingCAPE1040Surface,SoundingCAPE3kmSurface,SoundingELHeightLastSurface,SoundingELHeightSurface,SoundingELPressureLastSurface,SoundingELPressureSurface,SoundingEffectiveBulkShear,SoundingEnergyHelicityIndex,SoundingLFCHeightSurface,SoundingLFCPressureSurface,SoundingLiftedIndex,SoundingShowalterIndex,SoundingThetaE3km,SpecificHumidity,Temperature,TemperatureSea,TotalCloudCover,TotalOzone,WaterEquivalentOfSnow,WindDirection,WindGust2,WindSpeedMS,WindUMS,WindVMS,tropopause_altitude"
+  },
+  {
+    "ProducerName": "ecmwf_maailma_pinta",
+    "GeometryId": 1090,
+    "Timesteps": 125,
+    "AnalysisTime": "20251204T120000",
+    "MinTime": "20251204T120000",
+    "MaxTime": "20251214T120000",
+    "ModificationTime": "20251204T200631",
+    "FmiParameters": "BRN-N,CAPE-JKG,CAPE1040-JKG,CAPE3KM-JKG,CIN-JKG,DD-D,EHI-N,EL-HPA,EL-LAST-HPA,EL-LAST-M,EL-M,EWSH-MS,FF-MS,FFG-MS,FFG2-MS,ICING-N,LC-0TO1,LFC-HPA,LFC-M,LI-N,LPL-HPA,LPL-M,N-0TO1,NH-0TO1,NL-0TO1,NLM-PRCNT,NM-0TO1,P-HPA,P-PA,POT-PRCNT,POTPRECF-N,POTPRECT-N,PRECFORM2-N,PRECTYPE-N,Q-KGKG,RADGLO-WM2,RADLW-WM2,RH-PRCNT,RR-KGM2,RRR-KGM2,SI-N,SNACC-KGM2,SNR-KGM2,T-K,TD-K,TG-K,TOTCWV-KGM2,TPE-K,U-MS,V-MS,VV2-M,WSH-MS,Z-M2S2",
+    "ParameterAliases": "CAPE,CIN,DewPoint,GeopHeight,GroundTemperature,HighCloudCover,HourlyMaximumGust,Humidity,Icing,LandSeaMask,LowCloudCover,MediumCloudCover,MiddleAndLowCloudCover,PotentialPrecipitationForm,PotentialPrecipitationType,PrecipitableWater,Precipitation1h,PrecipitationAmount,PrecipitationForm,PrecipitationType,Pressure,ProbabilityThunderstorm,RadiationGlobal,RadiationLW,SnowAccumulation,SnowfallRate,SoundingBulkRichardsonNumber,SoundingBulkShear6km,SoundingCAPE1040Surface,SoundingCAPE3kmSurface,SoundingELHeightLastSurface,SoundingELHeightSurface,SoundingELPressureLastSurface,SoundingELPressureSurface,SoundingEffectiveBulkShear,SoundingEnergyHelicityIndex,SoundingLFCHeightSurface,SoundingLFCPressureSurface,SoundingLPLHeightMostUnstable,SoundingLPLPressureMostUnstable,SoundingLiftedIndex,SoundingShowalterIndex,SoundingThetaE3km,SpecificHumidity,Temperature,TotalCloudCover,Visibility2,WindDirection,WindGust2,WindSpeedMS,WindUMS,WindVMS"
+  }
+]

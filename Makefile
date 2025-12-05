@@ -11,11 +11,11 @@ include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 DEFINES = -DUNIX -D_REENTRANT
 
 LIBS += $(PREFIX_LDFLAGS) \
-	$(REQUIRED_LIBS) \
 	-lsmartmet-spine \
 	-lsmartmet-macgyver \
 	-lsmartmet-timeseries \
 	-lsmartmet-grid-files \
+	$(REQUIRED_LIBS) \
 	-lboost_thread
 
 # What to install
@@ -25,12 +25,14 @@ LIBFILE = $(SUBNAME).so
 # Compilation directories
 
 vpath %.cpp $(SUBNAME)
+vpath %.cpp $(SUBNAME)/info
 vpath %.h $(SUBNAME)
+vpath %.h $(SUBNAME)/info
 
 # The files to be compiled
 
-SRCS = $(wildcard $(SUBNAME)/*.cpp)
-HDRS = $(wildcard $(SUBNAME)/*.h)
+SRCS = $(wildcard $(SUBNAME)/*.cpp) $(wildcard $(SUBNAME)/info/*.cpp)
+HDRS = $(wildcard $(SUBNAME)/*.h) $(wildcard $(SUBNAME)/info/*.h)
 OBJS = $(patsubst %.cpp, obj/%.o, $(notdir $(SRCS)))
 
 INCLUDES := -I$(SUBNAME) $(INCLUDES)
@@ -48,7 +50,7 @@ endif
 
 # The rules
 
-all: objdir $(LIBFILE)
+all: objdir $(LIBFILE) check
 debug: all
 release: all
 profile: all
@@ -56,12 +58,17 @@ profile: all
 test:
 	@test "$$CI" = "true" && true || false
 
+check: $(LIBFILE)
+	@echo "Running frontend plugin self-test"
+	$(MAKE) -C testsuite check
+
 $(LIBFILE): $(OBJS)
 	$(CXX) $(LDFLAGS) -shared -rdynamic -o $(LIBFILE) $(OBJS) $(LIBS)
 
 clean: 
 	rm -f $(LIBFILE) *~ $(SUBNAME)/*~
 	rm -rf obj
+	$(MAKE) -C testsuite clean
 
 format:
 	clang-format -i -style=file $(SUBNAME)/*.h $(SUBNAME)/*.cpp
