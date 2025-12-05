@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(parse_info_qengine_response_3)
   const auto item_reader = [](const Json::Value& jsonObject, const std::string& timeFormat)
       { return std::make_shared<QEngineInfoRec>(jsonObject, timeFormat); };
 
-  BOOST_TEST_MESSAGE("QEngineInfoTest: parse example backend response with multiple parameter filtration");
+  BOOST_TEST_MESSAGE("QEngineInfoTest: parse example backend responses and merge them");
   const std::string producer = "devmos";
   std::vector<std::unique_ptr<BackendInfoResponse>> responses;
   responses.emplace_back(read_response("data/q01.json", item_reader, "iso"));
