@@ -111,6 +111,28 @@ catch (...)
 }
 
 
+BackendInfoResponse::BackendInfoResponse(
+    const BackendInfoResponse& other,
+    const BackendInfoFilter& recordFilter)
+try
+{
+  for (const auto& [producer, recordsVec] : other.records)
+  {
+    for (const auto& record : recordsVec)
+    {
+      if (recordFilter(*record))
+      {
+        records[producer].push_back(record);
+      }
+    }
+  }
+}
+catch (...)
+{
+  throw Fmi::Exception::Trace(BCP, "Operation failed!");
+}
+
+
 BackendInfoResponse::~BackendInfoResponse() = default;
 
 

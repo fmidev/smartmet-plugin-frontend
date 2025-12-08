@@ -32,6 +32,13 @@ public:
     const std::string& timeFormat);
 
   /**
+   * @brief Constructor: filters records from another BackendInfoResponse object
+   */
+  BackendInfoResponse(
+    const BackendInfoResponse& other,
+    const BackendInfoFilter& recordFilter);
+
+  /**
    * @brief Constructor: merges multiple BackendInfoResponse objects keeping only
    *        common records for all responses
    */
@@ -43,6 +50,8 @@ public:
   std::set<std::string> get_producers() const;
 
   const std::vector<std::shared_ptr<BackendInfoRec>>& get_records(const std::string& producer) const;
+
+  BackendInfoResponse filter_records(const BackendInfoFilter& recordFilter) const;
 
   std::unique_ptr<SmartMet::Spine::Table> to_table() const;
 
