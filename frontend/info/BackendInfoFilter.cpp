@@ -4,10 +4,12 @@ using namespace SmartMet::Plugin::Frontend;
 
 BackendInfoFilter::BackendInfoFilter(
     std::optional<std::string> producer,
-    const std::vector<std::string>& parameters)
+    const std::vector<std::string>& parameters,
+    bool all)
 
     : itsProducer(std::move(producer))
     , itsParameters(parameters)
+    , itsAll(all)
 {
 }
 
@@ -22,12 +24,6 @@ bool BackendInfoFilter::operator()(const BackendInfoRec& record) const
       return false;
   }
 
-  const auto& recordParameters = record.get_parameters();
-  for (const auto& param : itsParameters)
-  {
-    if (std::find(recordParameters.begin(), recordParameters.end(), param) == recordParameters.end())
-      return false;
-  }
-
-  return true;
+  const bool result = record.contains_parameters(itsParameters, itsAll);
+  return result;
 }

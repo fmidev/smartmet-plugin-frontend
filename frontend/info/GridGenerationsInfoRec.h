@@ -51,6 +51,8 @@ public:
 
     const std::vector<std::string>& get_parameters() const override;
 
+    bool contains_parameters(const std::vector<std::string>& parameters, bool all = true) const override;
+
     ~GridGenerationsInfoRec() override;
 };
 

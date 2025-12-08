@@ -6,6 +6,7 @@
 #include <optional>
 #include <macgyver/DateTime.h>
 #include <macgyver/TimeFormatter.h>
+#include <macgyver/TypeTraits.h>
 
 namespace SmartMet
 {
@@ -31,6 +32,7 @@ public:
   virtual const std::vector<std::string> get_names() const = 0;
   virtual const std::string& get_producer() const = 0;
   virtual const std::vector<std::string>& get_parameters() const = 0;
+  virtual bool contains_parameters(const std::vector<std::string>& parameters, bool all = true) const = 0;
 
   std::string format_datetime(const Fmi::DateTime& dt) const;
 
@@ -60,6 +62,59 @@ protected:
     const Json::Value& jsonObject,
     const std::string& fieldName,
     const std::string& separators);
+
+  template <typename... ParamLists>
+  static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...), bool>::type
+  lookup_parameter(
+    const std::string& searchParam,
+    ParamLists... paramLists)
+  {
+    if constexpr (sizeof...(paramLists) == 0)
+      return false;
+
+    const auto contains = [&](const std::vector<std::string>& paramList, const std::string& param)
+    {
+      return (std::find(paramList.begin(), paramList.end(), param) != paramList.end());
+    };
+
+    return (contains(paramLists, searchParam) || ...);
+  }
+
+  template <typename... ParamLists>
+  static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...), bool>::type
+  lookup_parameters(
+    const std::vector<std::string>& searchParams,
+    bool all,
+    ParamLists... paramLists)
+  {
+    if constexpr (sizeof...(paramLists) == 0)
+    {
+      return true;
+    }
+    else
+    {
+      if (searchParams.empty())
+        return true;
+
+      if (all)
+      {
+        for (const auto& p : searchParams)
+        {
+          if (!lookup_parameter(p, paramLists...))
+            return false;
+        }
+      }
+      else
+      {
+        for (const auto& p : searchParams)
+        {
+          if (lookup_parameter(p, paramLists...))
+            return true;
+        }
+      }
+      return all;
+    }
+  }
 
 private:
     const std::string time_format;

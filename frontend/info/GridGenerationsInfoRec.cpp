@@ -122,3 +122,8 @@ const std::vector<std::string>& GridGenerationsInfoRec::get_parameters() const
 {
     return fmiParameter;
 }
+
+bool GridGenerationsInfoRec::contains_parameters(const std::vector<std::string>& parameters, bool all) const
+{
+    return lookup_parameters(parameters, all, fmiParameter, parameterAliases);
+}

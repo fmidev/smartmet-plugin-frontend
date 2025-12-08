@@ -47,6 +47,12 @@ const std::vector<std::string>& QEngineInfoRec::get_parameters() const
 }
 
 
+bool QEngineInfoRec::contains_parameters(const std::vector<std::string>& params, bool all) const
+{
+    return lookup_parameters(params, all, parameters);
+}
+
+
 std::vector<std::string> QEngineInfoRec::as_vector() const
 try
 {

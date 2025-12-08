@@ -86,7 +86,9 @@ BOOST_AUTO_TEST_CASE(parse_info_gridgenerations_response_1)
   //std::cout << "Parsed producers:" << response.as_json() <<   std::endl;
 }
 
-BOOST_AUTO_TEST_CASE(parse_info_gridgenerations_response_2)
+
+
+BOOST_AUTO_TEST_CASE(parse_info_gridgenerations_filter_1)
 {
   BOOST_TEST_MESSAGE("GridGenerationsInfoTest: parse example backend response with single parameter filtration");
   Json::Value jsonObject = parse_json_file("data/gg01.json");
@@ -101,11 +103,68 @@ BOOST_AUTO_TEST_CASE(parse_info_gridgenerations_response_2)
       "iso");
 
   BOOST_CHECK(true);
-  std::ofstream outputFile("output/GridGenerationsInfoTest_parse_info_gridgenerations_response_2.json");
+  std::ofstream outputFile("output/GridGenerationsInfoTest_parse_info_gridgenerations_filter_1.json");
   outputFile << response.as_json().toStyledString();
   outputFile.close();
   //std::cout << "Parsed producers:" << response.as_json() <<   std::endl;
 }
+
+
+
+BOOST_AUTO_TEST_CASE(parse_info_gridgenerations_filter_2)
+{
+  BOOST_TEST_MESSAGE("GridGenerationsInfoTest: parse example backend response with multiple parameter filtration (all required)");
+  Json::Value jsonObject = parse_json_file("data/gg01.json");
+
+  BackendInfoResponse response(
+      jsonObject,
+      [](const Json::Value& jsonObject, const std::string& timeFormat)
+      {
+        return std::make_shared<GridGenerationsInfoRec>(jsonObject, timeFormat);
+      },
+      BackendInfoFilter(std::nullopt, {
+            "Temperature"
+            , "Pressure"
+            , "DewPoint"
+        }, true),
+      "iso");
+
+  const std::string output = response.as_json().toStyledString();
+  BOOST_CHECK(output.find("Temperature") != std::string::npos);
+  BOOST_CHECK(output.find("Pressure") != std::string::npos);
+  BOOST_CHECK(output.find("DewPoint") != std::string::npos);
+
+  std::ofstream outputFile("output/GridGenerationsInfoTest_parse_info_gridgenerations_filter_2.json");
+  outputFile << output;
+  outputFile.close();
+  //std::cout << "Parsed producers:" << response.as_json() <<   std::endl;
+}
+
+
+BOOST_AUTO_TEST_CASE(parse_info_gridgenerations_filter_3)
+{
+  BOOST_TEST_MESSAGE("GridGenerationsInfoTest: parse example backend response with multiple parameter filtration (any of them sufficient)");
+  Json::Value jsonObject = parse_json_file("data/gg01.json");
+
+  BackendInfoResponse response(
+      jsonObject,
+      [](const Json::Value& jsonObject, const std::string& timeFormat)
+      {
+        return std::make_shared<GridGenerationsInfoRec>(jsonObject, timeFormat);
+      },
+      BackendInfoFilter(std::nullopt, {"Temperature", "Pressure", "foobar"}, false),
+      "iso");
+
+  const std::string output = response.as_json().toStyledString();
+  BOOST_CHECK(output.find("Temperature") != std::string::npos);
+  BOOST_CHECK(output.find("Pressure") != std::string::npos);
+
+  std::ofstream outputFile("output/GridGenerationsInfoTest_parse_info_gridgenerations_filter_3.json");
+  outputFile << output;
+  outputFile.close();
+  //std::cout << "Parsed producers:" << response.as_json() <<   std::endl;
+}
+
 
 BOOST_AUTO_TEST_CASE(parse_info_qengine_response_3)
 {
