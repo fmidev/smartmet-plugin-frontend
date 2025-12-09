@@ -39,12 +39,12 @@ namespace
     return jsonObject;
   }
 
-  std::unique_ptr<BackendInfoResponse> read_response(const std::string& filePath,
+  std::shared_ptr<BackendInfoResponse> read_response(const std::string& filePath,
                                                      BackendInfoResponse::parser_t recordFactory,
                                                      const std::string& timeFormat)
   {
     Json::Value jsonObject = parse_json_file(filePath);
-    return std::make_unique<BackendInfoResponse>(
+    return std::make_shared<BackendInfoResponse>(
         jsonObject, recordFactory, BackendInfoFilter(), timeFormat);
   }
 
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(parse_info_qengine_response_3)
 
   BOOST_TEST_MESSAGE("QEngineInfoTest: parse example backend responses and merge them");
   const std::string producer = "devmos";
-  std::vector<std::unique_ptr<BackendInfoResponse>> responses;
+  std::vector<std::shared_ptr<BackendInfoResponse>> responses;
   responses.emplace_back(read_response("data/q01.json", item_reader, "iso"));
   responses.emplace_back(read_response("data/q02.json", item_reader, "iso"));
   responses.emplace_back(read_response("data/q03.json", item_reader, "iso"));
@@ -127,9 +127,9 @@ BOOST_AUTO_TEST_CASE(parse_info_qengine_response_3)
   BOOST_CHECK_EQUAL(ot2.size(), 3);
   BOOST_CHECK_EQUAL(ot3.size(), 5);
 
-  std::unique_ptr<BackendInfoResponse> response;
+  std::shared_ptr<BackendInfoResponse> response;
 
-  BOOST_REQUIRE_NO_THROW(response = std::make_unique<BackendInfoResponse>(responses));
+  BOOST_REQUIRE_NO_THROW(response = std::make_shared<BackendInfoResponse>(responses));
 
   const auto otm = extract_origin_times(*response, producer);
   BOOST_CHECK_EQUAL(otm.size(), 3);

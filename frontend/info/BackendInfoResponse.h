@@ -43,7 +43,7 @@ public:
    *        common records for all responses
    */
   BackendInfoResponse(
-    const std::vector<std::unique_ptr<BackendInfoResponse>>& responses);
+    const std::vector<std::shared_ptr<BackendInfoResponse>>& responses);
 
   virtual ~BackendInfoResponse();
 

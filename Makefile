@@ -37,7 +37,7 @@ OBJS = $(patsubst %.cpp, obj/%.o, $(notdir $(SRCS)))
 
 INCLUDES := -I$(SUBNAME) $(INCLUDES)
 
-.PHONY: test rpm
+.PHONY: test rpm examples
 
 # Detect jemalloc shared library for LD_PRELOAD environment variable
 # Fall back to a common location if ldconfig is not available
@@ -65,10 +65,14 @@ check: $(LIBFILE)
 $(LIBFILE): $(OBJS)
 	$(CXX) $(LDFLAGS) -shared -rdynamic -o $(LIBFILE) $(OBJS) $(LIBS)
 
-clean: 
+examples: $(OBJS)
+	$(MAKE) -C examples all
+
+clean:
 	rm -f $(LIBFILE) *~ $(SUBNAME)/*~
 	rm -rf obj
 	$(MAKE) -C testsuite clean
+	$(MAKE) -C examples clean
 
 format:
 	clang-format -i -style=file $(SUBNAME)/*.h $(SUBNAME)/*.cpp

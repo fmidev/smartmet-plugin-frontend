@@ -44,7 +44,7 @@ catch (...)
 
 
 BackendInfoResponse::BackendInfoResponse(
-    const std::vector<std::unique_ptr<BackendInfoResponse>>& responses)
+    const std::vector<std::shared_ptr<BackendInfoResponse>>& responses)
 try
 {
   if (responses.empty())
