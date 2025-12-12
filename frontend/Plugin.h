@@ -92,6 +92,10 @@ class Plugin : public SmartMetPlugin
   std::unique_ptr<Spine::Table> requestActiveBackends(Spine::Reactor& theReactor,
                                                       const Spine::HTTP::Request &theRequest);
 
+  void requestNoMatchInfo(Spine::Reactor& theReactor,
+                          const Spine::HTTP::Request& theRequest,
+                          Spine::HTTP::Response& theResponse);
+
   std::string pauseUntil(const Fmi::DateTime& theTime);
 
   std::string requestPause(const SmartMet::Spine::HTTP::Request& theRequest);

@@ -29,6 +29,7 @@
 #include <spine/TableFormatterOptions.h>
 #include <spine/TcpMultiQuery.h>
 #include <timeseries/ParameterFactory.h>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -376,6 +377,73 @@ Plugin::requestActiveBackends(Spine::Reactor &theReactor,
 
     reqTable->setTitle("Active backends");
     return reqTable;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Forward info request to a randomly selected backend that supports it
+ */
+// ----------------------------------------------------------------------
+
+void Plugin::requestNoMatchInfo(Spine::Reactor& theReactor,
+                                const Spine::HTTP::Request& theRequest,
+                                Spine::HTTP::Response& theResponse)
+{
+  try
+  {
+    // Get the info request name from the query parameters
+    std::string infoRequestName = Spine::optional_string(theRequest.getParameter("what"), "");
+
+    if (infoRequestName.empty())
+    {
+      theResponse.setStatus(Spine::HTTP::Status::bad_request);
+      theResponse.setContent("Missing 'what' parameter for info request");
+      return;
+    }
+
+    auto* sputnik = getSputnikEngine();
+
+    // Get the list of backends that support this info request
+    auto backendList = sputnik->getServices().getInfoRequestBackendList(infoRequestName);
+
+    if (backendList.empty())
+    {
+      theResponse.setStatus(Spine::HTTP::Status::not_found);
+      theResponse.setContent("No backend found that supports info request: " + infoRequestName);
+      return;
+    }
+
+    // Randomly select a backend from the list
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, backendList.size() - 1);
+    auto it = backendList.begin();
+    std::advance(it, dis(gen));
+
+    const auto& backend = *it;
+    std::string backendHost = backend.get<1>();
+    int backendPort = backend.get<2>();
+
+    // Forward the request to the selected backend
+    auto proxyStatus = itsHTTP->getProxy()->HTTPForward(
+        theReactor,
+        theRequest,
+        theResponse,
+        backendHost,
+        backendPort,
+        theRequest.getResource(),
+        backendHost);
+
+    if (proxyStatus != Proxy::ProxyStatus::PROXY_SUCCESS)
+    {
+      theResponse.setStatus(Spine::HTTP::Status::bad_gateway);
+      theResponse.setContent("Failed to forward request to backend: " + backendHost + ":" + std::to_string(backendPort));
+    }
   }
   catch (...)
   {
@@ -1386,6 +1454,16 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
         "Continue the frontend"))
   {
         throw Fmi::Exception(BCP, "Failed to register continue request handler");
+  }
+
+  if (!theReactor.addAdminCustomRequestHandler(
+        this,
+        "nomatchinfo",
+        AdminRequestAccess::Public,
+        std::bind(&Plugin::requestNoMatchInfo, this, p::_1, p::_2, p::_3),
+        "Forward unmatched info request to backend"))
+  {
+    throw Fmi::Exception(BCP, "Failed to register nomatchinfo request handler");
   }
 }
 
