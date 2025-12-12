@@ -1406,6 +1406,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
     throw Fmi::Exception(BCP, "Failed to register qengine request handler");
   }
 
+  #if 0
   if (!theReactor.addAdminTableRequestHandler(
         this,
         "gridgenerations",
@@ -1425,6 +1426,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   {
     throw Fmi::Exception(BCP, "Failed to register gridgenerations request handler");
   }
+  #endif
 
   if (!theReactor.addAdminTableRequestHandler(
         this,
