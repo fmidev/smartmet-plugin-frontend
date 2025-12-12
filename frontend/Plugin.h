@@ -85,9 +85,11 @@ class Plugin : public SmartMetPlugin
   std::unique_ptr<Spine::Table> requestQEngineStatus(Spine::Reactor& theReactor,
                             const Spine::HTTP::Request& theRequest);
 
+#if 0
   std::unique_ptr<Spine::Table> requestStatus(Spine::Reactor &theReactor,
                                               const Spine::HTTP::Request &theRequest,
                                               const std::string &what);
+#endif
 
   std::unique_ptr<Spine::Table> requestActiveBackends(Spine::Reactor& theReactor,
                                                       const Spine::HTTP::Request &theRequest);

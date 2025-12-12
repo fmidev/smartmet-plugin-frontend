@@ -834,6 +834,7 @@ Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
   }
 }
 
+#if 0
 std::size_t count_matches(const std::vector<std::string> &inputParamList,
                           const std::vector<std::string> &fields)
 {
@@ -863,7 +864,9 @@ std::size_t count_matches(const std::vector<std::string> &inputParamList,
   }
   return matchCount;
 }
+#endif
 
+#if 0
 void update_producers(std::map<std::string, TimeCounter> &producers,
                       const std::vector<std::string> &fields)
 {
@@ -885,7 +888,9 @@ void update_producers(std::map<std::string, TimeCounter> &producers,
       originTime->second++;
   }
 }
+#endif
 
+#if 0
 std::map<std::string, TimeCounter> extract_producers(
     const std::list<std::pair<std::string, std::string>> &messageList,
     const std::vector<std::string> &inputParamList)
@@ -913,7 +918,9 @@ std::map<std::string, TimeCounter> extract_producers(
 
   return producers;
 }
+#endif
 
+#if 0
 std::unique_ptr<Spine::Table>
 Plugin::requestStatus(Spine::Reactor &theReactor,
                            const Spine::HTTP::Request &theRequest,
@@ -1010,6 +1017,7 @@ Plugin::requestStatus(Spine::Reactor &theReactor,
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
 }
+#endif
 
 // ----------------------------------------------------------------------
 /*!
