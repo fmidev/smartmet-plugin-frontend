@@ -1456,15 +1456,10 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
         throw Fmi::Exception(BCP, "Failed to register continue request handler");
   }
 
-  if (!theReactor.addAdminCustomRequestHandler(
-        this,
-        "nomatchinfo",
-        AdminRequestAccess::Public,
-        std::bind(&Plugin::requestNoMatchInfo, this, p::_1, p::_2, p::_3),
-        "Forward unmatched info request to backend"))
-  {
-    throw Fmi::Exception(BCP, "Failed to register nomatchinfo request handler");
-  }
+  // Register handler for unrecognized admin/info requests
+  // This will forward them directly to backends that support the requested info type
+  theReactor.addNoMatchAdminRequestHandler(
+      std::bind(&Plugin::requestNoMatchInfo, this, p::_1, p::_2, p::_3));
 }
 
 
