@@ -246,7 +246,7 @@ void Plugin::requestNoMatchInfo(Spine::Reactor& theReactor,
     if (backendList.empty())
     {
       theResponse.setStatus(Spine::HTTP::Status::not_found);
-      theResponse.setContent("No backend found that supports info request: " + infoRequestName);
+      theResponse.setContent("Not found");
       return;
     }
 
