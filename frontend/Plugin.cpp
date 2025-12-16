@@ -6,6 +6,7 @@
 
 #include "Plugin.h"
 #include "HTTP.h"
+#include "info/BackendInfoRequests.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
 #include <boost/lexical_cast.hpp>
@@ -451,202 +452,6 @@ void Plugin::requestNoMatchInfo(Spine::Reactor& theReactor,
   }
 }
 
-// ----------------------------------------------------------------------
-/*!
- * \brief Find latest spine QEngine contents and build output
- */
-// ----------------------------------------------------------------------
-
-BackendFiles buildSpineQEngineContents(
-    const std::list<std::pair<std::string, std::string>> &backendContents,
-    const std::string &producer)
-{
-  try
-  {
-    AllFiles theFiles = collect_files(backendContents, producer);
-
-    auto maxsize = max_filelist_size(theFiles);
-
-    BackendFiles spineFiles;
-
-    for (const auto &backend : theFiles)
-    {
-      for (const auto &prod : backend.second)
-      {
-        auto outputIt = spineFiles.find(prod.first);
-        if (outputIt == spineFiles.end())
-        {
-          spineFiles.insert(std::make_pair(prod.first, prod.second));
-        }
-        else
-        {
-          ProducerFiles tempResult(maxsize);
-          auto last_modified = std::set_intersection(outputIt->second.begin(),
-                                                     outputIt->second.end(),
-                                                     prod.second.begin(),
-                                                     prod.second.end(),
-                                                     tempResult.begin(),
-                                                     qengine_sort);
-          outputIt->second = ProducerFiles(tempResult.begin(), last_modified);
-        }
-      }
-    }
-
-    return spineFiles;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// ----------------------------------------------------------------------
-/*!
- * \brief Gets backend QEngine contents as pair<Backend name, Json-serial>
- */
-// ----------------------------------------------------------------------
-
-std::list<std::pair<std::string, std::string>> getBackendQEngineStatuses(
-    Spine::Reactor &theReactor, const std::string &theTimeFormat)
-{
-  try
-  {
-    auto sputnik = theReactor.getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
-
-    // Get the backends which provide services
-    auto backendList = sputnik->getBackendList();  // type is Services::BackendList
-
-    Spine::TcpMultiQuery multi_query(5);
-
-    // FIXME: Why backendList contains repeated addresses? Work around that for now
-    int counter = 0;
-    std::vector<std::pair<std::string, std::string>> id_mapping;
-
-    for (auto &backend : backendList)
-    {
-      std::ostringstream request_stream;
-      request_stream << "GET "
-                     << "/admin?what=qengine&format=json";
-      if (!theTimeFormat.empty())
-        request_stream << "&timeformat=" << theTimeFormat;
-      request_stream << " HTTP/1.0\r\n";
-      request_stream << "Accept: */*\r\n";
-      request_stream << "Connection: close\r\n\r\n";
-
-      const std::string id = fmt::format("{0:05d}", ++counter);
-      id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
-
-      multi_query.add_query(
-          id, backend.get<1>(), Fmi::to_string(backend.get<2>()), request_stream.str());
-    }
-
-    multi_query.execute();
-
-    std::list<std::pair<std::string, std::string>> qEngineContentList;
-    for (auto &item : id_mapping)
-    {
-      const auto result = multi_query[item.second];
-      if (result.error_code)
-      {
-        std::cout << "Frontend::getBackendQEngineStatuses: failed to get response from backend "
-                  << item.first << ": " << result.error_code.message() << std::endl;
-        // FIXME: do we need to output error message to qEngineContentList?
-      }
-      else
-      {
-        std::string rawResponse = result.body;
-        size_t bodyStart = rawResponse.find("\r\n\r\n");
-        if (bodyStart == std::string::npos)
-        {
-          std::cout << "Frontend::getBackendMessages: body not found in response from backend "
-                    << item.first << std::endl;
-          // FIXME: put something into qEngineContentList indicating an error
-        }
-        else
-        {
-          std::string body = rawResponse.substr(bodyStart);
-
-          qEngineContentList.emplace_back(std::make_pair(item.first, body));
-        }
-      }
-    }
-
-    return qEngineContentList;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor &theReactor,
-                                                                  const std::string &url)
-{
-  try
-  {
-    auto sputnik = theReactor.getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
-
-    // Get the backends which provide services
-    auto backendList = sputnik->getBackendList();  // type is Services::BackendList
-
-    Spine::TcpMultiQuery multi_query(5);
-
-    int counter = 0;
-    std::vector<std::pair<std::string, std::string>> id_mapping;
-
-    for (auto &backend : backendList)
-    {
-      std::ostringstream request_stream;
-      //    request_stream << "GET " << "/" << backend.get<0>() <<
-      //"/admin?what=qengine&format=json"
-      //<< " HTTP/1.0\r\n";
-      request_stream << "GET " << url << " HTTP/1.0\r\n";
-      request_stream << "Accept: */*\r\n";
-      request_stream << "Connection: close\r\n\r\n";
-      const std::string id = fmt::format("{0:05d}", ++counter);
-      id_mapping.emplace_back(std::make_pair(backend.get<1>(), id));
-
-      multi_query.add_query(
-          id, backend.get<1>(), Fmi::to_string(backend.get<2>()), request_stream.str());
-    }
-
-    multi_query.execute();
-
-    std::list<std::pair<std::string, std::string>> messageList;
-    for (auto &item : id_mapping)
-    {
-      const auto result = multi_query[item.second];
-      if (result.error_code)
-      {
-        std::cout << "Frontend::getBackendMessages: failed to get response from backend "
-                  << item.first << ": " << result.error_code.message() << std::endl;
-        // FIXME: do we need to output error message to messageList?
-      }
-      else
-      {
-        std::string rawResponse = result.body;
-        size_t bodyStart = rawResponse.find("\r\n\r\n");
-        if (bodyStart == std::string::npos)
-        {
-          std::cout << "Frontend::getBackendMessages: body not found in response from backend "
-                    << item.first << std::endl;
-          // FIXME: put something into messageList indicating an error
-        }
-        else
-        {
-          std::string body = rawResponse.substr(bodyStart);
-          messageList.emplace_back(std::make_pair(item.first, body));
-        }
-      }
-    }
-
-    return messageList;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
 
 // ----------------------------------------------------------------------
 /*!
@@ -654,370 +459,101 @@ std::list<std::pair<std::string, std::string>> getBackendMessages(Spine::Reactor
  */
 // ----------------------------------------------------------------------
 
-std::unique_ptr<Spine::Table>
-Plugin::requestQEngineStatus(Spine::Reactor &theReactor,
-                             const Spine::HTTP::Request &theRequest)
+void
+Plugin::requestBackendInfoSummary(const Spine::HTTP::Request &theRequest,
+                                  Spine::HTTP::Response &theResponse)
+try
 {
-  try
+  const std::string what = Spine::optional_string(theRequest.getParameter("what"), "");
+  if (what.empty())
   {
-    static const std::vector<std::string>& ContentTableHeaders =
-      *new std::vector<std::string>{"Producer",
-                                    "Aliases",
-                                    "RI",
-                                    "Path",
-                                    "Parameters",
-                                    "Descriptions",
-                                    "Levels",
-                                    "Projection",
-                                    "OriginTime",
-                                    "MinTime",
-                                    "MaxTime",
-                                    "LoadTime"};
+    throw Fmi::Exception(BCP, "Missing 'what' parameter for backend info request");
+  }
 
-    auto table = std::make_unique<Spine::Table>();
-    table->setTitle("Available querydata (frontend)");
-    table->setNames(ContentTableHeaders);
+  const std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
+  const std::string style = Spine::optional_string(theRequest.getParameter("style"), "default");
+  const std::string timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "sql");
 
-    std::size_t row = 0;
-    const auto putRow = [&table](std::size_t row, const QEngineFile &file)
-    {
-      std::size_t column = 0;
-
-      table->set(column++, row, file.producer);
-      table->set(column++, row, Fmi::join(file.aliases, ", "));
-      table->set(column++, row, file.refreshInterval);
-      table->set(column++, row, file.path);
-      table->set(column++, row, Fmi::join(file.parameters, ", "));
-      table->set(column++, row, Fmi::join(file.descriptions, ", "));
-      table->set(column++, row, Fmi::join(file.levels, ", "));
-      table->set(column++, row, file.projection);
-      table->set(column++, row, file.originTime);
-      table->set(column++, row, file.minTime);
-      table->set(column++, row, file.maxTime);
-      table->set(column++, row, file.loadTime);
-    };
-
-    std::string inputType = Spine::optional_string(theRequest.getParameter("type"), "name");
-    std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
-    std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
-    std::string timeformat = Spine::optional_string(theRequest.getParameter("timeformat"), "");
-
-    // This contains the found producers
-    std::list<QEngineFile> iHasAllParameters;
-    std::string input = Spine::optional_string(theRequest.getParameter("param"), "");
-
-    std::size_t tokens = 0;
-    std::vector<std::string> paramTokens;
-
-    if (!input.empty())
-    {
-      // Parse input parameter names
-      boost::algorithm::split(
-          paramTokens, input, boost::algorithm::is_any_of(","), boost::token_compress_on);
-      tokens = paramTokens.size();
-    }
-
-    // Obtain backend QEngine statuses
-    std::list<std::pair<std::string, std::string>> qEngineContentList =
-        getBackendQEngineStatuses(theReactor, timeformat);
-    BackendFiles result = buildSpineQEngineContents(qEngineContentList, producer);
-
-    if (tokens == 0)
-    {
-      for (auto &pair : result)
+  //---------------------------------------------------------------------------------
+  // Get all backends that provide the requested info and erase dumplicated
+  //---------------------------------------------------------------------------------
+  auto sputnik = itsReactor->getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
+  auto backendList = sputnik->getInfoRequestBackendList(what);
+  std::vector<decltype(backendList)::value_type> backends(backendList.begin(), backendList.end());
+  std::sort(backends.begin(),
+            backends.end(),
+            [](const auto &lhs, const auto &rhs)
+            {
+              if (boost::get<1>(lhs) != boost::get<1>(rhs))
+                return boost::get<1>(lhs) < boost::get<1>(rhs);
+              return boost::get<2>(lhs) < boost::get<2>(rhs);
+            });
+  auto last = std::unique(
+      backends.begin(),
+      backends.end(),
+      [](const auto &lhs, const auto &rhs)
       {
-        if (pair.second.empty())
-        {
-          std::cerr << "Warning: producer " << pair.first << " has no content" << std::endl;
-          continue;
-        }
+        return boost::get<1>(lhs) == boost::get<1>(rhs) && boost::get<2>(lhs) == boost::get<2>(rhs);
+      });
+  backends.erase(last, backends.end());
 
-        QEngineFile& curr = *(--pair.second.end());
+  //---------------------------------------------------------------------------------
+  // Build and perform backend info requests and finallt generate the summary response
+  //---------------------------------------------------------------------------------
+  BackendInfoRequests backendInfoRequests;
+  std::shared_ptr<BackendInfoResponse> response =
+    backendInfoRequests.perform_backend_info_request(backends, theRequest);
 
-        putRow(row++, curr);
-      }
-
-      return table;
-    }
-
-    // There are some parameter tokens, return spine producers providing these parameters
-    if (inputType == "name")
+  // Format the response table
+  if (style == "default")
+  {
+    // Backward compatible output format
+    Spine::TableFormatterOptions options;
+    std::unique_ptr<Spine::TableFormatter> formatter(Spine::TableFormatterFactory::create(format));
+    std::unique_ptr<Spine::Table> table;
+    if (response)
     {
-      for (auto &pair : result)
+      table = response->to_table(timeFormat);
+      if (response->get_summary_size() > 1)
       {
-        // Check if producer contains parameter
-        // Get latest file
-        if (pair.second.empty())
-        {
-          std::cerr << "Warning: producer " << pair.first << " has no content" << std::endl;
-          continue;
-        }
-        QEngineFile &latest = *(--pair.second.end());
-        unsigned int matches = 0;
-        for (const auto &param : paramTokens)
-        {
-          if (producer_has_param(latest, param))
-          {
-            ++matches;
-          }
-        }
-
-        if (matches == tokens)
-        // Has all specified parameters
-        {
-          iHasAllParameters.push_back(latest);
-        }
-      }
-    }
-    else if (inputType == "id")
-    {
-      for (auto &pair : result)
-      {
-        // Check if producer contains parameter
-        // Get latest file
-        if (pair.second.empty())
-        {
-          std::cerr << "Warning: producer " << pair.first << " has no content" << std::endl;
-          continue;
-        }
-        QEngineFile &latest = *(--pair.second.end());
-        unsigned int matches = 0;
-        for (auto &param : paramTokens)
-        {
-          // If param type is id, but input cannot be cast into int, simply ignore
-          int paramId = 0;
-          try
-          {
-            paramId = boost::lexical_cast<int>(param);
-          }
-          catch (const std::bad_cast &)
-          {
-            ++matches;
-            continue;
-          }
-          std::string paramString = TimeSeries::ParameterFactory::instance().name(paramId);
-          if (producer_has_param(latest, paramString))
-          {
-            ++matches;
-          }
-        }
-
-        if (matches == tokens)
-        // Has all specified parameters
-        {
-          iHasAllParameters.push_back(latest);
-        }
+        std::string title = table->getTitle().value_or("");
+        title +=
+            " (summary from " + Fmi::to_string(response->get_summary_size()) + " backends)";
+        table->setTitle(title);
       }
     }
     else
     {
-      std::ostringstream oss;
-      oss << "Invalid input type " << inputType;
-      throw Fmi::Exception(BCP, oss.str());
+      table = std::make_unique<Spine::Table>();
+      table->setTitle("Backend info summary (no data)");
     }
-
-    // Sort results by origintime
-    iHasAllParameters.sort([](const QEngineFile &lhs, const QEngineFile &rhs)
-                           { return qengine_sort(lhs, rhs); });
-
-    // Build result table
-    for (auto &file : iHasAllParameters)
-    {
-      putRow(row++, file);
-    }
-
-    return table;
+    const std::string formattedString = formatter->format(*table, {}, theRequest, options);
+    const std::string mime = formatter->mimetype() + "; charset=UTF-8";
+    theResponse.setContent(formattedString);
+    theResponse.setHeader("Content-Type", mime);
+    theResponse.setStatus(Spine::HTTP::Status::ok);
   }
-  catch (...)
+  else if (style == "extended")
   {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-#if 0
-std::size_t count_matches(const std::vector<std::string> &inputParamList,
-                          const std::vector<std::string> &fields)
-{
-  if (inputParamList.empty())
-    return 0;
-
-  std::set<std::string> paramList1;
-  std::set<std::string> paramList2;
-
-  std::string tmp1 = toLowerString(fields[7]);
-  std::string tmp2 = toLowerString(fields[8]);
-  splitString(tmp1, ',', paramList1);
-  splitString(tmp2, ',', paramList2);
-
-  std::size_t matchCount = 0;
-  for (const auto &p : inputParamList)
-  {
-    auto f1 = paramList1.find(p);
-    if (f1 != paramList1.end())
-      matchCount++;
-    else
-    {
-      auto f2 = paramList2.find(p);
-      if (f2 != paramList2.end())
-        matchCount++;
-    }
-  }
-  return matchCount;
-}
-#endif
-
-#if 0
-void update_producers(std::map<std::string, TimeCounter> &producers,
-                      const std::vector<std::string> &fields)
-{
-  auto tm = fmt::format(
-      "{}:{}:{}:{}:{}:{}", fields[3], fields[4], fields[5], fields[6], fields[1], fields[2]);
-  auto prod = producers.find(fields[0]);
-  if (prod == producers.end())
-  {
-    TimeCounter originTimes;
-    originTimes.insert(std::pair<std::string, uint>(tm, 1));
-    producers.insert(std::pair<std::string, TimeCounter>(fields[0], originTimes));
+    // New extended output format
+    Json::Value jsonResponse;
+    if (response) jsonResponse = response->as_json(timeFormat);
+    Json::StreamWriterBuilder writerBuilder;
+    writerBuilder["indentation"] = "  ";  // pretty print
+    const std::string formattedString = Json::writeString(writerBuilder, jsonResponse);
+    theResponse.setContent(formattedString);
+    theResponse.setHeader("Content-Type", "application/json; charset=UTF-8");
+    theResponse.setStatus(Spine::HTTP::Status::ok);
   }
   else
   {
-    auto originTime = prod->second.find(tm);
-    if (originTime == prod->second.end())
-      prod->second.insert(std::pair<std::string, uint>(tm, 1));
-    else
-      originTime->second++;
+        throw Fmi::Exception(BCP, "Invalid style '" + style + "' for backend info request");
   }
 }
-#endif
-
-#if 0
-std::map<std::string, TimeCounter> extract_producers(
-    const std::list<std::pair<std::string, std::string>> &messageList,
-    const std::vector<std::string> &inputParamList)
+catch (...)
 {
-  std::map<std::string, TimeCounter> producers;
-
-  for (const auto &b : messageList)
-  {
-    std::vector<std::string> lines;
-    lineSplit(b.second.c_str(), lines);
-
-    for (const auto &line : lines)
-    {
-      std::vector<std::string> fields;
-      splitString(line, ' ', fields);
-
-      if (fields.size() >= 9)
-      {
-        std::size_t matchCount = count_matches(inputParamList, fields);
-        if (inputParamList.size() == matchCount)
-          update_producers(producers, fields);
-      }
-    }
-  }
-
-  return producers;
+  throw Fmi::Exception::Trace(BCP, "Operation failed!");
 }
-#endif
-
-#if 0
-std::unique_ptr<Spine::Table>
-Plugin::requestStatus(Spine::Reactor &theReactor,
-                           const Spine::HTTP::Request &theRequest,
-                           const std::string &what)
-{
-  try
-  {
-    std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
-    std::string producer = Spine::optional_string(theRequest.getParameter("producer"), "");
-    std::string timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "iso");
-    std::string param = Spine::optional_string(theRequest.getParameter("param"), "");
-    std::vector<std::string> inputParamList;
-    if (!param.empty())
-    {
-      std::string tmp = toLowerString(param);
-      splitString(tmp, ',', inputParamList);
-    }
-
-    std::unique_ptr<Spine::Table> table = std::make_unique<Spine::Table>();
-    std::size_t row = 0;
-
-    std::string url = "/admin?what=" + what + "&format=ascii&timeformat=iso";
-    if (!producer.empty())
-      url = url + "&producer=" + producer;
-
-    std::unique_ptr<Fmi::TimeFormatter> timeFormatter(Fmi::TimeFormatter::create(timeFormat));
-
-    // Obtain backend QEngine statuses
-    std::list<std::pair<std::string, std::string>> messageList =
-        getBackendMessages(theReactor, url);
-
-    std::map<std::string, TimeCounter> producers = extract_producers(messageList, inputParamList);
-
-    for (const auto &prod : producers)
-    {
-      uint cnt = 0;
-      for (auto atime = prod.second.rbegin(); atime != prod.second.rend() && cnt == 0; ++atime)
-      {
-        uint backendCount = messageList.size();
-
-        if (atime->second == backendCount)
-        {
-          std::vector<std::string> fields;
-          splitString(atime->first.c_str(), ':', fields);
-
-          if (fields.size() == 6)
-          {
-            table->set(0, row, prod.first);
-            table->set(1, row, fields[4]);
-            table->set(2, row, fields[5]);
-            if (!timeFormat.empty() && strcasecmp(timeFormat.c_str(), "iso") != 0 && timeFormatter)
-            {
-              // Analysis time
-              Fmi::DateTime aTime = toTimeStamp(fields[0]);
-              table->set(3, row, timeFormatter->format(aTime));
-
-              Fmi::DateTime fTime = toTimeStamp(fields[1]);
-              table->set(4, row, timeFormatter->format(fTime));
-
-              Fmi::DateTime lTime = toTimeStamp(fields[2]);
-              table->set(5, row, timeFormatter->format(lTime));
-
-              Fmi::DateTime mTime = toTimeStamp(fields[3]);
-              table->set(6, row, timeFormatter->format(mTime));
-            }
-            else
-            {
-              table->set(3, row, fields[0]);
-              table->set(4, row, fields[1]);
-              table->set(5, row, fields[2]);
-              table->set(6, row, fields[3]);
-            }
-            cnt++;
-            row++;
-          }
-        }
-      }
-    }
-
-    Spine::TableFormatter::Names theNames;
-    theNames.push_back("Producer");
-    theNames.push_back("GeometryId");
-    theNames.push_back("TimeSteps");
-    theNames.push_back("OriginTime");
-    theNames.push_back("MinTime");
-    theNames.push_back("MaxTime");
-    theNames.push_back("ModificationTime");
-
-    table->setNames(theNames);
-    return table;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-#endif
 
 // ----------------------------------------------------------------------
 /*!
@@ -1222,7 +758,9 @@ bool Plugin::authenticateRequest(const Spine::HTTP::Request &theRequest,
  */
 // ----------------------------------------------------------------------
 
-Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig) : itsModuleName("Frontend")
+Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
+  : itsReactor(theReactor)
+  , itsModuleName("Frontend")
 {
   try
   {
@@ -1404,37 +942,37 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
     throw Fmi::Exception(BCP, "Failed to register backends request handler");
   }
 
-  if (!theReactor.addAdminTableRequestHandler(
+  if (!theReactor.addAdminCustomRequestHandler(
         this,
         "qengine",
         AdminRequestAccess::Public,
-        std::bind(&Plugin::requestQEngineStatus, this, p::_1, p::_2),
+        std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
         "Available querydata"))
   {
     throw Fmi::Exception(BCP, "Failed to register qengine request handler");
   }
 
-  #if 0
-  if (!theReactor.addAdminTableRequestHandler(
+  if (!theReactor.addAdminCustomRequestHandler(
         this,
         "gridgenerations",
         AdminRequestAccess::Public,
-        std::bind(&Plugin::requestStatus, this, p::_1, p::_2, "gridgenerations"),
-        "Available grid generations"))
+        std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
+        "Available producers"))
   {
     throw Fmi::Exception(BCP, "Failed to register gridgenerations request handler");
   }
 
-  if (!theReactor.addAdminTableRequestHandler(
+
+  if (!theReactor.addAdminCustomRequestHandler(
         this,
         "gridgenerationsqd",
         AdminRequestAccess::Public,
-        std::bind(&Plugin::requestStatus, this, p::_1, p::_2, "gridgenerationsqd"),
-        "Available grid newbase generations"))
+        std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
+        "Available producers"))
   {
-    throw Fmi::Exception(BCP, "Failed to register gridgenerations request handler");
+    throw Fmi::Exception(BCP, "Failed to register gridgenerationsqd request handler");
   }
-  #endif
+
 
   if (!theReactor.addAdminTableRequestHandler(
         this,

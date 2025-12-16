@@ -53,23 +53,24 @@ bool QEngineInfoRec::contains_parameters(const std::vector<std::string>& params,
 }
 
 
-std::vector<std::string> QEngineInfoRec::as_vector() const
+std::vector<std::string> QEngineInfoRec::as_vector(const std::string& timeFormat) const
 try
 {
-    std::vector<std::string> result;
-    result.push_back(producer);
-    result.push_back(aliases.empty() ? "nan"s : Fmi::join(aliases, ", "));
-    result.push_back(Fmi::to_string(refreshInterval));
-    result.push_back(path);
-    result.push_back(parameters.empty() ? "nan"s : Fmi::join(parameters, ", "));
-    result.push_back(descriptions.empty() ? "nan"s : Fmi::join(descriptions, ", "));
-    result.push_back(levels.empty() ? "nan"s : Fmi::join(levels, [](auto x){ return Fmi::to_string(x); }, ", "));
-    result.push_back(projection);
-    result.push_back(originTime.to_iso_extended_string());
-    result.push_back(minTime.to_iso_extended_string());
-    result.push_back(maxTime.to_iso_extended_string());
-    result.push_back(loadTime.to_iso_extended_string());
-    return result;
+  std::unique_ptr<Fmi::TimeFormatter> formatter(Fmi::TimeFormatter::create(timeFormat));
+  std::vector<std::string> result;
+  result.push_back(producer);
+  result.push_back(aliases.empty() ? "nan"s : Fmi::join(aliases, ", "));
+  result.push_back(Fmi::to_string(refreshInterval));
+  result.push_back(path);
+  result.push_back(parameters.empty() ? "nan"s : Fmi::join(parameters, ", "));
+  result.push_back(descriptions.empty() ? "nan"s : Fmi::join(descriptions, ", "));
+  result.push_back(levels.empty() ? "nan"s : Fmi::join(levels, [](auto x){ return Fmi::to_string(x); }, ", "));
+  result.push_back(projection);
+  result.push_back(formatter->format(originTime));
+  result.push_back(formatter->format(minTime));
+  result.push_back(formatter->format(maxTime));
+  result.push_back(formatter->format(loadTime));
+  return result;
 }
 catch (...)
 {
@@ -77,37 +78,43 @@ catch (...)
 }
 
 
-Json::Value QEngineInfoRec::as_json() const
+Json::Value QEngineInfoRec::as_json(const std::string& timeFormat) const
 try
 {
-    Json::Value jsonObject;
-    jsonObject["Producer"] = producer;
-    jsonObject["Aliases"] = aliases.empty() ? Json::nullValue : Json::arrayValue;
-    for (const auto& alias : aliases)
-      jsonObject["Aliases"].append(alias);
-    jsonObject["RI"] = refreshInterval;
-    jsonObject["Path"] = path;
-    jsonObject["Parameters"] = parameters.empty() ? Json::nullValue : Json::arrayValue;
-    for (const auto& param : parameters)
-      jsonObject["Parameters"].append(param);
-    jsonObject["Descriptions"] = descriptions.empty() ? Json::nullValue : Json::arrayValue;
-    for (const auto& desc : descriptions)
-      jsonObject["Descriptions"].append(desc);
-    jsonObject["Levels"] = levels.empty() ? Json::nullValue : Json::arrayValue;
-    for (const auto& level : levels)
-      jsonObject["Levels"].append(level);
-    jsonObject["Projection"] = projection;
-    jsonObject["OriginTime"] = originTime.to_iso_extended_string();
-    jsonObject["MinTime"] = minTime.to_iso_extended_string();
-    jsonObject["MaxTime"] = maxTime.to_iso_extended_string();
-    jsonObject["LoadTime"] = loadTime.to_iso_extended_string();
-    return jsonObject;
+  std::unique_ptr<Fmi::TimeFormatter> formatter(Fmi::TimeFormatter::create(timeFormat));
+  Json::Value jsonObject;
+  jsonObject["Producer"] = producer;
+  jsonObject["Aliases"] = aliases.empty() ? Json::nullValue : Json::arrayValue;
+  for (const auto& alias : aliases)
+    jsonObject["Aliases"].append(alias);
+  jsonObject["RI"] = refreshInterval;
+  jsonObject["Path"] = path;
+  jsonObject["Parameters"] = parameters.empty() ? Json::nullValue : Json::arrayValue;
+  for (const auto& param : parameters)
+    jsonObject["Parameters"].append(param);
+  jsonObject["Descriptions"] = descriptions.empty() ? Json::nullValue : Json::arrayValue;
+  for (const auto& desc : descriptions)
+    jsonObject["Descriptions"].append(desc);
+  jsonObject["Levels"] = levels.empty() ? Json::nullValue : Json::arrayValue;
+  for (const auto& level : levels)
+    jsonObject["Levels"].append(level);
+  jsonObject["Projection"] = projection;
+  jsonObject["OriginTime"] = formatter->format(originTime);
+  jsonObject["MinTime"] = formatter->format(minTime);
+  jsonObject["MaxTime"] = formatter->format(maxTime);
+  jsonObject["LoadTime"] = formatter->format(loadTime);
+  return jsonObject;
 }
 catch (...)
 {
   throw Fmi::Exception::Trace(BCP, "Operation failed!");
 }
 
+
+std::string QEngineInfoRec::get_title() const
+{
+    return "Available querydata";
+}
 
 const std::vector<std::string> QEngineInfoRec::get_names() const
 {

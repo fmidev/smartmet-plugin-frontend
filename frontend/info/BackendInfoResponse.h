@@ -53,15 +53,23 @@ public:
 
   BackendInfoResponse filter_records(const BackendInfoFilter& recordFilter) const;
 
-  std::unique_ptr<SmartMet::Spine::Table> to_table() const;
+  std::unique_ptr<SmartMet::Spine::Table> to_table(const std::string& timeFormat = "iso") const;
 
-  Json::Value as_json() const;
+  Json::Value as_json(const std::string& timeFormat = "iso") const;
+
+  inline std::size_t get_summary_size() const { return summary_size; }
+
+  inline std::string get_title() const { return title; }
 
 private:
   /**
    * @brief Map of backend info records keyed by producer name
    */
   std::map<std::string, std::vector<std::shared_ptr<BackendInfoRec>>> records;
+
+  std::size_t summary_size = 0;
+
+  std::string title;
 };
 
 }  // namespace Frontend

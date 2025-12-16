@@ -68,8 +68,6 @@ private:
 
     BackendInfoFilter create_record_filter(const RequestInfo& ri);
 
-    std::vector<BackendAddr> get_backends(SmartMet::Spine::Reactor& reactor);
-
     SmartMet::Spine::HTTP::Request build_backend_request(
         const std::string& host,
         int port,

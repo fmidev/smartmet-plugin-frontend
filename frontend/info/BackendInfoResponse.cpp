@@ -34,6 +34,15 @@ try
     //std::cout << "Sorting records for producer: " << producer << std::endl;
     std::sort(recordsVec.begin(), recordsVec.end(), [](const auto& a, const auto& b) { return *b < *a; } );
   }
+  // No summary, just one response from backend
+  summary_size++;
+
+  if (!records.empty())
+  {
+    // Set title from the first record
+    const auto& firstRecord = records.begin()->second;
+    title = firstRecord.front()->get_title();
+  }
 }
 catch (...)
 {
@@ -55,10 +64,14 @@ try
   std::set<std::string> commonProducers = responses.front()->get_producers();
   for (const auto& response : responses)
   {
+    if (!response)
+      continue;
+
     if (start)
     {
       start = false;
       commonProducers = response->get_producers();
+      title = response->title;
     }
     else
     {
@@ -69,6 +82,7 @@ try
                             std::inserter(intersection, intersection.begin()));
       commonProducers = std::move(intersection);
     }
+    summary_size++;
   }
 
   // For each common producer, collect records available from all responses
@@ -174,7 +188,7 @@ BackendInfoResponse::get_records(const std::string& producer) const
 }
 
 
-std::unique_ptr<SmartMet::Spine::Table> BackendInfoResponse::to_table() const
+std::unique_ptr<SmartMet::Spine::Table> BackendInfoResponse::to_table(const std::string& timeFormat) const
 {
   try
   {
@@ -189,6 +203,7 @@ std::unique_ptr<SmartMet::Spine::Table> BackendInfoResponse::to_table() const
     // Assuming all records have the same structure. Map values are
     // vectors of unique_ptrs and are guaranteed to have at least one element.
     std::vector<std::string> columnNames = firstRecord.front()->get_names();
+    table->setTitle(title);
     table->setNames(columnNames);
 
     // Fill table rows
@@ -197,7 +212,7 @@ std::unique_ptr<SmartMet::Spine::Table> BackendInfoResponse::to_table() const
     {
       for (const auto& record : recordsVec)
       {
-        std::vector<std::string> row = record->as_vector();
+        std::vector<std::string> row = record->as_vector(timeFormat);
         int columnIndex = 0;
         for (auto& value : row)
         {
@@ -218,7 +233,7 @@ std::unique_ptr<SmartMet::Spine::Table> BackendInfoResponse::to_table() const
 }
 
 
-Json::Value BackendInfoResponse::as_json() const
+Json::Value BackendInfoResponse::as_json(const std::string& timeFormat) const
 {
   try
   {
@@ -228,7 +243,7 @@ Json::Value BackendInfoResponse::as_json() const
       Json::Value producerArray(Json::arrayValue);
       for (const auto& record : recordsVec)
       {
-        producerArray.append(record->as_json());
+        producerArray.append(record->as_json(timeFormat));
       }
       jsonObject[producer] = producerArray;
     }

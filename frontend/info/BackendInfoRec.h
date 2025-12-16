@@ -26,15 +26,18 @@ class BackendInfoRec
 public:
   BackendInfoRec(const Json::Value& jsonObject, const std::string& timeFormat);
   virtual ~BackendInfoRec();
-  virtual std::vector<std::string> as_vector() const = 0;
-  virtual Json::Value as_json() const = 0;
+  virtual std::vector<std::string> as_vector(const std::string& timeFormat) const = 0;
+  virtual Json::Value as_json(const std::string& timeFormat) const = 0;
   virtual bool operator < (const BackendInfoRec& other) const = 0;
+  virtual std::string get_title() const = 0;
   virtual const std::vector<std::string> get_names() const = 0;
   virtual const std::string& get_producer() const = 0;
   virtual const std::vector<std::string>& get_parameters() const = 0;
   virtual bool contains_parameters(const std::vector<std::string>& parameters, bool all = true) const = 0;
 
   std::string format_datetime(const Fmi::DateTime& dt) const;
+
+  std::string format_datetime(const Fmi::DateTime& dt, const std::string& timeFormat) const;
 
 protected:
   static std::string get_string_field(

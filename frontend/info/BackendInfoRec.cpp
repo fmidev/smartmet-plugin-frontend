@@ -29,15 +29,25 @@ BackendInfoRec::~BackendInfoRec() = default;
 
 
 std::string BackendInfoRec::format_datetime(const Fmi::DateTime& dt) const
+try
 {
-  try
-  {
-    return time_formatter->format(dt);
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Failed to format DateTime");
-  }
+  return time_formatter->format(dt);
+}
+catch (...)
+{
+  throw Fmi::Exception::Trace(BCP, "Failed to format DateTime");
+}
+
+
+std::string BackendInfoRec::format_datetime(const Fmi::DateTime& dt, const std::string& timeFormat) const
+try
+{
+  std::unique_ptr<Fmi::TimeFormatter> formatter(Fmi::TimeFormatter::create(timeFormat));
+  return formatter->format(dt);
+}
+catch (...)
+{
+  throw Fmi::Exception::Trace(BCP, "Failed to format DateTime");
 }
 
 

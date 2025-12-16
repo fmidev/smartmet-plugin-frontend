@@ -27,11 +27,15 @@ struct BackendInfoRequestsSetupInfo
     const std::string request;
     bool supports_param_ids;        // Whether this request supports type=json/table
     std::function<std::shared_ptr<BackendInfoRec>(const Json::Value&, const std::string& timeFormat)> recordFactory;
+    std::string title;
 };
 
 
 // Map of supported frontend info requests to backend ones
 // Currently identicatical, but this allows future changes if needed
+//
+// Always use "iso" time format for backend requests; frontend can reformat as needed.
+// No need ti different formats here.
 const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap = {
     {
         "qengine",
@@ -40,8 +44,9 @@ const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap 
             , true
             , [](const Json::Value& jsonObject, const std::string& timeFormat)
               {
-                  return std::make_shared<QEngineInfoRec>(jsonObject, timeFormat);
+                  return std::make_shared<QEngineInfoRec>(jsonObject, "iso"s);
               }
+            , "Available Querydata"
         }
     }
 
@@ -52,8 +57,9 @@ const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap 
             , false
             , [](const Json::Value& jsonObject, const std::string& timeFormat)
               {
-                  return std::make_shared<GridGenerationsInfoRec>(jsonObject, timeFormat);
+                  return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s);
               }
+            , "Available Grid Generations"
         }
     }
 
@@ -64,8 +70,9 @@ const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap 
             , false
             , [](const Json::Value& jsonObject, const std::string& timeFormat)
               {
-                  return std::make_shared<GridGenerationsInfoRec>(jsonObject, timeFormat);
+                  return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s);
               }
+            , "Available QD Grid Generations"
         }
     }
 };
@@ -111,11 +118,13 @@ std::vector<std::shared_ptr<BackendInfoResponse>> BackendInfoRequests::collect_b
     const RequestInfo& ri)
 try
 {
+    constexpr const int backend_timeout_sec = 10;
+
     std::vector<std::shared_ptr<BackendInfoResponse>> responses;
 
     int counter = 0;
     std::vector<std::pair<std::string, std::string>> id_mapping;
-    Spine::TcpMultiQuery multi_query(5);
+    Spine::TcpMultiQuery multi_query(backend_timeout_sec);
     for (const auto& backend : backends)
     {
         const std::string& host = backend.get<1>();
@@ -125,6 +134,10 @@ try
         const std::string id = fmt::format("{0:05d}", ++counter);
         id_mapping.emplace_back(std::make_pair(fmt::format("{}:{}", host, port), id));
         multi_query.add_query(id, host, std::to_string(port), request_str);
+
+        std::cout << "Frontend::getBackendMessages: sending backend info request to "
+                  << host << ":" << port << " for '" << ri.what << "'" << std::endl;
+        std::cout << request_str << std::endl;
     }
 
     multi_query.execute();
@@ -223,32 +236,6 @@ BackendInfoRequests::build_backend_request(
     request.addParameter("timeformat", "iso"s); // Use ISO format for backend requests
 
     return request;
-}
-
-
-
-std::vector<BackendInfoRequests::BackendAddr> BackendInfoRequests::get_backends(SmartMet::Spine::Reactor& reactor)
-{
-    auto sputnik = reactor.getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
-
-    // Get the backends which provide services
-    auto backendList = sputnik->getBackendList();  // type is Services::BackendList
-    std::vector<BackendInfoRequests::BackendAddr> backendAddrs(backendList.begin(), backendList.end());
-    std::sort(backendAddrs.begin(), backendAddrs.end(),
-        [](const BackendAddr& a, const BackendAddr& b)
-        {
-            if (a.get<1>() != b.get<1>())
-                return a.get<1>() < b.get<1>();
-            return a.get<2>() < b.get<2>();
-        });
-    auto last = std::unique(backendAddrs.begin(), backendAddrs.end(),
-        [](const BackendAddr& a, const BackendAddr& b)
-        {
-            return (a.get<1>() == b.get<1>()) && (a.get<2>() == b.get<2>());
-        });
-    backendAddrs.erase(last, backendAddrs.end());
-
-    return backendAddrs;
 }
 
 

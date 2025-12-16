@@ -16,7 +16,7 @@ try
     , minTime(get_datetime_field(jsonObject, "MinTime"))
     , maxTime(get_datetime_field(jsonObject, "MaxTime"))
     , modificationTime(get_datetime_field(jsonObject, "ModificationTime"))
-    , fmiParameter(get_string_vector_field(jsonObject, "FmiParameter", " ,"))
+    , fmiParameter(get_string_vector_field(jsonObject, "FmiParameters", " ,"))
     , parameterAliases(get_string_vector_field(jsonObject, "ParameterAliases", " ,"))
 {
 }
@@ -31,17 +31,17 @@ catch (...)
 
 GridGenerationsInfoRec::~GridGenerationsInfoRec() = default;
 
-std::vector<std::string> GridGenerationsInfoRec::as_vector() const
+std::vector<std::string> GridGenerationsInfoRec::as_vector(const std::string& timeFormat) const
 try
 {
     std::vector<std::string> result;
     result.push_back(producer);
     result.push_back(Fmi::to_string(geometryId));
     result.push_back(Fmi::to_string(timesteps));
-    result.push_back(format_datetime(analysisTime));
-    result.push_back(format_datetime(minTime));
-    result.push_back(format_datetime(maxTime));
-    result.push_back(format_datetime(modificationTime));
+    result.push_back(format_datetime(analysisTime, timeFormat));
+    result.push_back(format_datetime(minTime, timeFormat));
+    result.push_back(format_datetime(maxTime, timeFormat));
+    result.push_back(format_datetime(modificationTime, timeFormat));
     result.push_back(fmiParameter.empty() ? "nan"s : Fmi::join(fmiParameter, ", "));
     result.push_back(parameterAliases.empty() ? "nan"s : Fmi::join(parameterAliases, ", "));
     return result;
@@ -52,20 +52,21 @@ catch (...)
 }
 
 
-Json::Value GridGenerationsInfoRec::as_json() const
+Json::Value GridGenerationsInfoRec::as_json(const std::string& timeFormat) const
 try
 {
+    std::unique_ptr<Fmi::TimeFormatter> formatter(Fmi::TimeFormatter::create(timeFormat));
     Json::Value jsonObject;
     jsonObject["ProducerName"] = producer;
     jsonObject["GeometryId"] = geometryId;
     jsonObject["Timesteps"] = timesteps;
-    jsonObject["AnalysisTime"] = analysisTime.to_iso_extended_string();
-    jsonObject["MinTime"] = minTime.to_iso_extended_string();
-    jsonObject["MaxTime"] = maxTime.to_iso_extended_string();
-    jsonObject["ModificationTime"] = modificationTime.to_iso_extended_string();
+    jsonObject["AnalysisTime"] = formatter->format(analysisTime);
+    jsonObject["MinTime"] = formatter->format(minTime);
+    jsonObject["MaxTime"] = formatter->format(maxTime);
+    jsonObject["ModificationTime"] = formatter->format(modificationTime);
     jsonObject["FmiParameter"] = fmiParameter.empty() ? Json::nullValue : Json::arrayValue;
     for (const auto& param : fmiParameter)
-      jsonObject["FmiParameter"].append(param);
+      jsonObject["FmiParameters"].append(param);
     jsonObject["ParameterAliases"] = parameterAliases.empty() ? Json::nullValue : Json::arrayValue;
     for (const auto& alias : parameterAliases)
       jsonObject["ParameterAliases"].append(alias);
@@ -74,6 +75,12 @@ try
 catch (...)
 {
   throw Fmi::Exception::Trace(BCP, "Operation failed!");
+}
+
+
+std::string GridGenerationsInfoRec::get_title() const
+{
+    return "Grid generations information";
 }
 
 
@@ -87,7 +94,7 @@ const std::vector<std::string> GridGenerationsInfoRec::get_names() const
         "MinTime",
         "MaxTime",
         "ModificationTime",
-        "FmiParameter",
+        "FmiParameters",
         "ParameterAliases"
     };
 }

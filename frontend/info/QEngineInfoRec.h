@@ -27,9 +27,11 @@ public:
 
     QEngineInfoRec(const Json::Value& jsonObject, const std::string& timeFormat);
 
-    std::vector<std::string> as_vector() const override;
+    std::vector<std::string> as_vector(const std::string& timeFormat) const override;
 
-    Json::Value as_json() const override;
+    Json::Value as_json(const std::string& timeFormat) const override;
+
+    std::string get_title() const override;
 
     const std::vector<std::string> get_names() const override;
 
