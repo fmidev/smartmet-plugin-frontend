@@ -66,6 +66,7 @@ protected:
     const std::string& fieldName,
     const std::string& separators);
 
+public:
   template <typename... ParamLists>
   static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...), bool>::type
   lookup_parameter(
@@ -73,14 +74,18 @@ protected:
     ParamLists... paramLists)
   {
     if constexpr (sizeof...(paramLists) == 0)
-      return false;
-
-    const auto contains = [&](const std::vector<std::string>& paramList, const std::string& param)
     {
-      return (std::find(paramList.begin(), paramList.end(), param) != paramList.end());
-    };
+      return false;
+    }
+    else
+    {
+      const auto contains = [&](const std::vector<std::string>& paramList, const std::string& param)
+      {
+        return (std::find(paramList.begin(), paramList.end(), param) != paramList.end());
+      };
 
-    return (contains(paramLists, searchParam) || ...);
+      return (contains(paramLists, searchParam) || ...);
+    }
   }
 
   template <typename... ParamLists>
