@@ -91,28 +91,30 @@ try
     start = true;
     std::vector<std::shared_ptr<BackendInfoRec>> mergedRecords;
     for (const auto& response : responses)
-    if (start)
     {
+      if (start)
+      {
         start = false;
-        mergedRecords = response->records[producer];
-    }
-    else
-    {
-      // Data are sorted and as result one can use std::set_intersection
-      //  to find common records
-      std::vector<std::shared_ptr<BackendInfoRec>> tempRecords;
-      const auto& currentRecords = response->records.at(producer);
-      // Find common records between mergedRecords and currentRecords
-      std::set_intersection(
-        mergedRecords.begin(), mergedRecords.end(),
-        currentRecords.begin(), currentRecords.end(),
-        std::back_inserter(tempRecords),
-        [](const std::shared_ptr<BackendInfoRec>& a,
-           const std::shared_ptr<BackendInfoRec>& b)
-        {
-          return *a < *b;
-        });
-      mergedRecords = std::move(tempRecords);
+        mergedRecords = response->records.at(producer);
+      }
+      else
+      {
+        // Data are sorted and as result one can use std::set_intersection
+        //  to find common records
+        std::vector<std::shared_ptr<BackendInfoRec>> tempRecords;
+        const auto& currentRecords = response->records.at(producer);
+        // Find common records between mergedRecords and currentRecords
+        std::set_intersection(
+          mergedRecords.begin(), mergedRecords.end(),
+          currentRecords.begin(), currentRecords.end(),
+          std::back_inserter(tempRecords),
+          [](const std::shared_ptr<BackendInfoRec>& a,
+             const std::shared_ptr<BackendInfoRec>& b)
+          {
+            return *a < *b;
+          });
+        mergedRecords = std::move(tempRecords);
+      }
     }
 
     if (!mergedRecords.empty())

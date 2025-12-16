@@ -146,9 +146,9 @@ BOOST_AUTO_TEST_CASE(lookup_parameters_empty_search)
   std::vector<std::string> params = {"Temperature", "Pressure"};
   std::vector<std::string> empty_search;
   
-  // Empty search list should return false for both all=true and all=false
-  BOOST_CHECK(!BackendInfoRec::lookup_parameters(empty_search, true, params));
-  BOOST_CHECK(!BackendInfoRec::lookup_parameters(empty_search, false, params));
+  // Empty search list means no filtering - should return true (accept all)
+  BOOST_CHECK(BackendInfoRec::lookup_parameters(empty_search, true, params));
+  BOOST_CHECK(BackendInfoRec::lookup_parameters(empty_search, false, params));
 }
 
 // Test lookup_parameters with empty parameter lists

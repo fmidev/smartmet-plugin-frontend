@@ -101,8 +101,9 @@ public:
     }
     else
     {
+      // Empty search list means no filtering - accept all
       if (searchParams.empty())
-        return false;
+        return true;
 
       if (all)
       {
