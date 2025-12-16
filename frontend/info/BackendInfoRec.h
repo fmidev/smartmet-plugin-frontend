@@ -92,12 +92,12 @@ protected:
   {
     if constexpr (sizeof...(paramLists) == 0)
     {
-      return true;
+      return false;
     }
     else
     {
       if (searchParams.empty())
-        return true;
+        return false;
 
       if (all)
       {
