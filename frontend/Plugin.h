@@ -81,7 +81,7 @@ class Plugin : public SmartMetPlugin
                           Spine::HTTP::Response& theResponse);
 
   std::unique_ptr<Spine::Table> requestBackendInfo(Spine::Reactor& theReactor,
-                                            const Spine::HTTP::Request& theRequest);
+                                                   const Spine::HTTP::Request& theRequest);
 
   void requestBackendInfoSummary(const Spine::HTTP::Request& theRequest,
                                  Spine::HTTP::Response& theResponse);

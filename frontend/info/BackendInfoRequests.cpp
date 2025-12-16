@@ -192,6 +192,8 @@ try
                 ri.recordFactory,
                 recordFilter,
                 ri.timeformat);
+
+            backendResponse->set_title(ri.title);
             responses.push_back(backendResponse);
         }
         catch (...)
@@ -200,6 +202,7 @@ try
                 "Frontend::getBackendMessages: exception while processing response from backend ");
         }
     }
+
     return responses;
 }
 catch (...)
@@ -266,6 +269,8 @@ try
     const auto& setupInfo = it->second;
 
     request = setupInfo.request;
+
+    title = setupInfo.title;
 
     producer = httpRequest.getParameter("producer");
 

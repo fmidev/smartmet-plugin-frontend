@@ -59,6 +59,8 @@ public:
 
   inline std::size_t get_summary_size() const { return summary_size; }
 
+  inline void set_title(const std::string& theTitle) { title = theTitle; }
+
   inline std::string get_title() const { return title; }
 
 private:

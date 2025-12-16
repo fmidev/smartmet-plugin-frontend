@@ -53,6 +53,7 @@ private:
     {
         std::string what;
         std::string request;
+        std::string title;
         std::optional<std::string> producer;
         std::string timeformat;
         std::string type;
