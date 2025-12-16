@@ -140,14 +140,14 @@ bool QEngineInfoRec::operator < (const BackendInfoRec& other) const
   if (!o)
     throw Fmi::Exception(BCP, "Invalid comparison between different BackendInfoRec types");
 
-  if (producer != o->producer)
-    return producer < o->producer;
+  if (originTime != o->originTime)
+    return originTime < o->originTime;
 
   if (path != o->path)
     return path < o->path;
 
-  if (originTime != o->originTime)
-    return originTime < o->originTime;
+  if (producer != o->producer)
+    return producer < o->producer;
 
   return false;
 }
