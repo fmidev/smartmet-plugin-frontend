@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.11.20
+Version: 25.12.17
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -83,6 +83,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Dec 17 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.12.17-1.fmi
+- Reimplement backend info summary requests (qengine, gridgenerations, gridgenerationsqd)
+
 * Thu Nov 20 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.11.20-1.fmi
 - Fix response of request /info?what=qengine
 
