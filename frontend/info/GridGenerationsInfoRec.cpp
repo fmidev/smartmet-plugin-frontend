@@ -64,10 +64,10 @@ try
     jsonObject["MinTime"] = formatter->format(minTime);
     jsonObject["MaxTime"] = formatter->format(maxTime);
     jsonObject["ModificationTime"] = formatter->format(modificationTime);
-    jsonObject["FmiParameter"] = fmiParameter.empty() ? Json::nullValue : Json::arrayValue;
+    jsonObject["FmiParameters"] = Json::arrayValue;
     for (const auto& param : fmiParameter)
       jsonObject["FmiParameters"].append(param);
-    jsonObject["ParameterAliases"] = parameterAliases.empty() ? Json::nullValue : Json::arrayValue;
+    jsonObject["ParameterAliases"] = Json::arrayValue;
     for (const auto& alias : parameterAliases)
       jsonObject["ParameterAliases"].append(alias);
     return jsonObject;

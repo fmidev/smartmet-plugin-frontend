@@ -84,18 +84,18 @@ try
   std::unique_ptr<Fmi::TimeFormatter> formatter(Fmi::TimeFormatter::create(timeFormat));
   Json::Value jsonObject;
   jsonObject["Producer"] = producer;
-  jsonObject["Aliases"] = aliases.empty() ? Json::nullValue : Json::arrayValue;
+  jsonObject["Aliases"] = Json::arrayValue;
   for (const auto& alias : aliases)
     jsonObject["Aliases"].append(alias);
   jsonObject["RI"] = refreshInterval;
   jsonObject["Path"] = path;
-  jsonObject["Parameters"] = parameters.empty() ? Json::nullValue : Json::arrayValue;
+  jsonObject["Parameters"] = Json::arrayValue;
   for (const auto& param : parameters)
     jsonObject["Parameters"].append(param);
-  jsonObject["Descriptions"] = descriptions.empty() ? Json::nullValue : Json::arrayValue;
+  jsonObject["Descriptions"] = Json::arrayValue;
   for (const auto& desc : descriptions)
     jsonObject["Descriptions"].append(desc);
-  jsonObject["Levels"] = levels.empty() ? Json::nullValue : Json::arrayValue;
+  jsonObject["Levels"] = Json::arrayValue;
   for (const auto& level : levels)
     jsonObject["Levels"].append(level);
   jsonObject["Projection"] = projection;
