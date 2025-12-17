@@ -302,7 +302,6 @@ try
   }
 
   const std::string format = Spine::optional_string(theRequest.getParameter("format"), "debug");
-  const std::string style = Spine::optional_string(theRequest.getParameter("style"), "default");
   const std::string timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "sql");
 
   //---------------------------------------------------------------------------------
@@ -336,7 +335,19 @@ try
     backendInfoRequests.perform_backend_info_request(backends, theRequest);
 
   // Format the response table
-  if (style == "default")
+  if (format == "json-ext")
+  {
+    // New extended output format
+    Json::Value jsonResponse;
+    if (response) jsonResponse = response->as_json(timeFormat);
+    Json::StreamWriterBuilder writerBuilder;
+    writerBuilder["indentation"] = "  ";  // pretty print
+    const std::string formattedString = Json::writeString(writerBuilder, jsonResponse);
+    theResponse.setContent(formattedString);
+    theResponse.setHeader("Content-Type", "application/json; charset=UTF-8");
+    theResponse.setStatus(Spine::HTTP::Status::ok);
+  }
+  else
   {
     // Backward compatible output format
     Spine::TableFormatterOptions options;
@@ -363,22 +374,6 @@ try
     theResponse.setContent(formattedString);
     theResponse.setHeader("Content-Type", mime);
     theResponse.setStatus(Spine::HTTP::Status::ok);
-  }
-  else if (style == "extended")
-  {
-    // New extended output format
-    Json::Value jsonResponse;
-    if (response) jsonResponse = response->as_json(timeFormat);
-    Json::StreamWriterBuilder writerBuilder;
-    writerBuilder["indentation"] = "  ";  // pretty print
-    const std::string formattedString = Json::writeString(writerBuilder, jsonResponse);
-    theResponse.setContent(formattedString);
-    theResponse.setHeader("Content-Type", "application/json; charset=UTF-8");
-    theResponse.setStatus(Spine::HTTP::Status::ok);
-  }
-  else
-  {
-        throw Fmi::Exception(BCP, "Invalid style '" + style + "' for backend info request");
   }
 }
 catch (...)
