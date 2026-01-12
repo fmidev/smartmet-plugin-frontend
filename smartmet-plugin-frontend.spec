@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 25.12.17
+Version: 26.1.12
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -83,6 +83,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Jan 12 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.1.12-1.fmi
+- info?what=qengine: begin column names with capital letter
+
 * Wed Dec 17 2025 Andris Pavēnis <andris.pavenis@fmi.fi> 25.12.17-1.fmi
 - Reimplement backend info summary requests (qengine, gridgenerations, gridgenerationsqd)
 
