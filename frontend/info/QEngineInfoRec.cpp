@@ -119,18 +119,18 @@ std::string QEngineInfoRec::get_title() const
 const std::vector<std::string> QEngineInfoRec::get_names() const
 {
     return {
-        "producer",
-        "aliases",
-        "refreshInterval",
-        "path",
-        "parameters",
-        "descriptions",
-        "levels",
-        "projection",
-        "originTime",
-        "minTime",
-        "maxTime",
-        "loadTime"
+        "Producer",
+        "Aliases",
+        "RefreshInterval",
+        "Path",
+        "Parameters",
+        "Descriptions",
+        "Levels",
+        "Projection",
+        "OriginTime",
+        "MinTime",
+        "MaxTime",
+        "LoadTime"
     };
 }
 
