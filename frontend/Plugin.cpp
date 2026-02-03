@@ -783,7 +783,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
         "gridgenerations",
         AdminRequestAccess::Public,
         std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
-        "Available producers"))
+        "Grid producers"))
   {
     throw Fmi::Exception(BCP, "Failed to register gridgenerations request handler");
   }
@@ -794,7 +794,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
         "gridgenerationsqd",
         AdminRequestAccess::Public,
         std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
-        "Available producers"))
+        "Grid newbase generations"))
   {
     throw Fmi::Exception(BCP, "Failed to register gridgenerationsqd request handler");
   }
