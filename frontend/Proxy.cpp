@@ -90,9 +90,11 @@ void Proxy::shutdown()
 {
   try
   {
+    backendIoService.stop();
     std::cout << fmt::format("{}  -- Shutdown requested (Proxy)", Spine::log_time_str())
               << std::endl;
     itsBackendThreads.interrupt_all();
+    itsBackendThreads.join_all();
   }
   catch (...)
   {
