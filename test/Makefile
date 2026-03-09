@@ -26,6 +26,9 @@ LIBS += \
 
 all: $(TEST_TARGETS)
 
+test: all
+	./RunTests
+
 
 
 

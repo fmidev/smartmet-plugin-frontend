@@ -56,7 +56,7 @@ release: all
 profile: all
 
 test:
-	@test "$$CI" = "true" && true || false
+	$(MAKE) -C test $@
 
 check: $(LIBFILE)
 	@echo "Running frontend plugin self-test"
@@ -73,6 +73,7 @@ clean:
 	rm -rf obj
 	$(MAKE) -C testsuite clean
 	$(MAKE) -C examples clean
+	$(MAKE) -C test clean
 
 format:
 	clang-format -i -style=file $(SUBNAME)/*.h $(SUBNAME)/*.cpp
