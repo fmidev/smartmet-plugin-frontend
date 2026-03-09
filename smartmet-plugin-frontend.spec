@@ -52,6 +52,20 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
+#TestRequires: smartmet-library-macgyver-devel >= 26.2.4
+#TestRequires: smartmet-library-spine >= 26.3.9
+#TestRequires: smartmet-server >= 26.3.9
+#TestRequires: smartmet-engine-sputnik >= 26.3.9
+#TestRequires: smartmet-engine-querydata
+#TestRequires: smartmet-engine-gis
+#TestRequires: smartmet-engine-geonames
+#TestRequires: smartmet-engine-observation
+#TestRequires: smartmet-plugin-timeseries
+#TestRequires: smartmet-plugin-backend
+#TestRequires: smartmet-plugin-frontend
+#TestRequires: smartmet-test-data
+#TestRequires: smartmet-test-db
+
 Provides: %{SPECNAME}
 Obsoletes: smartmet-brainstorm-frontend < 16.11.1
 Obsoletes: smartmet-brainstorm-frontend-debuginfo < 16.11.1
