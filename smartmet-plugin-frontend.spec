@@ -66,6 +66,7 @@ Requires(postun): systemd
 #TestRequires: smartmet-test-data
 #TestRequires: smartmet-test-db
 #TestRequires: %{smartmet_boost}-devel
+#TestRequires: dtl
 #TestRequires: make
 #TestRequires: iproute
 
