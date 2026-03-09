@@ -65,6 +65,9 @@ Requires(postun): systemd
 #TestRequires: smartmet-plugin-frontend
 #TestRequires: smartmet-test-data
 #TestRequires: smartmet-test-db
+#TestRequires: %{smartmet_boost}-devel
+#TestRequires: make
+#TestRequires: iproute
 
 Provides: %{SPECNAME}
 Obsoletes: smartmet-brainstorm-frontend < 16.11.1
