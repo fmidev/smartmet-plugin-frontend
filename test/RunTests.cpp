@@ -3,10 +3,22 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <boost/algorithm/string.hpp>
+#include <dtl/dtl.hpp>
 #include <macgyver/Exception.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <unistd.h>
+#include <signal.h>
+#include <cerrno>
+#include <cstring>
+
+namespace ba = boost::algorithm;
 
 
 /**
@@ -145,6 +157,89 @@ catch (...)
     std::cout << Fmi::Exception(BCP, "Failed to stop backend processes      ") << std::endl;
 }
 
+bool report_process_exit_status(const std::string& process_name,
+                                pid_t pid,
+                                int port,
+                                int status)
+{
+    if (WIFEXITED(status))
+    {
+        const int exit_code = WEXITSTATUS(status);
+        if (exit_code == 0)
+        {
+            std::cout << process_name << " with PID: " << pid << " on port: " << port
+                      << " exited normally" << std::endl;
+            return true;
+        }
+
+        std::cout << process_name << " with PID: " << pid << " on port: " << port
+                  << " exited with non-zero code: " << exit_code << std::endl;
+        return false;
+    }
+
+    if (WIFSIGNALED(status))
+    {
+        const int sig = WTERMSIG(status);
+        std::cout << process_name << " with PID: " << pid << " on port: " << port
+                  << " terminated by signal " << sig << " (" << strsignal(sig) << ")";
+        if (sig == SIGSEGV)
+        {
+            std::cout << " [SIGSEGV]";
+        }
+        std::cout << std::endl;
+        return false;
+    }
+
+    std::cout << process_name << " with PID: " << pid << " on port: " << port
+              << " ended in unknown state" << std::endl;
+    return false;
+}
+
+bool terminate_and_wait_process(const std::string& process_name, pid_t pid, int port)
+{
+    int status = 0;
+    const pid_t first_wait = waitpid(pid, &status, WNOHANG);
+    if (first_wait == pid)
+    {
+        return report_process_exit_status(process_name, pid, port, status);
+    }
+
+    if (first_wait == -1)
+    {
+        std::cerr << "Failed to query status for " << process_name << " PID " << pid
+                  << ": " << std::strerror(errno) << std::endl;
+        return false;
+    }
+
+    if (kill(pid, SIGTERM) == -1 && errno != ESRCH)
+    {
+        std::cerr << "Failed to send SIGTERM to " << process_name << " PID " << pid
+                  << ": " << std::strerror(errno) << std::endl;
+        return false;
+    }
+
+    const pid_t waited = waitpid(pid, &status, 0);
+    if (waited == -1)
+    {
+        std::cerr << "Failed to wait " << process_name << " PID " << pid
+                  << ": " << std::strerror(errno) << std::endl;
+        return false;
+    }
+
+    return report_process_exit_status(process_name, pid, port, status);
+}
+
+bool stop_backends_checked(const std::vector<std::pair<pid_t, int>>& backends)
+{
+    bool all_ok = true;
+    for (const auto& [pid, port] : backends)
+    {
+        const bool ok = terminate_and_wait_process("Backend", pid, port);
+        all_ok = all_ok && ok;
+    }
+    return all_ok;
+}
+
 std::pair<pid_t, int> start_frontend(const std::string& config_file)
 try
 {
@@ -164,6 +259,301 @@ catch (...)
 {
     std::cout << Fmi::Exception(BCP, "Failed to start frontend process") << std::endl;
     throw; // Rethrow to allow handling in main
+}
+
+std::string read_file_to_string(const std::filesystem::path& path)
+{
+    std::ifstream in(path);
+    if (!in)
+    {
+        throw std::runtime_error("Failed to open file: " + path.string());
+    }
+
+    std::ostringstream out;
+    out << in.rdbuf();
+    return out.str();
+}
+
+std::string normalize_line_endings(const std::string& text)
+{
+    std::string result;
+    result.reserve(text.size());
+    for (std::size_t i = 0; i < text.size(); i++)
+    {
+        if (text[i] == '\r')
+        {
+            continue;
+        }
+        result.push_back(text[i]);
+    }
+    return result;
+}
+
+std::vector<std::string> read_file_lines_trimmed(const std::filesystem::path& path)
+{
+    std::ifstream input(path);
+    std::vector<std::string> result;
+    std::string line;
+    while (std::getline(input, line))
+    {
+        result.push_back(ba::trim_right_copy_if(line, ba::is_any_of("\r\n")));
+    }
+    return result;
+}
+
+std::string get_diff(const std::filesystem::path& expected, const std::filesystem::path& actual)
+{
+    const auto f1 = read_file_lines_trimmed(expected);
+    const auto f2 = read_file_lines_trimmed(actual);
+    dtl::Diff<std::string> d(f1, f2);
+    d.compose();
+    d.composeUnifiedHunks();
+
+    std::ostringstream out;
+    d.printUnifiedFormat(out);
+    std::string ret = out.str();
+
+    if (ret.size() > 5000)
+    {
+        return "  Diff size " + std::to_string(ret.size()) + " is too big (>5000)";
+    }
+    return "\n" + ret;
+}
+
+void write_string_to_file(const std::filesystem::path& path, const std::string& content)
+{
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream out(path);
+    if (!out)
+    {
+        throw std::runtime_error("Failed to open file for writing: " + path.string());
+    }
+    out << content;
+}
+
+std::string make_http_request_text(const std::filesystem::path& input_file,
+                                   const std::string& input)
+{
+    if (ba::ends_with(input_file.string(), ".get") || ba::ends_with(input_file.string(), ".options"))
+    {
+        std::vector<std::string> lines;
+        ba::split(lines, input, ba::is_any_of("\r\n"), ba::token_compress_on);
+        return ba::trim_copy(ba::join(lines, "\r\n")) + "\r\n\r\n";
+    }
+
+    std::string normalized;
+    normalized.reserve(input.size());
+
+    for (std::size_t i = 0; i < input.size(); i++)
+    {
+        if (input[i] == '\r')
+        {
+            continue;
+        }
+
+        if (input[i] == '\n')
+        {
+            normalized += "\r\n";
+            continue;
+        }
+
+        normalized.push_back(input[i]);
+    }
+
+    return normalized;
+}
+
+std::string send_raw_http_request(int port, const std::string& request_text)
+{
+    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_fd < 0)
+    {
+        throw std::runtime_error("Failed to create socket");
+    }
+
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(static_cast<uint16_t>(port));
+    if (inet_pton(AF_INET, "127.0.0.1", &address.sin_addr) != 1)
+    {
+        close(socket_fd);
+        throw std::runtime_error("Failed to parse loopback address");
+    }
+
+    if (connect(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0)
+    {
+        close(socket_fd);
+        throw std::runtime_error("Failed to connect to frontend on port " + std::to_string(port));
+    }
+
+    std::size_t sent_total = 0;
+    while (sent_total < request_text.size())
+    {
+        ssize_t sent = send(socket_fd,
+                            request_text.data() + sent_total,
+                            request_text.size() - sent_total,
+                            0);
+        if (sent < 0)
+        {
+            close(socket_fd);
+            throw std::runtime_error("Failed to send HTTP request");
+        }
+        sent_total += static_cast<std::size_t>(sent);
+    }
+
+    std::string response;
+    char buffer[4096];
+    while (true)
+    {
+        ssize_t received = recv(socket_fd, buffer, sizeof(buffer), 0);
+        if (received == 0)
+        {
+            break;
+        }
+        if (received < 0)
+        {
+            close(socket_fd);
+            throw std::runtime_error("Failed to receive HTTP response");
+        }
+        response.append(buffer, static_cast<std::size_t>(received));
+    }
+
+    close(socket_fd);
+    return response;
+}
+
+std::string extract_http_body(const std::string& response)
+{
+    std::size_t separator = response.find("\r\n\r\n");
+    if (separator != std::string::npos)
+    {
+        return response.substr(separator + 4);
+    }
+
+    separator = response.find("\n\n");
+    if (separator != std::string::npos)
+    {
+        return response.substr(separator + 2);
+    }
+
+    throw std::runtime_error("HTTP response does not contain header/body separator");
+}
+
+std::string remove_date_header_from_http_response(const std::string& response)
+{
+    const std::size_t separator = response.find("\r\n\r\n");
+    if (separator == std::string::npos)
+    {
+        return response;
+    }
+
+    const std::string headers = response.substr(0, separator);
+    const std::string body = response.substr(separator + 4);
+
+    std::vector<std::string> lines;
+    ba::split(lines, headers, ba::is_any_of("\r\n"), ba::token_compress_on);
+
+    std::vector<std::string> filtered;
+    filtered.reserve(lines.size());
+    for (const auto& line : lines)
+    {
+        const std::string lower = ba::to_lower_copy(line);
+        if (ba::starts_with(lower, "date:"))
+        {
+            continue;
+        }
+        filtered.push_back(line);
+    }
+
+    return ba::join(filtered, "\r\n") + "\r\n\r\n" + body;
+}
+
+bool run_tests(int frontend_port)
+{
+    namespace fs = std::filesystem;
+
+    const fs::path input_dir("input");
+    const fs::path output_dir("output");
+    const fs::path failure_dir("failures");
+
+    if (!fs::exists(input_dir) || !fs::is_directory(input_dir))
+    {
+        throw std::runtime_error("Input directory does not exist: " + input_dir.string());
+    }
+    if (!fs::exists(output_dir) || !fs::is_directory(output_dir))
+    {
+        throw std::runtime_error("Output directory does not exist: " + output_dir.string());
+    }
+
+    std::vector<fs::path> test_files;
+    for (const auto& entry : fs::directory_iterator(input_dir))
+    {
+        if (entry.is_regular_file())
+        {
+            test_files.push_back(entry.path().filename());
+        }
+    }
+
+    std::sort(test_files.begin(), test_files.end());
+    if (test_files.empty())
+    {
+        throw std::runtime_error("No test input files found in: " + input_dir.string());
+    }
+
+    std::size_t passed = 0;
+    std::size_t failed = 0;
+
+    for (const auto& test_file : test_files)
+    {
+        const fs::path input_file = input_dir / test_file;
+        const fs::path expected_output_file = output_dir / test_file;
+
+        std::cout << "Running test: " << test_file.string() << std::endl;
+
+        if (!fs::exists(expected_output_file))
+        {
+            std::cout << "  FAIL: expected output file missing: " << expected_output_file.string()
+                      << std::endl;
+            failed++;
+            continue;
+        }
+
+        const std::string raw_request = read_file_to_string(input_file);
+        const std::string request = make_http_request_text(input_file, raw_request);
+        const std::string response = send_raw_http_request(frontend_port, request);
+
+        std::string actual_result;
+        if (ba::ends_with(test_file.string(), ".options"))
+        {
+            actual_result = normalize_line_endings(remove_date_header_from_http_response(response));
+        }
+        else
+        {
+            actual_result = normalize_line_endings(extract_http_body(response));
+        }
+
+        const std::string expected_result = normalize_line_endings(read_file_to_string(expected_output_file));
+
+        if (actual_result == expected_result)
+        {
+            std::cout << "  PASS" << std::endl;
+            passed++;
+        }
+        else
+        {
+            const fs::path failure_file = failure_dir / test_file;
+            write_string_to_file(failure_file, actual_result);
+
+            std::cout << "  FAIL: response body differs from expected output" << std::endl;
+            std::cout << "  Expected size: " << expected_result.size()
+                      << ", actual size: " << actual_result.size() << std::endl;
+            std::cout << get_diff(expected_output_file, failure_file) << std::endl;
+            failed++;
+        }
+    }
+
+    std::cout << "Test summary: " << passed << " passed, " << failed << " failed" << std::endl;
+    return failed == 0;
 }
 
 int main()
@@ -190,16 +580,24 @@ int main()
         // Start frontend process
         std::tie(frontend_pid, frontend_port) = start_frontend("cnf/reactor_frontend.conf");
 
-        // Here you would add code to run your tests against the frontend using the frontend_port
+        bool tests_ok = run_tests(frontend_port);
 
         // Stop all processes after tests are done
-        kill(frontend_pid, SIGTERM);
-        waitpid(frontend_pid, nullptr, 0);
-        std::cout << "Stopped frontend with PID: " << frontend_pid << " on port: " << frontend_port << std::endl;
+        const bool frontend_ok = terminate_and_wait_process("Frontend", frontend_pid, frontend_port);
+        const bool backends_ok = stop_backends_checked(backends);
 
-        stop_backends(backends);
+        tests_ok = tests_ok && frontend_ok && backends_ok;
 
-        return 0;
+        if (!frontend_ok)
+        {
+            std::cout << "FAIL: Frontend terminated abnormally" << std::endl;
+        }
+        if (!backends_ok)
+        {
+            std::cout << "FAIL: One or more backends terminated abnormally" << std::endl;
+        }
+
+        return tests_ok ? 0 : 1;
     }
     catch (...)
     {
@@ -207,13 +605,11 @@ int main()
         try
         {
             std::cout << "Failed: cleaning up processes..." << std::endl;
-            stop_backends(backends);
             if (frontend_pid > 1)
             {
-                kill(frontend_pid, SIGTERM);
-                waitpid(frontend_pid, nullptr, 0);
-                std::cout << "Stopped frontend with PID: " << frontend_pid << " on port: " << frontend_port << std::endl;
+                (void)terminate_and_wait_process("Frontend", frontend_pid, frontend_port);
             }
+            (void)stop_backends_checked(backends);
         }
         catch(const std::exception& e)
         {
