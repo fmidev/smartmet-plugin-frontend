@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <filesystem>
 #include <vector>
 #include <string>
@@ -6,8 +7,10 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <boost/algorithm/string.hpp>
+#include <thread>
+#include <chrono>
 #include <dtl/dtl.hpp>
+#include <boost/algorithm/string.hpp>
 #include <macgyver/AnsiEscapeCodes.h>
 #include <macgyver/Exception.h>
 #include <sys/types.h>
@@ -129,10 +132,19 @@ try
                 "--configfile", config,
                 "--port=0" // Let the backend choose an available port
             },
-            "log/backend" + std::to_string(counter++) + ".log");
-        sleep(1); // Give the process some time to start and listen on the port
+            "log/backend" + std::to_string(++counter) + ".log");
+        backends.emplace_back(pid, -1); // Temporarily store -1 for port until we retrieve it
+    }
+
+    // Give the processes some time to start and listen on ports
+    // Ports should be available soon after process start, but we add a small delay to be safe and
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    for (auto& item : backends)
+    {
+        pid_t pid = item.first;
         int port = get_process_port(pid);
-        backends.emplace_back(pid, port);
+        item.second = port;
         std::cout << "Started backend with PID: " << pid << " on port: " << port << std::endl;
     }
     return backends;
@@ -437,6 +449,7 @@ std::string extract_http_body(const std::string& response)
         return response.substr(separator + 2);
     }
 
+    std::cout << "--- Body:\n" << response << "\n--- End of body" << std::endl;
     throw std::runtime_error("HTTP response does not contain header/body separator");
 }
 
@@ -522,45 +535,56 @@ bool run_tests(int frontend_port)
         out << fg_fn << test_file.string() << fg_default << ' ' << std::setw(50 - test_file.string().size())
             << std::setfill('.') << ". " << std::flush;
 
-        if (!fs::exists(expected_output_file))
+        try
         {
-            std::cout << out.str() << fg_red << "  FAIL: expected output file missing: "
-                << expected_output_file.string()
-                << fg_default << std::endl;
-            failed++;
-            continue;
+            const std::string raw_request = read_file_to_string(input_file);
+            const std::string request = make_http_request_text(input_file, raw_request);
+            const std::string response = send_raw_http_request(frontend_port, request);
+
+            std::string actual_result;
+            if (ba::ends_with(test_file.string(), ".options"))
+            {
+                actual_result = normalize_line_endings(remove_date_header_from_http_response(response));
+            }
+            else
+            {
+                actual_result = normalize_line_endings(extract_http_body(response));
+            }
+
+            if (!fs::exists(expected_output_file))
+            {
+                const fs::path failure_file = failure_dir / test_file;
+                write_string_to_file(failure_file, actual_result);
+                std::cout << out.str() << fg_red << "  FAIL: expected output file missing: "
+                    << expected_output_file.string()
+                    << fg_default << std::endl;
+                failed++;
+                continue;
+            }
+
+            const std::string expected_result = normalize_line_endings(read_file_to_string(expected_output_file));
+
+            if (actual_result == expected_result)
+            {
+                std::cout << out.str() << fg_green << "  PASS" << fg_default << std::endl;
+                passed++;
+            }
+            else
+            {
+                const fs::path failure_file = failure_dir / test_file;
+                write_string_to_file(failure_file, actual_result);
+
+                std::cout << out.str() << fg_red << "  FAIL: response body differs from expected output" << fg_default << std::endl;
+                std::cout << "  Expected size: " << expected_result.size()
+                          << ", actual size: " << actual_result.size() << std::endl;
+                std::cout << get_diff(expected_output_file, failure_file) << std::endl;
+                failed++;
+            }
         }
-
-        const std::string raw_request = read_file_to_string(input_file);
-        const std::string request = make_http_request_text(input_file, raw_request);
-        const std::string response = send_raw_http_request(frontend_port, request);
-
-        std::string actual_result;
-        if (ba::ends_with(test_file.string(), ".options"))
+        catch (...)
         {
-            actual_result = normalize_line_endings(remove_date_header_from_http_response(response));
-        }
-        else
-        {
-            actual_result = normalize_line_endings(extract_http_body(response));
-        }
-
-        const std::string expected_result = normalize_line_endings(read_file_to_string(expected_output_file));
-
-        if (actual_result == expected_result)
-        {
-            std::cout << out.str() << fg_green << "  PASS" << fg_default << std::endl;
-            passed++;
-        }
-        else
-        {
-            const fs::path failure_file = failure_dir / test_file;
-            write_string_to_file(failure_file, actual_result);
-
-            std::cout << out.str() << fg_red << "  FAIL: response body differs from expected output" << fg_default << std::endl;
-            std::cout << "  Expected size: " << expected_result.size()
-                      << ", actual size: " << actual_result.size() << std::endl;
-            std::cout << get_diff(expected_output_file, failure_file) << std::endl;
+            std::cout << out.str() << fg_red << "  FAIL: exception occurred" << fg_default << std::endl;
+            std::cout << Fmi::Exception::Trace(BCP, "Exception details: ") << std::endl;
             failed++;
         }
     }
@@ -595,6 +619,8 @@ int main()
         // Start frontend process
         std::tie(frontend_pid, frontend_port) = start_frontend("cnf/reactor_frontend.conf");
 
+        std::this_thread::sleep_for(std::chrono::seconds(15)); // Give processes some time to stabilize
+
         bool tests_ok = run_tests(frontend_port);
 
         // Stop all processes after tests are done
@@ -616,7 +642,7 @@ int main()
     }
     catch (...)
     {
-        std::cout << Fmi::Exception(BCP, "An error occurred during test execution") << std::endl;
+        std::cout << Fmi::Exception::Trace(BCP, "An error occurred during test execution") << std::endl;
         try
         {
             std::cout << "Failed: cleaning up processes..." << std::endl;
