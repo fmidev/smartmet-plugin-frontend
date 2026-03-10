@@ -619,7 +619,7 @@ int main()
         // Start frontend process
         std::tie(frontend_pid, frontend_port) = start_frontend("cnf/reactor_frontend.conf");
 
-        std::this_thread::sleep_for(std::chrono::seconds(15)); // Give processes some time to stabilize
+        std::this_thread::sleep_for(std::chrono::seconds(5)); // Give processes some time to stabilize
 
         bool tests_ok = run_tests(frontend_port);
 
