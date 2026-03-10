@@ -2,3 +2,6 @@
 /log
 /obj
 /failures
+/tmp-geonames-db
+/cnf/engines/geonames.conf
+/cnf/engines/gis.conf
