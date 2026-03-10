@@ -8,6 +8,7 @@
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 #include <dtl/dtl.hpp>
+#include <macgyver/AnsiEscapeCodes.h>
 #include <macgyver/Exception.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -503,17 +504,29 @@ bool run_tests(int frontend_port)
     std::size_t passed = 0;
     std::size_t failed = 0;
 
+    const bool is_tty = isatty(fileno(stdout));
+    const std::string fg_fn = is_tty ? ANSI_FG_CYAN : "";
+    const std::string fg_red = is_tty ? ANSI_FG_RED : "";
+    const std::string fg_green = is_tty ? ANSI_FG_GREEN : "";
+    const std::string fg_default = is_tty ? ANSI_FG_DEFAULT : "";
+
+    std::cout << "Running tests against frontend on port " << frontend_port << std::endl;
+
     for (const auto& test_file : test_files)
     {
+        std::ostringstream out;
+
         const fs::path input_file = input_dir / test_file;
         const fs::path expected_output_file = output_dir / test_file;
 
-        std::cout << "Running test: " << test_file.string() << std::endl;
+        out << fg_fn << test_file.string() << fg_default << ' ' << std::setw(50 - test_file.string().size())
+            << std::setfill('.') << ". " << std::flush;
 
         if (!fs::exists(expected_output_file))
         {
-            std::cout << "  FAIL: expected output file missing: " << expected_output_file.string()
-                      << std::endl;
+            std::cout << out.str() << fg_red << "  FAIL: expected output file missing: "
+                << expected_output_file.string()
+                << fg_default << std::endl;
             failed++;
             continue;
         }
@@ -536,7 +549,7 @@ bool run_tests(int frontend_port)
 
         if (actual_result == expected_result)
         {
-            std::cout << "  PASS" << std::endl;
+            std::cout << out.str() << fg_green << "  PASS" << fg_default << std::endl;
             passed++;
         }
         else
@@ -544,7 +557,7 @@ bool run_tests(int frontend_port)
             const fs::path failure_file = failure_dir / test_file;
             write_string_to_file(failure_file, actual_result);
 
-            std::cout << "  FAIL: response body differs from expected output" << std::endl;
+            std::cout << out.str() << fg_red << "  FAIL: response body differs from expected output" << fg_default << std::endl;
             std::cout << "  Expected size: " << expected_result.size()
                       << ", actual size: " << actual_result.size() << std::endl;
             std::cout << get_diff(expected_output_file, failure_file) << std::endl;
