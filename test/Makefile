@@ -30,10 +30,8 @@ test: all
 	$(MAKE) $(TEST_FINISH_TARGETS)
 
 clean:
-	rm -rf obj
-	rm -rf log
-	rm -f cnf/geonames.conf
-	rm -f cnf/gis.conf
+	rm -rf obj log failures
+	rm -f cnf/geonames.conf cnf/gis.conf
 	rm -rf $(TEST_DB_DIR)
 	rm -f $(TEST_TARGETS)
 
