@@ -580,8 +580,10 @@ int main()
 
     try
     {
-        // Create log directory if it doesn't exist
-        std::filesystem::create_directories("log");
+        // Create log directories if they don't exist
+        std::filesystem::create_directories("log/b1");
+        std::filesystem::create_directories("log/b2");
+        std::filesystem::create_directories("log/frontend");
 
         // Start backend processes
         std::vector<std::string> backend_configs = {
