@@ -13,6 +13,65 @@
 
 namespace SmartMet
 {
+namespace
+{
+enum class BackendDenyReason
+{
+  NONE,
+  SHUTDOWN,
+  HIGH_LOAD
+};
+
+BackendDenyReason parseBackendDenyReason(const std::string& responsePrefix)
+{
+  if (responsePrefix.size() >= 13)
+  {
+    const std::string legacyStatus = responsePrefix.substr(9, 4);
+    if (legacyStatus == "3210")
+      return BackendDenyReason::SHUTDOWN;
+    if (legacyStatus == "1234")
+      return BackendDenyReason::HIGH_LOAD;
+  }
+
+  // New wire format may use HTTP 503 with custom reason phrase and optional X-SmartNet-Error.
+  // Check status line first so detection works even if full headers are not yet buffered.
+  const auto line_end = responsePrefix.find("\r\n");
+  if (line_end != std::string::npos)
+  {
+    const std::string statusLine = responsePrefix.substr(0, line_end);
+    if (statusLine.find(" 503 ") != std::string::npos)
+    {
+      if (statusLine.find("Shutdown in progress") != std::string::npos)
+        return BackendDenyReason::SHUTDOWN;
+
+      if (statusLine.find("High Load in Backend Server") != std::string::npos)
+        return BackendDenyReason::HIGH_LOAD;
+    }
+  }
+
+  auto parsed = Spine::HTTP::parseResponse(responsePrefix);
+  if (std::get<0>(parsed) != Spine::HTTP::ParsingStatus::COMPLETE)
+    return BackendDenyReason::NONE;
+
+  const auto& response = std::get<1>(parsed);
+  if (!response || response->getStatus() != Spine::HTTP::Status::service_unavailable)
+    return BackendDenyReason::NONE;
+
+  auto smartnetError = response->getHeader("X-SmartNet-Error");
+  if (!smartnetError)
+    return BackendDenyReason::NONE;
+
+  const std::string value = boost::algorithm::trim_copy(*smartnetError);
+  if (value == "3210" || boost::algorithm::iequals(value, "shutdown"))
+    return BackendDenyReason::SHUTDOWN;
+
+  if (value == "1234" || boost::algorithm::iequals(value, "high_load"))
+    return BackendDenyReason::HIGH_LOAD;
+
+  return BackendDenyReason::NONE;
+}
+}  // namespace
+
 Proxy::Proxy(Proxy::Private,
              std::size_t uncompressedMemoryCacheSize,
              std::size_t uncompressedFilesystemCacheSize,
@@ -163,32 +222,30 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
       return ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
 
-    // This is a gateway response. So the only way to find out the HTTP message
-    // status is to read it from the byte stream.
-
-    // Note 1: Spine::HTTP::Status::shutdown = 3210
-    // Note 2: Spine::HTTP::Status::highload = 1234
-    // Note 3: "HTTP/1.x " is 9 characters long
-
-    std::string httpStatus = responseStreamer->getPeekString(9, 4);
-    if (httpStatus == "3210")
+    // This is a gateway response. To detect backend denial statuses before streaming,
+    // inspect the beginning of the response byte stream.
+    // Supports both legacy 4-digit status lines and 503 + X-SmartNet-Error.
+    std::string responsePrefix = responseStreamer->getPeekString(0, 4096);
+    switch (parseBackendDenyReason(responsePrefix))
     {
-      std::cout << fmt::format("{} *** Remote {}:{} shutting down, resending to another backend",
-                               Spine::log_time_str(),
-                               theHostName,
-                               theBackendPort)
-                << std::endl;
-      return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
-    }
+      case BackendDenyReason::SHUTDOWN:
+        std::cout << fmt::format("{} *** Remote {}:{} shutting down, resending to another backend",
+                                 Spine::log_time_str(),
+                                 theHostName,
+                                 theBackendPort)
+                  << std::endl;
+        return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
 
-    if (httpStatus == "1234")
-    {
-      std::cout << fmt::format("{} *** Remote {}:{} has high load, resending to another backend",
-                               Spine::log_time_str(),
-                               theHostName,
-                               theBackendPort)
-                << std::endl;
-      return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
+      case BackendDenyReason::HIGH_LOAD:
+        std::cout << fmt::format("{} *** Remote {}:{} has high load, resending to another backend",
+                                 Spine::log_time_str(),
+                                 theHostName,
+                                 theBackendPort)
+                  << std::endl;
+        return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
+
+      case BackendDenyReason::NONE:
+        break;
     }
 
     theResponse.setContent(responseStreamer);

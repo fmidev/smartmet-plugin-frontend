@@ -453,6 +453,42 @@ std::string extract_http_body(const std::string& response)
     throw std::runtime_error("HTTP response does not contain header/body separator");
 }
 
+void wait_for_ready(int port, const std::string& process_name, int max_wait_seconds = 60)
+{
+    const std::string request = "GET /admin?what=waitforready&timeout=1 HTTP/1.0\r\n\r\n";
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(max_wait_seconds);
+
+    std::string last_result;
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        try
+        {
+            const std::string response = send_raw_http_request(port, request);
+            const std::string body = ba::trim_copy(extract_http_body(response));
+            const std::string body_lc = ba::to_lower_copy(body);
+
+            if (ba::starts_with(body_lc, "ready"))
+            {
+                std::cout << process_name << " on port " << port << " is ready: " << body
+                          << std::endl;
+                return;
+            }
+
+            last_result = body;
+        }
+        catch (const std::exception& e)
+        {
+            last_result = e.what();
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    throw std::runtime_error("Timeout waiting for " + process_name + " on port " +
+                             std::to_string(port) +
+                             " to become ready. Last result: " + last_result);
+}
+
 std::string remove_date_header_from_http_response(const std::string& response)
 {
     const std::size_t separator = response.find("\r\n\r\n");
@@ -616,10 +652,16 @@ int main()
         };
         backends = start_backends(backend_configs);
 
+        for (const auto& [pid, port] : backends)
+        {
+            (void)pid;
+            wait_for_ready(port, "Backend");
+        }
+
         // Start frontend process
         std::tie(frontend_pid, frontend_port) = start_frontend("cnf/reactor_frontend.conf");
 
-        std::this_thread::sleep_for(std::chrono::seconds(5)); // Give processes some time to stabilize
+        wait_for_ready(frontend_port, "Frontend");
 
         bool tests_ok = run_tests(frontend_port);
 

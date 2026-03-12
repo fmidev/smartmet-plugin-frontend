@@ -17,7 +17,8 @@ GEONAMES_HOST_EDIT := cat
 endif
 
 TEST_TARGETS += \
-	RunTests
+	RunTests \
+	test_plugin/denytest.so
 
 LIBS += \
 	-lsmartmet-macgyver
@@ -34,9 +35,14 @@ clean:
 	rm -f cnf/geonames.conf cnf/gis.conf
 	rm -rf $(TEST_DB_DIR)
 	rm -f $(TEST_TARGETS)
+	rm -rf test_plugin/obj
 
 RunTests: obj/RunTests.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+test_plugin/denytest.so: test_plugin/Plugin.cpp
+	mkdir -p test_plugin/obj
+	$(CXX) $(CFLAGS) $(INCLUDES) -fPIC -shared -o $@ $< -lsmartmet-spine -lsmartmet-macgyver -lconfig++
 
 geonames-database:
 	@-$(MAKE) stop-test-db
