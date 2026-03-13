@@ -5,3 +5,6 @@
 /tmp-geonames-db
 /cnf/engines/geonames.conf
 /cnf/engines/gis.conf
+/input/deny
+/output/deny
+

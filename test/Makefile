@@ -26,6 +26,8 @@ LIBS += \
 all: $(TEST_TARGETS)
 
 test: all
+	rm -rf log failures
+	$(MAKE) prepare-tests
 	$(MAKE) $(TEST_PREPARE_TARGETS)
 	./RunTests
 	$(MAKE) $(TEST_FINISH_TARGETS)
@@ -36,6 +38,8 @@ clean:
 	rm -rf $(TEST_DB_DIR)
 	rm -f $(TEST_TARGETS)
 	rm -rf test_plugin/obj
+	rm -f test_plugin/denytest.so
+	rm -rf input/deny output/deny
 
 RunTests: obj/RunTests.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
@@ -43,6 +47,14 @@ RunTests: obj/RunTests.o
 test_plugin/denytest.so: test_plugin/Plugin.cpp
 	mkdir -p test_plugin/obj
 	$(CXX) $(CFLAGS) $(INCLUDES) -fPIC -shared -o $@ $< -lsmartmet-spine -lsmartmet-macgyver -lconfig++
+
+prepare-tests:
+	@rm -rf input/deny output/deny
+	@mkdir -p input/deny output/deny
+	@for i in {1..10} ; do \
+		cp -p input/denytest_retry.get.in input/deny/attempt$${i}.get; \
+		cp -p output/denytest_retry.get.in output/deny/attempt$${i}.get; \
+	done
 
 geonames-database:
 	@-$(MAKE) stop-test-db
@@ -71,4 +83,4 @@ obj/%.o: %.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
-.PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf dummy
+.PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf dummy prepare-tests

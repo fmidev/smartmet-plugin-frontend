@@ -536,11 +536,13 @@ bool run_tests(int frontend_port)
     }
 
     std::vector<fs::path> test_files;
-    for (const auto& entry : fs::directory_iterator(input_dir))
+    for (const auto& entry : fs::recursive_directory_iterator(input_dir))
     {
-        if (entry.is_regular_file())
+        if (entry.is_regular_file() && (ba::ends_with(entry.path().string(), ".get") ||
+                                    ba::ends_with(entry.path().string(), ".options") ||
+                                    ba::ends_with(entry.path().string(), ".post")))
         {
-            test_files.push_back(entry.path().filename());
+            test_files.push_back(fs::relative(entry.path(), input_dir));
         }
     }
 
@@ -565,7 +567,7 @@ bool run_tests(int frontend_port)
     {
         std::ostringstream out;
 
-        const fs::path input_file = input_dir / test_file;
+        const fs::path& input_file = input_dir / test_file;
         const fs::path expected_output_file = output_dir / test_file;
 
         out << fg_fn << test_file.string() << fg_default << ' ' << std::setw(50 - test_file.string().size())
@@ -662,6 +664,11 @@ int main()
         std::tie(frontend_pid, frontend_port) = start_frontend("cnf/reactor_frontend.conf");
 
         wait_for_ready(frontend_port, "Frontend");
+
+        // Unfortunetely we must additionally wait for communication between frontend and backends
+        // before we can start testing. Otherwise frontend will not be able to handle requests properly
+        // and tests will fail.
+        std::this_thread::sleep_for(std::chrono::seconds(4));
 
         bool tests_ok = run_tests(frontend_port);
 
