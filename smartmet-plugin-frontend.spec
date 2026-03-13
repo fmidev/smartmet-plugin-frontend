@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.3.11
+Version: 26.3.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -101,6 +101,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-1.fmi
+- Replace non standard HTTP statuscodes with standard ones
+
 * Wed Mar 11 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.11-1.fmi
 - Add frontend test support
 
