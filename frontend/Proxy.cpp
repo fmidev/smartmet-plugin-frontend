@@ -33,7 +33,7 @@ BackendDenyReason parseBackendDenyReason(const std::string& responsePrefix)
       return BackendDenyReason::HIGH_LOAD;
   }
 
-  // New wire format may use HTTP 503 with custom reason phrase and optional X-SmartNet-Error.
+  // New wire format may use HTTP 503 with custom reason phrase and optional X-SmartMet-Error.
   // Check status line first so detection works even if full headers are not yet buffered.
   const auto line_end = responsePrefix.find("\r\n");
   if (line_end != std::string::npos)
@@ -57,7 +57,7 @@ BackendDenyReason parseBackendDenyReason(const std::string& responsePrefix)
   if (!response || response->getStatus() != Spine::HTTP::Status::service_unavailable)
     return BackendDenyReason::NONE;
 
-  auto smartnetError = response->getHeader("X-SmartNet-Error");
+  auto smartnetError = response->getHeader(std::string(Spine::HTTP::smartmet_error_header));
   if (!smartnetError)
     return BackendDenyReason::NONE;
 
