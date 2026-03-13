@@ -1,0 +1,60 @@
+version: 2.1
+jobs:
+  test-rhel8:
+    docker:
+      - image: fmidev/smartmet-cibase-8:latest
+    resource_class: xlarge
+    environment:
+      RPM_BUILD_NCPUS: 8
+    steps:
+      - checkout
+      - run:
+          name: Installation test
+          command: ci-build dummy ; sudo yum install -y 'smartmet-plugin-frontend*'
+      - run:
+          name: Test prepare
+          command: ci-build testprep
+      - run:
+          name: Test
+          command: ci-build test
+  test-rhel9:
+    docker:
+      - image: fmidev/smartmet-cibase-9:latest
+    resource_class: xlarge
+    environment:
+      RPM_BUILD_NCPUS: 8
+    steps:
+      - checkout
+      - run:
+          name: Installation test
+          command: ci-build dummy ; sudo yum install -y 'smartmet-plugin-frontend*'
+      - run:
+          name: Test prepare
+          command: ci-build testprep
+      - run:
+          name: Test
+          command: ci-build test
+  test-rhel10:
+    docker:
+      - image: fmidev/smartmet-cibase-10:latest
+    resource_class: xlarge
+    environment:
+      RPM_BUILD_NCPUS: 8
+    steps:
+      - checkout
+      - run:
+          name: Installation test
+          command: ci-build dummy ; sudo yum install -y 'smartmet-plugin-frontend*'
+      - run:
+          name: Test prepare
+          command: ci-build testprep
+      - run:
+          name: Test
+          command: ci-build test
+workflows:
+  version: 2.1
+  build-test:
+    jobs:
+      - test-rhel8
+      - test-rhel9
+      - test-rhel10
