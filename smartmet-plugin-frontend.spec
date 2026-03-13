@@ -3,7 +3,7 @@
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
 Version: 26.3.13
-Release: 2%{?dist}.fmi
+Release: 3%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -53,7 +53,7 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.2.4
-#TestRequires: smartmet-library-spine devel >= 26.3.13
+#TestRequires: smartmet-library-spine-devel >= 26.3.13
 #TestRequires: smartmet-library-spine >= 26.3.13
 #TestRequires: smartmet-server >= 26.3.9
 #TestRequires: smartmet-engine-sputnik >= 26.3.9
@@ -102,7 +102,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-2.fmi
+* Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-3.fmi
 - Replace non standard HTTP statuscodes with standard ones
 
 * Wed Mar 11 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.11-1.fmi
