@@ -67,6 +67,8 @@ Requires(postun): systemd
 #TestRequires: smartmet-test-data
 #TestRequires: smartmet-test-db
 #TestRequires: %{smartmet_boost}-devel
+#TestRequires: libconfig17-devel >= 1.7.3
+#TestRequires: libconfig17 >= 1.7.3
 #TestRequires: dtl
 #TestRequires: make
 #TestRequires: iproute

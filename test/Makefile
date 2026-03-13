@@ -1,4 +1,6 @@
 
+REQUIRES = configpp
+
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
 TEST_PREPARE_TARGETS := cnf/engines/geonames.conf cnf/engines/gis.conf
@@ -21,7 +23,10 @@ TEST_TARGETS += \
 	test_plugin/denytest.so
 
 LIBS += \
-	-lsmartmet-macgyver
+	$(PREFIX_LDFLAGS) \
+	-lsmartmet-spine \
+	-lsmartmet-macgyver \
+	$(REQUIRED_LIBS)
 
 all: $(TEST_TARGETS)
 
@@ -29,8 +34,9 @@ test: all
 	rm -rf log failures
 	$(MAKE) prepare-tests
 	$(MAKE) $(TEST_PREPARE_TARGETS)
-	./RunTests
-	$(MAKE) $(TEST_FINISH_TARGETS)
+	ok=false; ./RunTests && ok=true; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	$$ok
 
 clean:
 	rm -rf obj log failures
@@ -46,7 +52,7 @@ RunTests: obj/RunTests.o
 
 test_plugin/denytest.so: test_plugin/Plugin.cpp
 	mkdir -p test_plugin/obj
-	$(CXX) $(CFLAGS) $(INCLUDES) -fPIC -shared -o $@ $< -lsmartmet-spine -lsmartmet-macgyver -lconfig++
+	$(CXX) $(CFLAGS) $(INCLUDES) -fPIC -shared -o $@ $< $(LIBS)
 
 prepare-tests:
 	@rm -rf input/deny output/deny
