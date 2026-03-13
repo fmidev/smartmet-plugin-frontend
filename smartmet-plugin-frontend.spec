@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.2.4
-BuildRequires: smartmet-library-spine-devel >= 26.2.4
+BuildRequires: smartmet-library-spine-devel >= 26.3.13
 BuildRequires: smartmet-library-grid-files-devel >= 26.2.4
 BuildRequires: smartmet-engine-sputnik-devel >= 26.2.4
 BuildRequires: gdal312-devel
@@ -36,7 +36,7 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.2.4
 Requires: smartmet-server >= 26.2.4
 Requires: smartmet-engine-sputnik >= 26.2.4
-Requires: smartmet-library-spine >= 26.2.4
+Requires: smartmet-library-spine >= 26.3.13
 Requires: smartmet-library-timeseries >= 26.2.4
 Requires: smartmet-library-grid-files >= 26.2.4
 Requires: jsoncpp
@@ -53,7 +53,7 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.2.4
-#TestRequires: smartmet-library-spine >= 26.3.9
+#TestRequires: smartmet-library-spine >= 26.3.13
 #TestRequires: smartmet-server >= 26.3.9
 #TestRequires: smartmet-engine-sputnik >= 26.3.9
 #TestRequires: smartmet-engine-querydata
