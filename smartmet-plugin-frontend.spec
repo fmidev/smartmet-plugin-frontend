@@ -3,7 +3,7 @@
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
 Version: 26.3.13
-Release: 3%{?dist}.fmi
+Release: 4%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -104,7 +104,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-3.fmi
+* Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-4.fmi
 - Replace non standard HTTP statuscodes with standard ones
 
 * Wed Mar 11 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.11-1.fmi
