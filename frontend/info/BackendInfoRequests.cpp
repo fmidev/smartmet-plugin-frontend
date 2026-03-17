@@ -1,6 +1,7 @@
 #include "BackendInfoRequests.h"
 #include "QEngineInfoRec.h"
 #include "GridGenerationsInfoRec.h"
+#include "GridParametersInfoRec.h"
 #include <macgyver/Exception.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/HTTP.h>
@@ -73,6 +74,19 @@ const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap 
                   return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s);
               }
             , "Available QD Grid Generations"
+        }
+    }
+
+    ,{
+        "gridparameters"
+        , {
+            "gridparameters"
+            , false
+            , [](const Json::Value& jsonObject, const std::string& timeFormat)
+              {
+                  return std::make_shared<GridParametersInfoRec>(jsonObject, "iso"s);
+              }
+            , "Available Grid Parameters"
         }
     }
 };
