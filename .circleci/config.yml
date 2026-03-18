@@ -40,7 +40,7 @@ jobs:
           path: /dist
           destination: dist/
       - store_artifacts:
-          path: /dist/log
+          path: test/log
           destination: log/
           when: on_fail
   upload-rhel8:
@@ -101,7 +101,7 @@ jobs:
           path: /dist
           destination: dist/
       - store_artifacts:
-          path: /dist/log
+          path: test/log
           destination: log/
           when: on_fail
   upload-rhel10:
