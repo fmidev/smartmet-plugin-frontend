@@ -38,8 +38,8 @@ jobs:
           command: ci-build test
       - run:
           name: store test logs
-          command: |
-            sudo cp -prv test/log /dist/
+          command: sudo cp -prv test/log /dist/
+          when: always
       - store_artifacts:
           path: /dist
           destination: dist/
@@ -100,6 +100,7 @@ jobs:
       - run:
           name: store test logs
           command: sudo cpv -pr test/log /dist/
+          when: always
       - store_artifacts:
           path: /dist
           destination: dist/
