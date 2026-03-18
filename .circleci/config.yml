@@ -36,13 +36,13 @@ jobs:
       - run:
           name: Test
           command: ci-build test
-      - run:
-          name: store test logs
-          command: sudo cp -prv test/log /dist/
-          when: always
       - store_artifacts:
           path: /dist
           destination: dist/
+      - store_artifacts:
+          path: /dist/log
+          destination: log/
+          when: on_fail
   upload-rhel8:
     docker:
       - image: fmidev/smartmet-cibase-8:latest
@@ -97,13 +97,13 @@ jobs:
       - run:
           name: Test
           command: ci-build test
-      - run:
-          name: store test logs
-          command: sudo cpv -pr test/log /dist/
-          when: always
       - store_artifacts:
           path: /dist
           destination: dist/
+      - store_artifacts:
+          path: /dist/log
+          destination: log/
+          when: on_fail
   upload-rhel10:
     docker:
       # No need to use smartmet-cibase-10
