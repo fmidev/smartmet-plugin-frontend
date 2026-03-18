@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.3.13
-Release: 4%{?dist}.fmi
+Version: 26.3.18
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -25,8 +25,8 @@ BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.2.4
 BuildRequires: smartmet-library-spine-devel >= 26.3.13
-BuildRequires: smartmet-library-grid-files-devel >= 26.2.4
-BuildRequires: smartmet-engine-sputnik-devel >= 26.2.4
+BuildRequires: smartmet-library-grid-files-devel >= 26.3.18
+BuildRequires: smartmet-engine-sputnik-devel >= 26.3.9
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
@@ -34,11 +34,11 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.2.4
 BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.2.4
-Requires: smartmet-server >= 26.2.4
-Requires: smartmet-engine-sputnik >= 26.2.4
+Requires: smartmet-server >= 26.3.9
+Requires: smartmet-engine-sputnik >= 26.3.9
 Requires: smartmet-library-spine >= 26.3.13
 Requires: smartmet-library-timeseries >= 26.2.4
-Requires: smartmet-library-grid-files >= 26.2.4
+Requires: smartmet-library-grid-files >= 26.3.18
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Mar 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.3.18-1.fmi
+- Improved failure handling (https://jira.fmi.fi/browse/BRAINSTORM-2998)
+
 * Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-4.fmi
 - Replace non standard HTTP statuscodes with standard ones
 
