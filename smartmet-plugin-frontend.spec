@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.3.13
-Release: 4%{?dist}.fmi
+Version: 26.4.13
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -23,22 +23,22 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 26.2.4
-BuildRequires: smartmet-library-spine-devel >= 26.3.13
-BuildRequires: smartmet-library-grid-files-devel >= 26.2.4
-BuildRequires: smartmet-engine-sputnik-devel >= 26.2.4
+BuildRequires: smartmet-library-timeseries-devel >= 26.4.13
+BuildRequires: smartmet-library-spine-devel >= 26.4.13
+BuildRequires: smartmet-library-grid-files-devel >= 26.4.13
+BuildRequires: smartmet-engine-sputnik-devel >= 26.4.13
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.2.4
+BuildRequires: smartmet-library-macgyver-devel >= 26.4.13
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.2.4
-Requires: smartmet-server >= 26.2.4
-Requires: smartmet-engine-sputnik >= 26.2.4
-Requires: smartmet-library-spine >= 26.3.13
-Requires: smartmet-library-timeseries >= 26.2.4
-Requires: smartmet-library-grid-files >= 26.2.4
+Requires: smartmet-library-macgyver >= 26.4.13
+Requires: smartmet-server >= 26.4.13
+Requires: smartmet-engine-sputnik >= 26.4.13
+Requires: smartmet-library-spine >= 26.4.13
+Requires: smartmet-library-timeseries >= 26.4.13
+Requires: smartmet-library-grid-files >= 26.4.13
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -52,11 +52,11 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.2.4
-#TestRequires: smartmet-library-spine-devel >= 26.3.13
-#TestRequires: smartmet-library-spine >= 26.3.13
-#TestRequires: smartmet-server >= 26.3.9
-#TestRequires: smartmet-engine-sputnik >= 26.3.9
+#TestRequires: smartmet-library-macgyver-devel >= 26.4.13
+#TestRequires: smartmet-library-spine-devel >= 26.4.13
+#TestRequires: smartmet-library-spine >= 26.4.13
+#TestRequires: smartmet-server >= 26.4.13
+#TestRequires: smartmet-engine-sputnik >= 26.4.13
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.4.13-1.fmi
+- Repackaged due to API changes
+
 * Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-4.fmi
 - Replace non standard HTTP statuscodes with standard ones
 
