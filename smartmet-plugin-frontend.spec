@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.4.13
+Version: 26.4.17
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -25,7 +25,7 @@ BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.4.13
 BuildRequires: smartmet-library-spine-devel >= 26.4.13
-BuildRequires: smartmet-library-grid-files-devel >= 26.4.13
+BuildRequires: smartmet-library-grid-files-devel >= 26.4.17
 BuildRequires: smartmet-engine-sputnik-devel >= 26.4.13
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
@@ -38,7 +38,7 @@ Requires: smartmet-server >= 26.4.13
 Requires: smartmet-engine-sputnik >= 26.4.13
 Requires: smartmet-library-spine >= 26.4.13
 Requires: smartmet-library-timeseries >= 26.4.13
-Requires: smartmet-library-grid-files >= 26.4.13
+Requires: smartmet-library-grid-files >= 26.4.17
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Apr 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.4.17-1.fmi
+- Repackaged due to API changes
+
 * Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.4.13-1.fmi
 - Repackaged due to API changes
 
