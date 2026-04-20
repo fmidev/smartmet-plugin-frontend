@@ -135,9 +135,9 @@ try
         id_mapping.emplace_back(std::make_pair(fmt::format("{}:{}", host, port), id));
         multi_query.add_query(id, host, std::to_string(port), request_str);
 
-        std::cout << "Frontend::getBackendMessages: sending backend info request to "
-                  << host << ":" << port << " for '" << ri.what << "'" << std::endl;
-        std::cout << request_str << std::endl;
+        //std::cout << "Frontend::getBackendMessages: sending backend info request to "
+        //          << host << ":" << port << " for '" << ri.what << "'" << std::endl;
+        //std::cout << request_str << std::endl;
     }
 
     multi_query.execute();

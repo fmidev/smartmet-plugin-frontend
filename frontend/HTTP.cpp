@@ -2,7 +2,6 @@
 #include "Proxy.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/make_shared.hpp>
-#include <memory>
 #include <engines/sputnik/Engine.h>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
@@ -11,6 +10,7 @@
 #include <spine/Convenience.h>
 #include <spine/Reactor.h>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 namespace ba = boost::algorithm;
@@ -91,6 +91,17 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                theHost->Name(),
                                theHost->Port())
                 << std::endl;
+
+      // Respond Not Modified if possible to minimize damage. Note that the query is
+      // not sent to another backend just in case the query caused the backend to crash.
+
+      auto if_none_match = theRequest.getHeader("If-None-Match");
+      auto if_modified_since = theRequest.getHeader("If-Modified-Since");
+      if (if_none_match || if_modified_since)
+      {
+        theResponse.setStatus(Spine::HTTP::Status::not_modified);
+        return Proxy::ProxyStatus::PROXY_SUCCESS;
+      }
 
       return Proxy::ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
@@ -240,10 +251,11 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 
     // Start the "Catcher in the Rye" process in SmartMet core
     // Logging is controlled by Reactor. Just give a name for the access log to be created.
-    theReactor->setNoMatchHandler(
-      [this](Spine::Reactor &theReactor, const Spine::HTTP::Request &theRequest, Spine::HTTP::Response &theResponse)
+    theReactor->setNoMatchHandler([this](Spine::Reactor &theReactor,
+                                         const Spine::HTTP::Request &theRequest,
+                                         Spine::HTTP::Response &theResponse)
                                   { requestHandler(theReactor, theRequest, theResponse); },
-      std::optional<std::string>("frontend"));
+                                  std::optional<std::string>("frontend"));
 
     // Get hold of the reactor pointer
     this->itsReactor = theReactor;

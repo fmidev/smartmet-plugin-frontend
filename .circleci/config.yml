@@ -39,6 +39,10 @@ jobs:
       - store_artifacts:
           path: /dist
           destination: dist/
+      - store_artifacts:
+          path: test/log
+          destination: log/
+          when: on_fail
   upload-rhel8:
     docker:
       - image: fmidev/smartmet-cibase-8:latest
@@ -96,6 +100,10 @@ jobs:
       - store_artifacts:
           path: /dist
           destination: dist/
+      - store_artifacts:
+          path: test/log
+          destination: log/
+          when: on_fail
   upload-rhel10:
     docker:
       # No need to use smartmet-cibase-10

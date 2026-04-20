@@ -110,6 +110,9 @@ rm -rf $RPM_BUILD_ROOT
 * Mon Apr 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.4.13-1.fmi
 - Repackaged due to API changes
 
+* Wed Mar 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.3.18-1.fmi
+- Improved failure handling (https://jira.fmi.fi/browse/BRAINSTORM-2998)
+
 * Fri Mar 13 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.3.13-4.fmi
 - Replace non standard HTTP statuscodes with standard ones
 
