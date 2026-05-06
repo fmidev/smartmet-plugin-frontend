@@ -1,0 +1,173 @@
+#
+# aviengine's configuration 
+#
+
+postgis:
+{
+	host		= "smartmet-test";
+	port		= 5444;
+	database	= "avi";
+	username	= "avi_user";
+	password	= "avi_pw";
+	encoding	= "UTF8";
+};
+
+message:
+{
+							# Note: 'maxstations' and 'maxrows' limits can be overridden (with values >= 0) when querying data
+							#
+	maxstations	 = 0;		# max number of stations allowed in message query; if missing or <= 0, unlimited; if exceeded, an error is thrown
+	maxrows		 = 0;		# max number of messages fetched; if missing or <= 0, unlimited; if exceeded, an error is thrown
+
+										# offsets expanding the message_time range to include messages that can be valid at/within
+										# the time instant/range requested
+										#
+	recordsetstarttimeoffsethours = 30;	# include messages upto message_time n hours backwards from observation time / time range start time
+	recordsetendtimeoffsethours = 12;	# include messages upto message_time n hours forwards from observation time / time range end time
+
+	# Filtering of finnish METARs; if enabled, by default returning finnish METARs only when they are LIKE "METAR%".
+	# Stations can be excluded from filtering by their icao code
+
+	filter_FI_METARxxx =
+	{
+		filter = true;
+		excludeicaos = ["EFHF","EFUT"];
+	};
+
+	types =
+	(
+		#
+		# Message type names:
+		#
+		#	If multiple names are given, latest message for the group is returned.
+		#
+		#	name = "type";
+		#	names = [ "type1", "type2", ... ];
+		#
+		# Query time range selection:
+		#
+		# 	timerangetype = "validtime"; 		using valid_from and valid_to columns
+		# 	timerangetype = "messagevalidtime";	using message_time and valid_to column, or if valid_from and valid_to are NULLs,
+		#										message_time column and range length (hours forwards) if given with 'validityhours' setting
+		# 	timerangetype = "messagetime";		using message_time column and range length (hours forwards) given with 'validityhours' setting
+		# 	timerangetype = "creationtime";		using creation_time and valid_to columns
+		#
+		# Query latest or all valid messages:
+		#
+		#	latestmessage = true;			return the latest message for each type or group
+		#	latestmessage = false;			return all valid messages
+		#
+		#									Note: when timerangetype=messagetime and latestmessage=true, querying the latest valid
+		#										  (i.e. when [message_time,message_time+validityhours] range overlaps the given time range)
+		#										  message having message_time earlier than range starttime in addition to all messages
+		#										  having starttime <= message_time < endtime
+		#
+		# Additional message grouping with messir_heading LIKE patterns when querying latest messages:
+		#
+		#	messirpatterns = [ "pattern1", "pattern2", ... ];
+		#
+		{
+			names = [ "METAR","SPECI" ];
+			timerangetype = "messagetime";
+			validityhours = 2;
+			latestmessage = true;
+		},
+		{
+			name = "AWSMETAR";
+			timerangetype = "messagetime";
+			validityhours = 2;
+			latestmessage = true;
+		},
+		{
+			name = "TAF";
+			timerangetype = "messagevalidtime";
+			validityhours = 4;					# 'NIL' messages have no valid from/to; use message_time - message_time+'validityhours' time range
+			latestmessage = true;
+                        queryrestrictionhours = [ 2,5,8,11,14,17,20,23 ];       # BRAINSTORM-2239
+                        queryrestrictioncountrycodes = [ "FI" ];
+                        queryrestrictionstartminute = 20;
+                        queryrestrictionendminute = 40;
+		},
+		{
+            # Space Weather warning messages
+			names = [ "SWX" ];
+			timerangetype = "validtime";
+			latestmessage = true;
+			scope         = "global";
+		},
+		{
+			names = [ "METREP","SPECIAL" ];
+			timerangetype = "messagetime";
+			validityhours = 2;
+			latestmessage = true;
+		},
+		{
+			name = "ARS";
+			timerangetype = "messagetime";
+			validityhours = 2;
+			latestmessage = false;
+			scope         = "fir";
+		},
+		{
+			name = "WXREP";
+			timerangetype = "messagetime";
+			validityhours = 2;
+			latestmessage = false;
+			scope         = "fir";
+		},
+		{
+			name = "WRNG";
+			timerangetype = "messagetime";
+			validityhours = 2;
+			latestmessage = false;
+		},
+		{
+			name = "SIGMET";
+			timerangetype = "creationtime";
+			latestmessage = false;
+			scope         = "fir";
+		},
+		{
+			name = "VA-SIGMET";
+			timerangetype = "creationtime";
+			latestmessage = false;
+		},
+		{
+			name = "GAFOR";
+			timerangetype = "creationtime";
+			latestmessage = true;
+			messirpatterns = [ "FBFI41%","FBFI42%","FBFI43%" ];
+		},
+		{
+			name = "LOWWIND";
+			timerangetype = "messagetime";
+			validityhours = 4;
+			latestmessage = true;
+		},
+		{
+			name = "VAA";
+			timerangetype = "messagetime";
+			validityhours = 6;
+			latestmessage = false;
+			scope         = "global";
+		},
+		{
+			name = "TCA";
+			timerangetype = "messagetime";
+			validityhours = 6;
+			latestmessage = false;
+			scope         = "global";
+		},
+		{
+			name = "AIRMET";
+			timerangetype = "validtime";
+			latestmessage = false;
+			scope         = "fir";
+		}
+	);
+
+	# When querying rejected messages for given time range, selecting messages where
+	#
+	#	(message.created >= start time AND message.created < end time)
+	#
+}
