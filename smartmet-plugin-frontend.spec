@@ -61,7 +61,8 @@ Requires(postun): systemd
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
 #TestRequires: smartmet-engine-observation
-#TestRequires: smartmet-plugin-timeseries
+#TestRequires: smartmet-engine-avi
+#TestRequires: smartmet-plugin-edr
 #TestRequires: smartmet-plugin-backend
 #TestRequires: smartmet-plugin-frontend
 #TestRequires: smartmet-test-data
