@@ -3,19 +3,17 @@ REQUIRES = configpp
 
 include $(shell echo $${PREFIX-/usr})/share/smartmet/devel/makefile.inc
 
-TEST_PREPARE_TARGETS := cnf/engines/geonames.conf cnf/engines/gis.conf
+TEST_PREPARE_TARGETS := cnf/engines/geonames.conf cnf/engines/gis.conf cnf/engines/avi.conf
 TEST_FINISH_TARGETS := dummy
 
 TEST_DB_DIR := $(shell pwd)/tmp-geonames-db
 
-GEONAMES_CONF_IN ?= cnf/engines/geonames.conf.in
-
 ifdef CI
-GEONAMES_HOST_EDIT := sed -e 's|"smartmet-test"|"$(TEST_DB_DIR)"|g'
+DB_HOST_EDIT := sed -e 's|"smartmet-test"|"$(TEST_DB_DIR)"|g'
 TEST_PREPARE_TARGETS += start-geonames-db
 TEST_FINISH_TARGETS += stop-test-db
 else
-GEONAMES_HOST_EDIT := cat
+DB_HOST_EDIT := cat
 endif
 
 TEST_TARGETS += \
@@ -78,10 +76,13 @@ stop-test-db:
 	-if test -d $(TEST_DB_DIR) ; then /usr/share/smartmet/test/db/test-db-ctl.sh $(TEST_DB_DIR) stop ; fi
 
 cnf/engines/geonames.conf:
-	$(GEONAMES_HOST_EDIT) <$(GEONAMES_CONF_IN) >$@
+	$(DB_HOST_EDIT) <$@.in >$@
 
 cnf/engines/gis.conf:
-	$(GEONAMES_HOST_EDIT) $@.in >$@
+	$(DB_HOST_EDIT) <$@.in >$@
+
+cnf/engines/avi.conf:
+	$(DB_HOST_EDIT) <$@.in >$@
 
 dummy:
 
@@ -89,4 +90,4 @@ obj/%.o: %.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
-.PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf dummy prepare-tests
+.PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf cnf/engines/avi.conf dummy prepare-tests
