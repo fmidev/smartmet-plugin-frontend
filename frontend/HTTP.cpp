@@ -249,14 +249,6 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     // Start Sputnik in frontend mode with call-back function
     itsSputnikProcess->launch(Engine::Sputnik::Frontend, theReactor);
 
-    // Start the "Catcher in the Rye" process in SmartMet core
-    // Logging is controlled by Reactor. Just give a name for the access log to be created.
-    theReactor->setNoMatchHandler([this](Spine::Reactor &theReactor,
-                                         const Spine::HTTP::Request &theRequest,
-                                         Spine::HTTP::Response &theResponse)
-                                  { requestHandler(theReactor, theRequest, theResponse); },
-                                  std::optional<std::string>("frontend"));
-
     // Get hold of the reactor pointer
     this->itsReactor = theReactor;
 
@@ -327,6 +319,16 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
                              std::filesystem::path(uncomFilesystemCachePath),
                              backendThreadCount,
                              backendTimeoutInSeconds);
+
+    // Start the "Catcher in the Rye" process in SmartMet core. Must be registered only
+    // after itsProxy is fully constructed: the handler dereferences itsProxy, and the
+    // reactor may dispatch requests as soon as the handler is installed.
+    // Logging is controlled by Reactor. Just give a name for the access log to be created.
+    theReactor->setNoMatchHandler([this](Spine::Reactor &theReactor,
+                                         const Spine::HTTP::Request &theRequest,
+                                         Spine::HTTP::Response &theResponse)
+                                  { requestHandler(theReactor, theRequest, theResponse); },
+                                  std::optional<std::string>("frontend"));
   }
   catch (...)
   {
