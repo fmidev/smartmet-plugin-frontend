@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.5.27
+Version: 26.6.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -26,16 +26,16 @@ BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
 BuildRequires: smartmet-library-spine-devel >= 26.4.27
 BuildRequires: smartmet-library-grid-files-devel >= 26.5.26
-BuildRequires: smartmet-engine-sputnik-devel >= 26.4.13
+BuildRequires: smartmet-engine-sputnik-devel >= 26.5.27
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.5.21
+BuildRequires: smartmet-library-macgyver-devel >= 26.6.2
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.5.21
+Requires: smartmet-library-macgyver >= 26.6.2
 Requires: smartmet-server >= 26.4.16
-Requires: smartmet-engine-sputnik >= 26.4.13
+Requires: smartmet-engine-sputnik >= 26.5.27
 Requires: smartmet-library-spine >= 26.4.27
 Requires: smartmet-library-timeseries >= 26.5.5
 Requires: smartmet-library-grid-files >= 26.5.26
@@ -52,11 +52,11 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.5.21
+#TestRequires: smartmet-library-macgyver-devel >= 26.6.2
 #TestRequires: smartmet-library-spine-devel >= 26.4.27
 #TestRequires: smartmet-library-spine >= 26.4.27
 #TestRequires: smartmet-server >= 26.4.16
-#TestRequires: smartmet-engine-sputnik >= 26.4.13
+#TestRequires: smartmet-engine-sputnik >= 26.5.27
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -105,6 +105,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Jun  8 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.8-1.fmi
+- Repackaged since Sputnik load balancer API changed
+
 * Wed May 27 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.27-1.fmi
 - Repackaged since Sputnik load balancer API changed
 
