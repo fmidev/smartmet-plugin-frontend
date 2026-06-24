@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.6.15
+Version: 26.6.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -24,21 +24,21 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
-BuildRequires: smartmet-library-spine-devel >= 26.6.9
-BuildRequires: smartmet-library-grid-files-devel >= 26.6.15
-BuildRequires: smartmet-engine-sputnik-devel >= 26.5.27
+BuildRequires: smartmet-library-spine-devel >= 26.6.24
+BuildRequires: smartmet-library-grid-files-devel >= 26.6.24
+BuildRequires: smartmet-engine-sputnik-devel >= 26.6.24
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.6.6
+BuildRequires: smartmet-library-macgyver-devel >= 26.6.15
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.6.6
-Requires: smartmet-server >= 26.4.16
-Requires: smartmet-engine-sputnik >= 26.5.27
-Requires: smartmet-library-spine >= 26.6.9
+Requires: smartmet-library-macgyver >= 26.6.15
+Requires: smartmet-server >= 26.6.24
+Requires: smartmet-engine-sputnik >= 26.6.24
+Requires: smartmet-library-spine >= 26.6.24
 Requires: smartmet-library-timeseries >= 26.5.5
-Requires: smartmet-library-grid-files >= 26.6.15
+Requires: smartmet-library-grid-files >= 26.6.24
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -52,11 +52,11 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.6.6
-#TestRequires: smartmet-library-spine-devel >= 26.6.9
-#TestRequires: smartmet-library-spine >= 26.6.9
-#TestRequires: smartmet-server >= 26.4.16
-#TestRequires: smartmet-engine-sputnik >= 26.5.27
+#TestRequires: smartmet-library-macgyver-devel >= 26.6.15
+#TestRequires: smartmet-library-spine-devel >= 26.6.24
+#TestRequires: smartmet-library-spine >= 26.6.24
+#TestRequires: smartmet-server >= 26.6.24
+#TestRequires: smartmet-engine-sputnik >= 26.6.24
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -105,6 +105,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Jun 24 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.24-1.fmi
+- Mass rebuild
+
 * Mon Jun 15 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.6.15-1.fmi
 - Repackaged due to ABI changes
 
