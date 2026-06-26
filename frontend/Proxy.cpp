@@ -5,6 +5,7 @@
 #include <boost/thread.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
+#include <macgyver/ThreadName.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
 #include <iostream>
@@ -96,7 +97,12 @@ Proxy::Proxy(Proxy::Private,
     for (int i = 0; i < theBackendThreadCount; ++i)
     {
       // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-      itsBackendThreads.add_thread(new boost::thread([this]() { this->backendIoService.run(); }));
+      itsBackendThreads.add_thread(new boost::thread(
+          [this, i]()
+          {
+            Fmi::set_thread_name(fmt::format("front-be-{}", i + 1));
+            this->backendIoService.run();
+          }));
     }
   }
   catch (...)
