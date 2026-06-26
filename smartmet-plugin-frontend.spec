@@ -30,10 +30,10 @@ BuildRequires: smartmet-engine-sputnik-devel >= 26.6.24
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.6.15
+BuildRequires: smartmet-library-macgyver-devel >= 26.6.26
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.6.15
+Requires: smartmet-library-macgyver >= 26.6.26
 Requires: smartmet-server >= 26.6.24
 Requires: smartmet-engine-sputnik >= 26.6.24
 Requires: smartmet-library-spine >= 26.6.24
@@ -52,7 +52,7 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.6.15
+#TestRequires: smartmet-library-macgyver-devel >= 26.6.26
 #TestRequires: smartmet-library-spine-devel >= 26.6.24
 #TestRequires: smartmet-library-spine >= 26.6.24
 #TestRequires: smartmet-server >= 26.6.24
