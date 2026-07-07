@@ -156,13 +156,30 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
     if (!metadata.access_control_allow_origin.empty())
       response.setHeader("Access-Control-Allow-Origin", metadata.access_control_allow_origin);
 
-    // If client sent If-Modified-Since or If-None-Match - headers, respond with Not Modified.
+    // Decide whether the client already holds the current representation and
+    // may be answered with "304 Not Modified" instead of the full body.
+    //
+    // ETagFilter evaluates the If-Match / If-None-Match request headers,
+    // supporting several entity-tags, the "*" wildcard and weak/strong
+    // comparison (RFC 7232). Per RFC 7232 the If-Modified-Since header MUST be
+    // ignored when If-None-Match is present, so it is only consulted when no
+    // entity-tag precondition was given.
+    //
+    // Note: the frontend cache is validated purely by ETag and keeps no
+    // Last-Modified timestamp, so the If-Modified-Since date itself cannot be
+    // compared. A cache hit means the requested ETag is the current one, so a
+    // bare If-Modified-Since request is honoured with "304 Not Modified".
 
-    auto if_none_match = originalRequest.getHeader("If-None-Match");
-    auto if_modified_since = originalRequest.getHeader("If-Modified-Since");
+    Spine::HTTP::ETagFilter etag_filter(originalRequest);
+
+    bool send_not_modified = false;
+    if (etag_filter.has_if_none_match())
+      send_not_modified = !etag_filter.full_response_required(metadata.etag);
+    else if (originalRequest.getHeader("If-Modified-Since"))
+      send_not_modified = true;
 
     // This block prepares the client response
-    if ((if_none_match && *if_none_match == metadata.etag) || if_modified_since)
+    if (send_not_modified)
     {
       response.setStatus(Spine::HTTP::Status::not_modified);
     }
