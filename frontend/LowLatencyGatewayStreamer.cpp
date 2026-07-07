@@ -156,36 +156,49 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
     if (!metadata.access_control_allow_origin.empty())
       response.setHeader("Access-Control-Allow-Origin", metadata.access_control_allow_origin);
 
+    // A cache hit means the ETag we hold is the current representation, so
+    // advertise it on every response (200 OK, 304 Not Modified and 412
+    // Precondition Failed alike). RFC 7232 requires the ETag to be present on
+    // a 304 response, and the current code omitted it there.
+    if (!metadata.etag.empty() && metadata.etag != "0")
+      response.setHeader("ETag", metadata.etag);
+
     // Decide whether the client already holds the current representation and
-    // may be answered with "304 Not Modified" instead of the full body.
+    // may be answered with "304 Not Modified", whether a conditional
+    // precondition failed and we must reply "412 Precondition Failed", or
+    // whether the full body has to be returned.
     //
-    // ETagFilter evaluates the If-Match / If-None-Match request headers,
-    // supporting several entity-tags, the "*" wildcard and weak/strong
-    // comparison (RFC 7232). Per RFC 7232 the If-Modified-Since header MUST be
-    // ignored when If-None-Match is present, so it is only consulted when no
-    // entity-tag precondition was given.
+    // ETagFilter::evaluate() interprets the If-Match / If-None-Match request
+    // headers (several entity-tags, the "*" wildcard, weak/strong comparison)
+    // and returns {full_response_required, suggested_status} per RFC 7232.
     //
-    // Note: the frontend cache is validated purely by ETag and keeps no
-    // Last-Modified timestamp, so the If-Modified-Since date itself cannot be
-    // compared. A cache hit means the requested ETag is the current one, so a
-    // bare If-Modified-Since request is honoured with "304 Not Modified".
+    // Per RFC 7232 the If-Modified-Since header MUST be ignored when an
+    // entity-tag precondition is present, so it is only consulted otherwise.
+    // The frontend cache is validated purely by ETag and keeps no
+    // Last-Modified timestamp, so the date itself cannot be compared: a cache
+    // hit means the requested ETag is the current one, so a bare
+    // If-Modified-Since request is honoured with "304 Not Modified".
 
     Spine::HTTP::ETagFilter etag_filter(originalRequest);
 
-    bool send_not_modified = false;
-    if (etag_filter.has_if_none_match())
-      send_not_modified = !etag_filter.full_response_required(metadata.etag);
-    else if (originalRequest.getHeader("If-Modified-Since"))
-      send_not_modified = true;
+    auto [full_response_required, suggested_status] = etag_filter.evaluate(metadata.etag);
+
+    if (full_response_required && !etag_filter.has_if_match() &&
+        !etag_filter.has_if_none_match() && originalRequest.getHeader("If-Modified-Since"))
+    {
+      full_response_required = false;
+      suggested_status = Spine::HTTP::Status::not_modified;
+    }
 
     // This block prepares the client response
-    if (send_not_modified)
+    if (!full_response_required)
     {
-      response.setStatus(Spine::HTTP::Status::not_modified);
+      // 304 Not Modified or 412 Precondition Failed: no body
+      response.setStatus(suggested_status);
     }
     else
     {
-      // No If-None_match, If-Modified-Since or ETag mismatched
+      // No matching precondition: return the full cached body
 
       response.setHeader("Content-Type", metadata.mime_type);
       if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
@@ -193,8 +206,6 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
       response.setHeader("Content-Length", std::to_string(cachedBuffer->size()));
 
       response.setHeader("X-Frontend-Cache-Hit", "true");
-      if (!metadata.etag.empty() && metadata.etag != "0")
-        response.setHeader("ETag", metadata.etag);
 
       response.setStatus(Spine::HTTP::Status::ok);
       response.setContent(cachedBuffer);
