@@ -74,18 +74,12 @@ BackendDenyReason parseBackendDenyReason(const std::string& responsePrefix)
 }  // namespace
 
 Proxy::Proxy(Proxy::Private,
-             std::size_t uncompressedMemoryCacheSize,
-             std::size_t uncompressedFilesystemCacheSize,
-             const std::filesystem::path& uncompressedFileCachePath,
-             std::size_t compressedMemoryCacheSize,
-             std::size_t compressedFilesystemCacheSize,
-             const std::filesystem::path& compressedFileCachePath,
+             std::size_t memoryCacheSize,
+             std::size_t filesystemCacheSize,
+             const std::filesystem::path& fileCachePath,
              int theBackendThreadCount,
              int theBackendTimeoutInSeconds)
-    : itsUncompressedResponseCache(
-          uncompressedMemoryCacheSize, uncompressedFilesystemCacheSize, uncompressedFileCachePath),
-      itsCompressedResponseCache(
-          compressedMemoryCacheSize, compressedFilesystemCacheSize, compressedFileCachePath),
+    : itsResponseCache(memoryCacheSize, filesystemCacheSize, fileCachePath),
       backendIoService(theBackendThreadCount),
       idler(backendIoService.get_executor()),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds)
@@ -112,43 +106,24 @@ Proxy::Proxy(Proxy::Private,
 }
 
 std::shared_ptr<Proxy>
-Proxy::create(std::size_t uncompressedMemoryCacheSize,
-        std::size_t uncompressedFilesystemCacheSize,
-        const std::filesystem::path& uncompressedFileCachePath,
-        std::size_t compressedMemoryCacheSize,
-        std::size_t compressedFilesystemCacheSize,
-        const std::filesystem::path& compressedFileCachePath,
+Proxy::create(std::size_t memoryCacheSize,
+        std::size_t filesystemCacheSize,
+        const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
         int theBackendTimeoutInSeconds)
 {
   return std::make_shared<Proxy>(
         Private(),
-        uncompressedMemoryCacheSize,
-        uncompressedFilesystemCacheSize,
-        uncompressedFileCachePath,
-        compressedMemoryCacheSize,
-        compressedFilesystemCacheSize,
-        compressedFileCachePath,
+        memoryCacheSize,
+        filesystemCacheSize,
+        fileCachePath,
         theBackendThreadCount,
         theBackendTimeoutInSeconds);
 }
 
-ResponseCache& Proxy::getCache(ResponseCache::ContentEncodingType type)
+ResponseCache& Proxy::getCache()
 {
-  try
-  {
-    switch (type)
-    {
-      case ResponseCache::ContentEncodingType::GZIP:
-        return itsCompressedResponseCache;
-      default:
-        return itsUncompressedResponseCache;
-    }
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
+  return itsResponseCache;
 }
 
 void Proxy::shutdown()

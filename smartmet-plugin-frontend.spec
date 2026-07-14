@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.7.8
+Version: 26.7.14
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -105,6 +105,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jul 14 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.7.14-1.fmi
+- Merged the separate compressed and uncompressed response caches into a single
+  response cache keyed by (ETag, content encoding). The 'compressed_cache' and
+  'uncompressed_cache' settings are deprecated; if no 'response_cache' block is
+  given their sizes are summed. This removes the gzip-specific cache dependency
+  and allows caching any content encoding.
+- Negotiate zstd in addition to gzip (preferring zstd) so zstd responses from
+  backends are cached and served correctly.
+
 * Wed Jul  8 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.7.8-1.fmi
 - Improve If-None-Match support and add If-Match support
 

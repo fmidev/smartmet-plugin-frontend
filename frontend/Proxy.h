@@ -36,22 +36,16 @@ class Proxy : public std::enable_shared_from_this<Proxy>
   };
 
   Proxy(Private,
-        std::size_t uncompressedMemoryCacheSize,
-        std::size_t uncompressedFilesystemCacheSize,
-        const std::filesystem::path& uncompressedFileCachePath,
-        std::size_t compressedMemoryCacheSize,
-        std::size_t compressedFilesystemCacheSize,
-        const std::filesystem::path& compressedFileCachePath,
+        std::size_t memoryCacheSize,
+        std::size_t filesystemCacheSize,
+        const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
         int theBackendTimeoutInSeconds);
 
   static std::shared_ptr<Proxy>
-  create(std::size_t uncompressedMemoryCacheSize,
-        std::size_t uncompressedFilesystemCacheSize,
-        const std::filesystem::path& uncompressedFileCachePath,
-        std::size_t compressedMemoryCacheSize,
-        std::size_t compressedFilesystemCacheSize,
-        const std::filesystem::path& compressedFileCachePath,
+  create(std::size_t memoryCacheSize,
+        std::size_t filesystemCacheSize,
+        const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
         int theBackendTimeoutInSeconds);
 
@@ -65,13 +59,14 @@ class Proxy : public std::enable_shared_from_this<Proxy>
                           const std::string& theBackendURI,
                           const std::string& theHostName);
 
-  ResponseCache& getCache(ResponseCache::ContentEncodingType type);
+  // Single response cache holding all content encodings (identity, gzip, zstd, ...),
+  // keyed internally by (ETag, encoding).
+  ResponseCache& getCache();
 
   void shutdown();
 
  private:
-  ResponseCache itsUncompressedResponseCache;
-  ResponseCache itsCompressedResponseCache;
+  ResponseCache itsResponseCache;
 
   boost::asio::io_context backendIoService;
   boost::asio::executor_work_guard<boost::asio::io_context::executor_type> idler;

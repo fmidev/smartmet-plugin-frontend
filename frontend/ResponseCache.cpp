@@ -12,10 +12,17 @@ ResponseCache::ResponseCache(std::size_t memoryCacheSize,
 {
 }
 
-std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData>
-ResponseCache::getCachedBuffer(const std::string& etag)
+std::string ResponseCache::makeKey(const std::string& etag, const std::string& content_encoding)
 {
-  auto mdata = itsMetaDataCache.find(etag);
+  // The unit separator (0x1F) cannot appear in a valid HTTP ETag, so it is a safe
+  // delimiter between the ETag and the encoding token.
+  return etag + '\x1f' + content_encoding;
+}
+
+std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData>
+ResponseCache::getCachedBuffer(const std::string& etag, const std::string& content_encoding)
+{
+  auto mdata = itsMetaDataCache.find(makeKey(etag, content_encoding));
 
   if (mdata)
   {
@@ -35,7 +42,7 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
                                        const std::string& expires,
                                        const std::string& vary,
                                        const std::string& access_control_allow_origin,
-                                       ResponseCache::ContentEncodingType content_encoding,
+                                       const std::string& content_encoding,
                                        const std::shared_ptr<std::string>& buffer)
 {
   boost::hash<std::string> string_hash;
@@ -51,7 +58,7 @@ void ResponseCache::insertCachedBuffer(const std::string& etag,
   data.access_control_allow_origin = access_control_allow_origin;
   data.content_encoding = content_encoding;
 
-  itsMetaDataCache.insert(etag, data);
+  itsMetaDataCache.insert(makeKey(etag, content_encoding), data);
 
   itsBufferCache.insert(data.buffer_hash, buffer);
 }

@@ -10,12 +10,6 @@ namespace SmartMet
 class ResponseCache
 {
  public:
-  enum ContentEncodingType
-  {
-    NONE,
-    GZIP
-  };
-
   struct CachedResponseMetaData
   {
     std::size_t buffer_hash = 0UL;
@@ -25,15 +19,19 @@ class ResponseCache
     std::string expires;
     std::string vary;
     std::string access_control_allow_origin;
-    ContentEncodingType content_encoding;
+    // Content-Encoding of the cached buffer: "" (identity), "gzip", "zstd", ...
+    std::string content_encoding;
   };
 
   ResponseCache(std::size_t memoryCacheSize,
                 std::size_t filesystemCacheSize,
                 const std::filesystem::path& fileCachePath);
 
+  // Cache variants of the same resource (same ETag) but different Content-Encoding are
+  // stored side by side, keyed by (etag, content_encoding). An empty content_encoding
+  // means the identity (uncompressed) representation.
   std::pair<std::shared_ptr<std::string>, CachedResponseMetaData> getCachedBuffer(
-      const std::string& etag);
+      const std::string& etag, const std::string& content_encoding);
 
   void insertCachedBuffer(const std::string& etag,
                           const std::string& mime_type,
@@ -41,7 +39,7 @@ class ResponseCache
                           const std::string& expires,
                           const std::string& vary,
                           const std::string& access_control_allow_origin,
-                          ContentEncodingType content_encoding,
+                          const std::string& content_encoding,
                           const std::shared_ptr<std::string>& buffer);
 
   Fmi::Cache::CacheStats getMetaDataCacheStats() const { return itsMetaDataCache.statistics(); }
@@ -52,7 +50,11 @@ class ResponseCache
   Fmi::Cache::CacheStats getFileCacheStats() const { return itsBufferCache.getFileCacheStats(); }
 
  private:
-  // Cache ETag -> Bufferhash
+  // Metadata cache key combining the ETag and the content encoding, so that all
+  // encodings of a resource live in a single cache.
+  static std::string makeKey(const std::string& etag, const std::string& content_encoding);
+
+  // Cache (ETag, encoding) -> Bufferhash
   using MetaDataCache = Fmi::Cache::Cache<std::string, CachedResponseMetaData>;
 
   // Cache Bufferhash -> Buffer

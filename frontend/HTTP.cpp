@@ -253,14 +253,13 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     this->itsReactor = theReactor;
 
     libconfig::Config config;
+
+    // A single response cache holds all content encodings (identity, gzip, zstd, ...).
     unsigned long long memorySize = 0;
     unsigned long long filesystemSize = 0;
-    unsigned long long uncomMemorySize = 0;
-    unsigned long long uncomFilesystemSize = 0;
 
     // do not use nullptr here or path construction throws
     const char *filesystemCachePath = "";
-    const char *uncomFilesystemCachePath = "";
 
     int backendTimeoutInSeconds = 600;
     int backendThreadCount = 20;
@@ -275,23 +274,55 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.readFile(theConfig);
       Spine::expandVariables(config);
 
-      const char *comp_mem_bytes = "compressed_cache.memory_bytes";
-      const char *comp_file_bytes = "compressed_cache.filesystem_bytes";
-      const char *uncomp_mem_bytes = "uncompressed_cache.memory_bytes";
-      const char *uncomp_file_bytes = "uncompressed_cache.filesystem_bytes";
+      const char *mem_bytes = "response_cache.memory_bytes";
+      const char *file_bytes = "response_cache.filesystem_bytes";
 
-      config.lookupValue("compressed_cache.directory", filesystemCachePath);
-      if (config.exists(comp_mem_bytes))
-        memorySize = parse_size(config.lookup(comp_mem_bytes), comp_mem_bytes);
-      if (config.exists(comp_file_bytes))
-        filesystemSize = parse_size(config.lookup(comp_file_bytes), comp_file_bytes);
+      const bool has_new_cache_settings = config.exists(mem_bytes) || config.exists(file_bytes) ||
+                                          config.exists("response_cache.directory");
 
-      config.lookupValue("uncompressed_cache.directory", uncomFilesystemCachePath);
+      if (has_new_cache_settings)
+      {
+        // New unified configuration
+        config.lookupValue("response_cache.directory", filesystemCachePath);
+        if (config.exists(mem_bytes))
+          memorySize = parse_size(config.lookup(mem_bytes), mem_bytes);
+        if (config.exists(file_bytes))
+          filesystemSize = parse_size(config.lookup(file_bytes), file_bytes);
+      }
+      else
+      {
+        // Deprecated configuration: the compressed and uncompressed caches have been merged
+        // into a single response cache. Sum the legacy sizes and use the first directory given.
+        const char *comp_mem_bytes = "compressed_cache.memory_bytes";
+        const char *comp_file_bytes = "compressed_cache.filesystem_bytes";
+        const char *uncomp_mem_bytes = "uncompressed_cache.memory_bytes";
+        const char *uncomp_file_bytes = "uncompressed_cache.filesystem_bytes";
 
-      if (config.exists(uncomp_mem_bytes))
-        uncomMemorySize = parse_size(config.lookup(uncomp_mem_bytes), uncomp_mem_bytes);
-      if (config.exists(uncomp_file_bytes))
-        uncomFilesystemSize = parse_size(config.lookup(uncomp_file_bytes), uncomp_file_bytes);
+        const bool has_legacy_settings =
+            config.exists(comp_mem_bytes) || config.exists(comp_file_bytes) ||
+            config.exists(uncomp_mem_bytes) || config.exists(uncomp_file_bytes) ||
+            config.exists("compressed_cache.directory") ||
+            config.exists("uncompressed_cache.directory");
+
+        if (has_legacy_settings)
+          std::cout << "Warning: 'compressed_cache' and 'uncompressed_cache' are deprecated and "
+                       "have been merged into a single 'response_cache'. Summing the configured "
+                       "sizes; please migrate to a 'response_cache' block."
+                    << std::endl;
+
+        if (config.exists(comp_mem_bytes))
+          memorySize += parse_size(config.lookup(comp_mem_bytes), comp_mem_bytes);
+        if (config.exists(uncomp_mem_bytes))
+          memorySize += parse_size(config.lookup(uncomp_mem_bytes), uncomp_mem_bytes);
+        if (config.exists(comp_file_bytes))
+          filesystemSize += parse_size(config.lookup(comp_file_bytes), comp_file_bytes);
+        if (config.exists(uncomp_file_bytes))
+          filesystemSize += parse_size(config.lookup(uncomp_file_bytes), uncomp_file_bytes);
+
+        // Prefer the compressed cache directory, fall back to the uncompressed one.
+        if (!config.lookupValue("compressed_cache.directory", filesystemCachePath))
+          config.lookupValue("uncompressed_cache.directory", filesystemCachePath);
+      }
 
       config.lookupValue("backend.timeout", backendTimeoutInSeconds);
       config.lookupValue("backend.threads", backendThreadCount);
@@ -314,9 +345,6 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     itsProxy = Proxy::create(memorySize,
                              filesystemSize,
                              std::filesystem::path(filesystemCachePath),
-                             uncomMemorySize,
-                             uncomFilesystemSize,
-                             std::filesystem::path(uncomFilesystemCachePath),
                              backendThreadCount,
                              backendTimeoutInSeconds);
 

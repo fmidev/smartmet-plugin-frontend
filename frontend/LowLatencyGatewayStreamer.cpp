@@ -39,41 +39,28 @@ std::string makeDateString()
   }
 }
 
-std::string contentEnumToString(ResponseCache::ContentEncodingType type)
-{
-  try
-  {
-    switch (type)
-    {
-      case ResponseCache::ContentEncodingType::GZIP:
-        return "gzip";
-      case ResponseCache::ContentEncodingType::NONE:
-      default:
-        return "";
-    }
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-// Return the most applicable content encoding for this request
-ResponseCache::ContentEncodingType clientAcceptsContentEncoding(const Spine::HTTP::Request& request)
+// Return the content encoding to serve for this request, as a Content-Encoding token
+// ("gzip", "zstd", ...) or "" for the identity (uncompressed) representation.
+std::string clientAcceptsContentEncoding(const Spine::HTTP::Request& request)
 {
   try
   {
     auto accept_encoding = request.getHeader("Accept-Encoding");
     if (accept_encoding)
     {
+      // Mirror the backend's preference order (see Server::select_content_encoding):
+      // prefer zstd, fall back to gzip, so the cached variant matches what the backend produced.
+      if (boost::algorithm::contains(*accept_encoding, "zstd"))
+        return "zstd";
+
       if (*accept_encoding == "*")
-        return ResponseCache::ContentEncodingType::GZIP;  // Accepts everything, send zipped
+        return "gzip";  // Accepts everything, send zipped
 
       if (boost::algorithm::contains(*accept_encoding, "gzip"))
-        return ResponseCache::ContentEncodingType::GZIP;
-      return ResponseCache::ContentEncodingType::NONE;
+        return "gzip";
+      return "";
     }
-    return ResponseCache::ContentEncodingType::NONE;
+    return "";
   }
   catch (...)
   {
@@ -107,10 +94,15 @@ ResponseCache::CachedResponseMetaData build_metadata(const Spine::HTTP::Response
   if (access_control_allow_origin)
     meta.access_control_allow_origin = *access_control_allow_origin;
 
-  meta.content_encoding = ResponseCache::ContentEncodingType::NONE;
+  // Store the backend's Content-Encoding verbatim (lowercased/trimmed) so any codec
+  // can be cached; an empty value means the identity representation.
   auto content_encoding = response.getHeader("Content-Encoding");
-  if (content_encoding && boost::algorithm::contains(*content_encoding, "gzip"))
-    meta.content_encoding = ResponseCache::ContentEncodingType::GZIP;
+  if (content_encoding)
+  {
+    meta.content_encoding = *content_encoding;
+    boost::algorithm::to_lower(meta.content_encoding);
+    boost::algorithm::trim(meta.content_encoding);
+  }
 
   return meta;
 }
@@ -201,8 +193,8 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
       // No matching precondition: return the full cached body
 
       response.setHeader("Content-Type", metadata.mime_type);
-      if (metadata.content_encoding != ResponseCache::ContentEncodingType::NONE)
-        response.setHeader("Content-Encoding", contentEnumToString(metadata.content_encoding));
+      if (!metadata.content_encoding.empty())
+        response.setHeader("Content-Encoding", metadata.content_encoding);
       response.setHeader("Content-Length", std::to_string(cachedBuffer->size()));
 
       response.setHeader("X-Frontend-Cache-Hit", "true");
@@ -519,24 +511,17 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
         {
           std::string etag = *etagHeader;
 
-          // See if we should send content-encoded response
+          // See if we should send a content-encoded response
           auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
 
-          std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
+          auto& cache = itsProxy->getCache();
 
-          // Try compressed cache first if allowed
-          if (accepted_content_type == ResponseCache::ContentEncodingType::GZIP)
-          {
-            auto& c_cache = itsProxy->getCache(ResponseCache::ContentEncodingType::GZIP);
-            result = c_cache.getCachedBuffer(etag);
-          }
+          // Try the client's preferred encoding first
+          auto result = cache.getCachedBuffer(etag, accepted_content_type);
 
-          // Next try uncompressed cache if we found no compressed match
-          if (!result.first)
-          {
-            auto& u_cache = itsProxy->getCache(ResponseCache::ContentEncodingType::NONE);
-            result = u_cache.getCachedBuffer(etag);
-          }
+          // Fall back to the identity (uncompressed) representation if there is no encoded match
+          if (!result.first && !accepted_content_type.empty())
+            result = cache.getCachedBuffer(etag, "");
 
           if (!result.first)
           {
@@ -873,7 +858,7 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
       {
         // Non-empty and cacheable string. Cache it
 
-        auto& cache = itsProxy->getCache(itsBackendMetadata.content_encoding);
+        auto& cache = itsProxy->getCache();
         cache.insertCachedBuffer(itsBackendMetadata.etag,
                                  itsBackendMetadata.mime_type,
                                  itsBackendMetadata.cache_control,

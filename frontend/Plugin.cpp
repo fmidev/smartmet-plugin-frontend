@@ -859,24 +859,14 @@ Fmi::Cache::CacheStatistics Plugin::getCacheStats() const
 {
   Fmi::Cache::CacheStatistics ret;
 
-  const ResponseCache &compressed_cache =
-      itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::GZIP);
-  const ResponseCache &uncompressed_cache =
-      itsHTTP->getProxy()->getCache(ResponseCache::ContentEncodingType::NONE);
+  const ResponseCache &response_cache = itsHTTP->getProxy()->getCache();
 
-  ret.insert(std::make_pair("Frontend::compressed_response_cache::meta_data_cache",
-                            compressed_cache.getMetaDataCacheStats()));
-  ret.insert(std::make_pair("Frontend::compressed_response_cache::memory_cache",
-                            compressed_cache.getMemoryCacheStats()));
-  ret.insert(std::make_pair("Frontend::compressed_response_cache::file_cache",
-                            compressed_cache.getFileCacheStats()));
-
-  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::meta_data_cache",
-                            uncompressed_cache.getMetaDataCacheStats()));
-  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::memory_cache",
-                            uncompressed_cache.getMemoryCacheStats()));
-  ret.insert(std::make_pair("Frontend::uncompressed_response_cache::file_cache",
-                            uncompressed_cache.getFileCacheStats()));
+  ret.insert(std::make_pair("Frontend::response_cache::meta_data_cache",
+                            response_cache.getMetaDataCacheStats()));
+  ret.insert(std::make_pair("Frontend::response_cache::memory_cache",
+                            response_cache.getMemoryCacheStats()));
+  ret.insert(std::make_pair("Frontend::response_cache::file_cache",
+                            response_cache.getFileCacheStats()));
 
   return ret;
 }

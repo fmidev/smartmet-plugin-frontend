@@ -1,19 +1,19 @@
 #Activated filter list
 filters = ["frontend","pointforecast","autocomplete"];
 
-#Cache definitions
-compressed_cache =
+# Cache definition
+#
+# A single response cache holds all content encodings (identity, gzip, zstd, ...),
+# keyed internally by (ETag, encoding).
+#
+# The former separate 'compressed_cache' and 'uncompressed_cache' blocks are deprecated
+# but still honoured: if no 'response_cache' block is present, their sizes are summed and
+# the first configured directory is used.
+response_cache =
 {
-        memory_bytes            = 53687091200L; # 50 GB                                                                                                                                                                                                                                       
-        filesystem_bytes        = 107374182400L; # 100 GB                                                                                                                                                                                                                                       
-        directory               = "/smartmet/cache/frontend-compressed-cache";
-};
-
-uncompressed_cache =
-{
-        memory_bytes            = 53687091200L; # 50 GB                                                                                                                                                                                                                                       
-        filesystem_bytes        = 107374182400L; # 100 GB                                                                                                                                                                                                                                       
-        directory               = "/smartmet/cache/frontend-uncompressed-cache";
+        memory_bytes            = 107374182400L; # 100 GB
+        filesystem_bytes        = 214748364800L; # 200 GB
+        directory               = "/smartmet/cache/frontend-response-cache";
 };
 
 
