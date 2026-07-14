@@ -24,21 +24,21 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
-BuildRequires: smartmet-library-spine-devel >= 26.7.7
-BuildRequires: smartmet-library-grid-files-devel >= 26.6.24
-BuildRequires: smartmet-engine-sputnik-devel >= 26.6.24
+BuildRequires: smartmet-library-spine-devel >= 26.7.14
+BuildRequires: smartmet-library-grid-files-devel >= 26.7.14
+BuildRequires: smartmet-engine-sputnik-devel >= 26.6.26
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.6.26
+BuildRequires: smartmet-library-macgyver-devel >= 26.7.9
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.6.26
-Requires: smartmet-server >= 26.6.24
-Requires: smartmet-engine-sputnik >= 26.6.24
-Requires: smartmet-library-spine >= 26.7.7
+Requires: smartmet-library-macgyver >= 26.7.9
+Requires: smartmet-server >= 26.7.14
+Requires: smartmet-engine-sputnik >= 26.6.26
+Requires: smartmet-library-spine >= 26.7.14
 Requires: smartmet-library-timeseries >= 26.5.5
-Requires: smartmet-library-grid-files >= 26.6.24
+Requires: smartmet-library-grid-files >= 26.7.14
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -52,11 +52,11 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.6.26
-#TestRequires: smartmet-library-spine-devel >= 26.7.7
-#TestRequires: smartmet-library-spine >= 26.7.7
-#TestRequires: smartmet-server >= 26.6.24
-#TestRequires: smartmet-engine-sputnik >= 26.6.24
+#TestRequires: smartmet-library-macgyver-devel >= 26.7.9
+#TestRequires: smartmet-library-spine-devel >= 26.7.14
+#TestRequires: smartmet-library-spine >= 26.7.14
+#TestRequires: smartmet-server >= 26.7.14
+#TestRequires: smartmet-engine-sputnik >= 26.6.26
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
