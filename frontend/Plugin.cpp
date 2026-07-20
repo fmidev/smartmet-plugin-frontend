@@ -4,6 +4,11 @@
  */
 // ======================================================================
 
+// Needed for dladdr(); g++ normally predefines this, the guard is just in case.
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
 #include "Plugin.h"
 #include "HTTP.h"
 #include "info/BackendInfoRequests.h"
@@ -30,11 +35,44 @@
 #include <spine/TableFormatterOptions.h>
 #include <spine/TcpMultiQuery.h>
 #include <timeseries/ParameterFactory.h>
+#include <dlfcn.h>
 #include <random>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
+namespace
+{
+// Keep this plugin's shared library mapped for the whole process lifetime.
+//
+// The HTTP server holds shared_ptrs to plugin-created ContentStreamer objects
+// (LowLatencyGatewayStreamer) inside its connection and thread-pool machinery. Under a
+// shutdown that races with in-flight streaming, a streaming request's task can be left
+// orphaned in a server executor queue that no longer has workers to run it; the server
+// tears that queue down only when the process exits - by which point the Reactor has
+// already dlclose()'d this plugin. Destroying such a streamer then would execute this
+// library's code (the streamer destructor and its vtable) from an unmapped segment and
+// crash. Promoting the library to RTLD_NODELETE makes dlclose() keep it mapped, so that
+// late teardown is harmless. The Proxy stays alive too, since each live streamer holds a
+// shared_ptr to it.
+//
+// This is a safety net for the residual race the plugin cannot otherwise reach; the
+// graceful drain/abort in Proxy::shutdown() still handles the common cases by releasing
+// streamers while the library is loaded.
+void pin_this_library_in_memory()
+{
+  Dl_info info;
+  if (dladdr(reinterpret_cast<void*>(&pin_this_library_in_memory), &info) != 0 &&
+      info.dli_fname != nullptr)
+  {
+    // Intentionally leak the handle: the point is to keep the library resident.
+    // NOLINTNEXTLINE(clang-analyzer-unix.Malloc)
+    void* handle = dlopen(info.dli_fname, RTLD_NOLOAD | RTLD_NODELETE | RTLD_LAZY);
+    (void)handle;
+  }
+}
+}  // namespace
 
 namespace SmartMet
 {
@@ -590,6 +628,11 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
 {
   try
   {
+    // Keep this library mapped for the process lifetime; the server may destroy a
+    // plugin-created response streamer after we have been dlclose()'d (see comment on
+    // pin_this_library_in_memory).
+    pin_this_library_in_memory();
+
     if (theReactor->getRequiredAPIVersion() != SMARTMET_API_VERSION)
       throw Fmi::Exception(BCP, "Frontend and Server API version mismatch");
 
