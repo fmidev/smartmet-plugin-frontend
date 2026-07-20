@@ -54,6 +54,12 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   std::string getChunk() override;
   virtual std::string getPeekString(int pos, int len);
 
+  // Forcibly fail this stream. Called by Proxy::shutdown() once a still-running stream
+  // has outlived its shutdown grace period, so the client gets a prompt error and the
+  // stream's destructor (and its shared_ptr<Proxy>) is released in time for shutdown to
+  // complete rather than being SIGKILLed mid-transfer.
+  void abortForShutdown();
+
  private:
   using DeadlineTimer = boost::asio::basic_waitable_timer<std::chrono::steady_clock>;
 

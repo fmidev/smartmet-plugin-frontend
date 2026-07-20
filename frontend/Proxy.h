@@ -2,11 +2,14 @@
 
 #include "ResponseCache.h"
 
+#include <atomic>
 #include <boost/asio.hpp>
 #include <filesystem>
 #include <boost/functional/hash.hpp>
 #include <memory>
+#include <vector>
 #include <boost/thread/condition.hpp>
+#include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
 
 #include <spine/HTTP.h>
@@ -16,6 +19,8 @@
 
 namespace SmartMet
 {
+class LowLatencyGatewayStreamer;
+
 class Proxy : public std::enable_shared_from_this<Proxy>
 {
   friend class LowLatencyGatewayStreamer;
@@ -40,14 +45,16 @@ class Proxy : public std::enable_shared_from_this<Proxy>
         std::size_t filesystemCacheSize,
         const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
-        int theBackendTimeoutInSeconds);
+        int theBackendTimeoutInSeconds,
+        int theShutdownGracePeriodInSeconds);
 
   static std::shared_ptr<Proxy>
   create(std::size_t memoryCacheSize,
         std::size_t filesystemCacheSize,
         const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
-        int theBackendTimeoutInSeconds);
+        int theBackendTimeoutInSeconds,
+        int theShutdownGracePeriodInSeconds);
 
   // Method to do HTTP transfer between requesting client and abackend
   // at the provided IP address - with optional port (defaults to 80)
@@ -65,6 +72,15 @@ class Proxy : public std::enable_shared_from_this<Proxy>
 
   void shutdown();
 
+  // True once shutdown() has been called. Checked by HTTP::transport() so no new
+  // LowLatencyGatewayStreamer is started after shutdown begins draining existing ones.
+  bool isShuttingDown() const noexcept { return itsShuttingDown; }
+
+  // Bookkeeping used by LowLatencyGatewayStreamer so shutdown() can wait for every
+  // in-flight gateway stream to finish before stopping the backend I/O threads.
+  void registerStreamerStart(const std::shared_ptr<LowLatencyGatewayStreamer>& theStreamer);
+  void registerStreamerStop();
+
  private:
   ResponseCache itsResponseCache;
 
@@ -73,5 +89,27 @@ class Proxy : public std::enable_shared_from_this<Proxy>
   boost::thread_group itsBackendThreads;
 
   int itsBackendTimeoutInSeconds;
+
+  // How long shutdown() waits for in-flight gateway streams to finish on their own before
+  // forcibly aborting them. A multi-gigabyte weather model response can take far longer to
+  // stream than a process manager's stop timeout (e.g. systemd's TimeoutStopSec), so waiting
+  // for it to finish naturally would just mean the whole process gets SIGKILLed anyway with
+  // the response lost either way. Aborting well within that budget lets shutdown complete
+  // cleanly and lets the client see an error promptly instead of a silently dropped connection.
+  int itsShutdownGracePeriodInSeconds;
+
+  std::atomic<bool> itsShuttingDown{false};
+
+  // Number of currently live LowLatencyGatewayStreamer instances. shutdown() waits for
+  // this to reach zero before stopping backendIoService, since a streamer whose backend
+  // thread pool has already stopped can never finish, and its shared_ptr keeps this Proxy
+  // (and this plugin's shared library) alive past the point the Reactor unloads it.
+  boost::mutex itsStreamerCountMutex;
+  boost::condition_variable itsStreamerDrainedCond;
+  std::size_t itsActiveStreamerCount = 0;
+
+  // Weak references to currently live streamers, used only to forcibly abort them if they
+  // are still running once the shutdown grace period has elapsed.
+  std::vector<std::weak_ptr<LowLatencyGatewayStreamer>> itsActiveStreamers;
 };
 }  // namespace SmartMet

@@ -46,6 +46,15 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
 {
   try
   {
+    if (itsProxy->isShuttingDown())
+    {
+      // Refuse to start a new gateway stream once shutdown has begun, so Proxy::shutdown()
+      // can wait for the streams that already exist to drain before it stops the backend
+      // I/O threads and the plugin's shared library gets unloaded.
+      theResponse.setStatus(Spine::HTTP::Status::service_unavailable, true);
+      return Proxy::ProxyStatus::PROXY_SUCCESS;
+    }
+
     // Choose the backend host by URI
     BackendServicePtr theService = itsSputnikProcess->getServices().getService(theRequest);
 
@@ -264,6 +273,12 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     int backendTimeoutInSeconds = 600;
     int backendThreadCount = 20;
 
+    // How long shutdown() waits for an in-flight gateway stream (e.g. a multi-gigabyte
+    // weather model response) to finish on its own before aborting it. Keep this well
+    // under the process manager's stop timeout (e.g. systemd's TimeoutStopSec) so shutdown
+    // has time to complete instead of the whole process being SIGKILLed regardless.
+    int shutdownGracePeriodInSeconds = 10;
+
     try
     {
       // Enable sensible relative include paths
@@ -326,6 +341,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
 
       config.lookupValue("backend.timeout", backendTimeoutInSeconds);
       config.lookupValue("backend.threads", backendThreadCount);
+      config.lookupValue("backend.shutdown_grace_period", shutdownGracePeriodInSeconds);
     }
     catch (const libconfig::ParseException &e)
     {
@@ -346,7 +362,8 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
                              filesystemSize,
                              std::filesystem::path(filesystemCachePath),
                              backendThreadCount,
-                             backendTimeoutInSeconds);
+                             backendTimeoutInSeconds,
+                             shutdownGracePeriodInSeconds);
 
     // Start the "Catcher in the Rye" process in SmartMet core. Must be registered only
     // after itsProxy is fully constructed: the handler dereferences itsProxy, and the

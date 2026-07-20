@@ -2,12 +2,14 @@
 #include "LowLatencyGatewayStreamer.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/thread.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/ThreadName.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -78,14 +80,19 @@ Proxy::Proxy(Proxy::Private,
              std::size_t filesystemCacheSize,
              const std::filesystem::path& fileCachePath,
              int theBackendThreadCount,
-             int theBackendTimeoutInSeconds)
+             int theBackendTimeoutInSeconds,
+             int theShutdownGracePeriodInSeconds)
     : itsResponseCache(memoryCacheSize, filesystemCacheSize, fileCachePath),
       backendIoService(theBackendThreadCount),
       idler(backendIoService.get_executor()),
-      itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds)
+      itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds),
+      itsShutdownGracePeriodInSeconds(theShutdownGracePeriodInSeconds)
 {
   std::cout << fmt::format(fmt::runtime("Backend ASIO pool size = {}"), theBackendThreadCount) << std::endl;
   std::cout << fmt::format(fmt::runtime("Backend timeout = {} seconds"), itsBackendTimeoutInSeconds) << std::endl;
+  std::cout << fmt::format(fmt::runtime("Backend shutdown grace period = {} seconds"),
+                           itsShutdownGracePeriodInSeconds)
+            << std::endl;
   try
   {
     for (int i = 0; i < theBackendThreadCount; ++i)
@@ -110,7 +117,8 @@ Proxy::create(std::size_t memoryCacheSize,
         std::size_t filesystemCacheSize,
         const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
-        int theBackendTimeoutInSeconds)
+        int theBackendTimeoutInSeconds,
+        int theShutdownGracePeriodInSeconds)
 {
   return std::make_shared<Proxy>(
         Private(),
@@ -118,7 +126,8 @@ Proxy::create(std::size_t memoryCacheSize,
         filesystemCacheSize,
         fileCachePath,
         theBackendThreadCount,
-        theBackendTimeoutInSeconds);
+        theBackendTimeoutInSeconds,
+        theShutdownGracePeriodInSeconds);
 }
 
 ResponseCache& Proxy::getCache()
@@ -126,10 +135,92 @@ ResponseCache& Proxy::getCache()
   return itsResponseCache;
 }
 
+void Proxy::registerStreamerStart(const std::shared_ptr<LowLatencyGatewayStreamer>& theStreamer)
+{
+  boost::unique_lock<boost::mutex> lock(itsStreamerCountMutex);
+  ++itsActiveStreamerCount;
+  itsActiveStreamers.emplace_back(theStreamer);
+}
+
+void Proxy::registerStreamerStop()
+{
+  boost::unique_lock<boost::mutex> lock(itsStreamerCountMutex);
+  if (itsActiveStreamerCount > 0)
+    --itsActiveStreamerCount;
+  if (itsActiveStreamerCount == 0)
+    itsStreamerDrainedCond.notify_all();
+}
+
+namespace
+{
+// How long to give forcibly aborted streams to actually unwind (client-side consumer
+// threads poll on a ~100 ms cadence) before giving up on the wait entirely.
+const int postAbortSettleSeconds = 2;
+}  // namespace
+
 void Proxy::shutdown()
 {
   try
   {
+    // Stop accepting new gateway streams. HTTP::transport() checks isShuttingDown()
+    // before creating a LowLatencyGatewayStreamer.
+    itsShuttingDown = true;
+
+    // Wait for in-flight gateway streams to finish while backendIoService threads are
+    // still running to service them. A streamer whose backend I/O thread pool has already
+    // stopped can never finish, and each one keeps this Proxy (and this plugin's shared
+    // library) referenced via its shared_ptr<Proxy> past the point the Reactor unloads it
+    // - which is what caused the boost::mutex/segfault crashes on shutdown.
+    //
+    // A response can be gigabytes in size (weather model data), so it may take far longer
+    // to finish than a process manager allows for shutdown (e.g. systemd's TimeoutStopSec).
+    // Waiting it out would just mean the whole process gets SIGKILLed with the response lost
+    // anyway, so only give streams a bounded grace period to finish on their own; anything
+    // still running after that is aborted so the client gets a prompt error and shutdown can
+    // complete in time.
+    {
+      boost::unique_lock<boost::mutex> lock(itsStreamerCountMutex);
+      const int stepMillis = 200;
+      const int graceSteps = std::max(1, itsShutdownGracePeriodInSeconds) * 1000 / stepMillis;
+      int steps = 0;
+      while (itsActiveStreamerCount > 0 && steps < graceSteps)
+      {
+        itsStreamerDrainedCond.timed_wait(lock, boost::posix_time::milliseconds(stepMillis));
+        ++steps;
+      }
+
+      if (itsActiveStreamerCount > 0)
+      {
+        std::cout << fmt::format(
+                         "{} WARNING: {} gateway stream(s) still active after {}s grace period, "
+                         "aborting them",
+                         Spine::log_time_str(),
+                         itsActiveStreamerCount,
+                         itsShutdownGracePeriodInSeconds)
+                  << std::endl;
+
+        for (const auto& weakStreamer : itsActiveStreamers)
+          if (auto streamer = weakStreamer.lock())
+            streamer->abortForShutdown();
+
+        const int settleSteps = std::max(1, postAbortSettleSeconds) * 1000 / stepMillis;
+        steps = 0;
+        while (itsActiveStreamerCount > 0 && steps < settleSteps)
+        {
+          itsStreamerDrainedCond.timed_wait(lock, boost::posix_time::milliseconds(stepMillis));
+          ++steps;
+        }
+
+        if (itsActiveStreamerCount > 0)
+          std::cout << fmt::format(
+                           "{} WARNING: Proxy shutdown proceeding with {} gateway stream(s) "
+                           "still unfinished",
+                           Spine::log_time_str(),
+                           itsActiveStreamerCount)
+                    << std::endl;
+      }
+    }
+
     backendIoService.stop();
     std::cout << fmt::format("{}  -- Shutdown requested (Proxy)", Spine::log_time_str())
               << std::endl;

@@ -217,6 +217,44 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
 {
   if (!itsFinishing)
     itsReactor.stopBackendRequest(itsHostName, itsPort);
+  itsProxy->registerStreamerStop();
+}
+
+void LowLatencyGatewayStreamer::abortForShutdown()
+{
+  try
+  {
+    boost::unique_lock<boost::mutex> lock(itsMutex);
+
+    if (itsGatewayStatus != GatewayStatus::ONGOING)
+      return;  // Already finished or failed on its own, nothing to do
+
+    std::cout << fmt::format(
+                     "{} Aborting gateway stream to {}:{} for shutdown, response will be lost",
+                     Spine::log_time_str(),
+                     itsIP,
+                     itsPort)
+              << std::endl;
+
+    // Never cache a response we are truncating ourselves
+    itsResponseIsCacheable = false;
+    itsGatewayStatus = GatewayStatus::FAILED;
+
+    boost::system::error_code ignored_error;
+    itsBackendSocket.close(ignored_error);
+    if (itsTimeoutTimer)
+      itsTimeoutTimer->cancel();
+
+    markFinishing();  // Remove backend communication from load balancing
+
+    itsDataAvailableEvent.notify_all();  // Wake up the client-facing consumer thread
+  }
+  catch (...)
+  {
+    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::abortForShutdown aborted", nullptr);
+    ex.printError();
+    // Must not throw or execution will terminate
+  }
 }
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
@@ -250,15 +288,16 @@ LowLatencyGatewayStreamer::create(const std::shared_ptr<Proxy> theProxy,
                                   int theBackendTimeoutInSeconds,
                                   const Spine::HTTP::Request& theOriginalRequest)
 {
-  return std::make_shared<LowLatencyGatewayStreamer>(Private(),
-                                                     theProxy,
-                                                     theReactor,
-                                                     theHostName,
-                                                     theIP,
-                                                     thePort,
-                                                     theBackendTimeoutInSeconds,
-                                                     theOriginalRequest);
-
+  auto streamer = std::make_shared<LowLatencyGatewayStreamer>(Private(),
+                                                               theProxy,
+                                                               theReactor,
+                                                               theHostName,
+                                                               theIP,
+                                                               thePort,
+                                                               theBackendTimeoutInSeconds,
+                                                               theOriginalRequest);
+  theProxy->registerStreamerStart(streamer);
+  return streamer;
 }
 
 // Mark the communication almost finished for load balancing purposes
