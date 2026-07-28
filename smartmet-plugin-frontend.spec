@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.7.14
+Version: 26.7.28
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -105,6 +105,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jul 28 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.7.28-1.fmi
+- Workaround crashes at frontend shutdown
+
 * Tue Jul 14 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.7.14-1.fmi
 - Merged the separate compressed and uncompressed response caches into a single
   response cache keyed by (ETag, content encoding). The 'compressed_cache' and
