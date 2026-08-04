@@ -211,6 +211,39 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
   }
 }
 
+// Serialise a request for the backend with a Content-Length that matches the
+// bytes actually produced.
+//
+// Request::toString() re-encodes form-urlencoded parameters rather than echoing
+// the body it was given, so the body it emits can differ in length from the
+// Content-Length the client sent: "a=b+c" comes back as "a=b%20c", 9 bytes
+// declared against 11 produced. The backend then frames the body by the stale
+// length - truncating it, or rejecting the request outright, depending on its
+// parser - and on a connection that gets reused the leftover bytes would be
+// read as the start of the next request.
+std::string serialiseRequest(Spine::HTTP::Request& request)
+{
+  std::string message = request.toString();
+
+  const std::size_t headEnd = message.find("\r\n\r\n");
+  if (headEnd == std::string::npos)
+    return message;
+
+  const std::size_t bodyLength = message.size() - headEnd - 4;
+  const std::string actual = Fmi::to_string(bodyLength);
+  const auto declared = request.getHeader("Content-Length");
+
+  if (declared && *declared == actual)
+    return message;
+  if (!declared && bodyLength == 0)
+    return message;
+
+  // The serialised body does not depend on the Content-Length field, so one
+  // more pass is enough to make the two agree.
+  request.setHeader("Content-Length", actual);
+  return request.toString();
+}
+
 // Hop-by-hop fields describe a single connection and must not be forwarded
 // through a proxy (RFC 9110 7.6.1). Whatever the Connection header itself names
 // is hop-by-hop too.
@@ -391,7 +424,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     // This header signals we query ETag from the backend
     itsOriginalRequest.setHeader("X-Request-ETag", "true");
 
-    std::string content = itsOriginalRequest.toString();
+    std::string content = serialiseRequest(itsOriginalRequest);
     boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
     if (!!err)
     {
@@ -842,7 +875,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
       return;
     }
 
-    std::string buffer = itsOriginalRequest.toString();
+    std::string buffer = serialiseRequest(itsOriginalRequest);
 
     boost::asio::write(itsBackendSocket, boost::asio::buffer(buffer), err);
 
