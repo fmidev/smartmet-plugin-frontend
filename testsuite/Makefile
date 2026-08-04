@@ -32,6 +32,7 @@ obj/%.o: %.cpp
 	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
 EXTRA_OBJS =
+ChunkedBodyDecoderTest: EXTRA_OBJS += ChunkedBodyDecoder.o
 QEngineInfoTest: EXTRA_OBJS += BackendInfoRec.o BackendInfoResponse.o BackendInfoFilter.o QEngineInfoRec.o
 GridGenerationsInfoTest: EXTRA_OBJS += BackendInfoRec.o BackendInfoResponse.o BackendInfoFilter.o GridGenerationsInfoRec.o
 

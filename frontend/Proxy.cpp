@@ -25,50 +25,44 @@ enum class BackendDenyReason
   HIGH_LOAD
 };
 
-BackendDenyReason parseBackendDenyReason(const std::string& responsePrefix)
+// Decide whether the backend refused the request rather than answering it.
+//
+// This used to sniff the raw first bytes of the response, because that was all
+// the gateway streamer exposed and the headers were not necessarily buffered
+// yet. It now works on the parsed head, which covers the same three encodings
+// more simply:
+//
+//   - the legacy 4-digit status lines, which Spine parses straight into the
+//     high_load / shutdown statuses;
+//   - 503 with the X-SmartMet-Error field;
+//   - 503 with one of the SmartMet reason phrases, for a backend old enough to
+//     send neither of the above.
+BackendDenyReason parseBackendDenyReason(const Spine::HTTP::Response& response)
 {
-  if (responsePrefix.size() >= 13)
+  const auto status = response.getStatus();
+
+  if (status == Spine::HTTP::Status::shutdown)
+    return BackendDenyReason::SHUTDOWN;
+  if (status == Spine::HTTP::Status::high_load)
+    return BackendDenyReason::HIGH_LOAD;
+
+  if (status != Spine::HTTP::Status::service_unavailable)
+    return BackendDenyReason::NONE;
+
+  auto smartnetError = response.getHeader(std::string(Spine::HTTP::smartmet_error_header));
+  if (smartnetError)
   {
-    const std::string legacyStatus = responsePrefix.substr(9, 4);
-    if (legacyStatus == "3210")
+    const std::string value = boost::algorithm::trim_copy(*smartnetError);
+    if (value == "3210" || boost::algorithm::iequals(value, "shutdown"))
       return BackendDenyReason::SHUTDOWN;
-    if (legacyStatus == "1234")
+    if (value == "1234" || boost::algorithm::iequals(value, "high_load"))
       return BackendDenyReason::HIGH_LOAD;
   }
 
-  // New wire format may use HTTP 503 with custom reason phrase and optional X-SmartMet-Error.
-  // Check status line first so detection works even if full headers are not yet buffered.
-  const auto line_end = responsePrefix.find("\r\n");
-  if (line_end != std::string::npos)
-  {
-    const std::string statusLine = responsePrefix.substr(0, line_end);
-    if (statusLine.find(" 503 ") != std::string::npos)
-    {
-      if (statusLine.find("Shutdown in progress") != std::string::npos)
-        return BackendDenyReason::SHUTDOWN;
-
-      if (statusLine.find("High Load in Backend Server") != std::string::npos)
-        return BackendDenyReason::HIGH_LOAD;
-    }
-  }
-
-  auto parsed = Spine::HTTP::parseResponse(responsePrefix);
-  if (std::get<0>(parsed) != Spine::HTTP::ParsingStatus::COMPLETE)
-    return BackendDenyReason::NONE;
-
-  const auto& response = std::get<1>(parsed);
-  if (!response || response->getStatus() != Spine::HTTP::Status::service_unavailable)
-    return BackendDenyReason::NONE;
-
-  auto smartnetError = response->getHeader(std::string(Spine::HTTP::smartmet_error_header));
-  if (!smartnetError)
-    return BackendDenyReason::NONE;
-
-  const std::string value = boost::algorithm::trim_copy(*smartnetError);
-  if (value == "3210" || boost::algorithm::iequals(value, "shutdown"))
+  const std::string& reason = response.getReasonPhrase();
+  if (reason.find("Shutdown in progress") != std::string::npos)
     return BackendDenyReason::SHUTDOWN;
-
-  if (value == "1234" || boost::algorithm::iequals(value, "high_load"))
+  if (reason.find("High Load in Backend Server") != std::string::npos)
     return BackendDenyReason::HIGH_LOAD;
 
   return BackendDenyReason::NONE;
@@ -266,6 +260,9 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
 
     fwdRequest.setHeader("X-Forwarded-For", theRequestOriginIP);
 
+    // Keep-alive towards the backend is negotiated on the backend connection
+    // alone and says nothing about the client's: the frontend re-frames the
+    // response, so the client connection can persist regardless of this hop.
     fwdRequest.setHeader("Connection", "close");
 
     // Establish used protocol. At FMI this is normally set by the F5 load balancer,
@@ -294,11 +291,16 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
       return ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
 
-    // This is a gateway response. To detect backend denial statuses before streaming,
-    // inspect the beginning of the response byte stream.
-    // Supports both legacy 4-digit status lines and 503 + X-SmartNet-Error.
-    std::string responsePrefix = responseStreamer->getPeekString(0, 4096);
-    switch (parseBackendDenyReason(responsePrefix))
+    // Wait for the backend's response head: the client response cannot be built
+    // or framed without it, and the denial statuses are read from it.
+    const Spine::HTTP::Response* backendHead = responseStreamer->waitForResponseHead();
+    if (backendHead == nullptr)
+    {
+      // The backend never produced a parseable response
+      return ProxyStatus::PROXY_FAIL_REMOTE_HOST;
+    }
+
+    switch (parseBackendDenyReason(*backendHead))
     {
       case BackendDenyReason::SHUTDOWN:
         std::cout << fmt::format("{} *** Remote {}:{} shutting down, resending to another backend",
@@ -320,10 +322,37 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
         break;
     }
 
-    theResponse.setContent(responseStreamer);
-    theResponse.isGatewayResponse =
-        true;  // This response is gateway response, it will be sent as a byte stream
-    theResponse.setStatus(Spine::HTTP::Status::ok);
+    // Re-emit the backend's head as this frontend's own response instead of
+    // forwarding the backend's bytes verbatim. The server then frames the
+    // response and negotiates the client connection exactly as it does for any
+    // other plugin response, which is what keeps the two hops' keep-alive
+    // states independent: the backend connection is still one request per
+    // connection, but the client's need not be.
+    if (const auto* cached = responseStreamer->getCompleteResponse())
+    {
+      // Served from the frontend cache: there is no backend body to stream
+      theResponse = *cached;
+    }
+    else
+    {
+      theResponse.setStatus(backendHead->getStatus());
+      for (const auto& header : backendHead->getHeaders())
+        theResponse.setHeader(header.first, header.second);
+
+      if (responseStreamer->getBodyFraming() == LowLatencyGatewayStreamer::BodyFraming::LENGTH)
+      {
+        // Length known up front, so the client gets a Content-Length too
+        theResponse.setContent(responseStreamer, responseStreamer->getDeclaredBodyLength());
+      }
+      else
+      {
+        // Chunked, or a backend that only signals the end by closing. The length
+        // is unknown here either way, so the server sends it chunked - and a
+        // chunked response is self-delimiting, so the client connection survives
+        // a backend connection that could not be reused.
+        theResponse.setContent(responseStreamer);
+      }
+    }
 
     // Set the originating backend information
     theResponse.itsOriginatingBackend = theHostName;

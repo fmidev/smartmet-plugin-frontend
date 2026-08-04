@@ -11,7 +11,7 @@ The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing re
 ```bash
 make                  # Build frontend.so (runs testsuite/check automatically)
 make test             # Integration tests: starts backend + frontend smartmetd instances, sends HTTP requests
-make -C testsuite check  # Unit tests (Boost.Test): QEngineInfoTest, GridGenerationsInfoTest, ParameterLookupTest
+make -C testsuite check  # Unit tests (Boost.Test): QEngineInfoTest, GridGenerationsInfoTest, ParameterLookupTest, ChunkedBodyDecoderTest
 make format           # clang-format (Google-based, Allman braces, 100-col)
 make clean            # Clean all build artifacts
 make rpm              # Build RPM package
@@ -46,9 +46,55 @@ Requires `/usr/sbin/smartmetd` to be installed. Uses `--port=0` for dynamic port
 
 - **`Proxy`** (`frontend/Proxy.{h,cpp}`) — Manages the backend connection pool (`boost::asio::io_context` with configurable thread count) and two `ResponseCache` instances (compressed + uncompressed). `HTTPForward()` is the main entry point for proxying a request to a specific backend host:port.
 
-- **`LowLatencyGatewayStreamer`** (`frontend/LowLatencyGatewayStreamer.{h,cpp}`) — Streaming content handler that reads backend responses chunk-by-chunk via async Boost.Asio sockets and feeds them to the Spine HTTP server. Handles caching of streamable responses and backend timeouts.
+- **`LowLatencyGatewayStreamer`** (`frontend/LowLatencyGatewayStreamer.{h,cpp}`) — Streaming content handler that reads backend responses via async Boost.Asio sockets and feeds them to the Spine HTTP server. Handles caching of streamable responses and backend timeouts. See "Response framing" below: it parses the backend's head and streams the **body only**.
+
+- **`ChunkedBodyDecoder`** (`frontend/ChunkedBodyDecoder.{h,cpp}`) — Incremental chunked-body decoder. Separate from the streamer so it can be unit tested (`testsuite/ChunkedBodyDecoderTest.cpp`), since a socket can split a chunk header, its data or its terminator anywhere.
 
 - **`ResponseCache`** (`frontend/ResponseCache.{h,cpp}`) — Two-tier cache (memory LRU + filesystem) keyed by ETag. Stores response metadata (mime type, cache-control, etc.) separately from buffer content.
+
+### Response framing, and why the gateway is no longer a byte stream
+
+The streamer used to forward the backend's status line, headers and body to the
+client verbatim, and detect the end of the body by EOF on the backend socket.
+That leaked the backend hop's connection semantics to the client: `Proxy` asks
+its backends for `Connection: close`, so every proxied response carried
+`Connection: close` to the client and **no client ever got a persistent
+connection through the frontend**.
+
+It now parses the backend head (which it already did, for caching) and re-emits
+it as this frontend's own response:
+
+- `LowLatencyGatewayStreamer::waitForResponseHead()` blocks until the head is
+  parsed; `Proxy::HTTPForward()` copies its status and headers onto the Spine
+  `Response` and puts only the **body** in the streamer.
+- Hop-by-hop fields — and whatever `Connection` names — are stripped, along with
+  `Content-Length` and `Transfer-Encoding`: the frontend frames the client
+  response itself and may frame it differently.
+- `BodyFraming` records how the *backend* delimited its body. `LENGTH` becomes a
+  `Content-Length` response to the client; `CHUNKED` and `UNTIL_CLOSE` both
+  become chunked, which is self-delimiting — so a client connection survives a
+  backend connection that could not be reused. That is what "manage keep-alive
+  independently on the client and backend sides" means in practice.
+- A chunked backend body is decoded before it reaches the client, so the server
+  re-frames plain bytes and no handler ever sees chunk framing.
+- A frontend cache hit is returned as a complete, ordinary buffered response
+  rather than a byte stream, so it is framed and compressible like any other.
+
+Two consequences worth knowing:
+
+1. `Date`, `Server` and `Vary` on proxied responses now come from the frontend's
+   server layer rather than the backend, as they already did for cache hits.
+   Everything else the backend sent (`ETag`, `Cache-Control`, `Expires`,
+   `Content-Type`, `Content-Encoding`, `X-*`) is passed through.
+2. `Response::isGatewayResponse` is no longer set. The backend heartbeat hooks
+   that sputnik registers used to be keyed on that flag; the server now keys
+   them on the response recording an originating backend instead
+   (`AsyncConnection::notifyBackendFinished`). A frontend built against a server
+   older than that change will stop feeding sputnik's heartbeat and healthy
+   backends will be retired — the two must be deployed together.
+
+Backend connections are still one request per connection. Pooling them is the
+remaining half of BS-3475's frontend work.
 
 ### `info/` subsystem
 
