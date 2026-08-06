@@ -114,6 +114,10 @@ rm -rf $RPM_BUILD_ROOT
 - The entity-tag of a served variant now names its content encoding, while the
   cache stays keyed by the coding independent entity-tag the backend's ETag
   probe reports
+- A cache lookup now tries every content encoding the client accepts, in the
+  order it prefers them, before falling back to the unencoded variant. Insisting
+  on the single best encoding would miss on every request against a backend whose
+  'compresscodings' setting no longer offers it
 
 * Wed Aug 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.19-1.fmi
 - The response_cache sizes are now read with Spine::lookupSizeSetting(), so

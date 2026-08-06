@@ -39,19 +39,23 @@ std::string makeDateString()
   }
 }
 
-// Return the content encoding to serve for this request, as a Content-Encoding token
-// ("gzip", "zstd", ...) or "" for the identity (uncompressed) representation.
+// Return the content encodings acceptable for this request as Content-Encoding
+// tokens ("zstd", "gzip", ...), best first. An empty list means the client accepts
+// only the identity (uncompressed) representation.
 //
-// The backend is the one that encodes the responses; we only look up the variant
-// it produced. Negotiating with the same codings and the same rules is therefore
-// not a nicety but the condition for finding it in the cache at all.
-std::string clientAcceptsContentEncoding(const Spine::HTTP::Request& request)
+// The backend is the one that encodes the responses; we only look up the variant it
+// produced. Negotiating with the same codings and the same rules is therefore not a
+// nicety but the condition for finding it in the cache at all. We ask for every
+// acceptable coding rather than just the best one because the two ends can disagree
+// about which codings are on offer: a backend whose 'compresscodings' no longer
+// includes zstd answers with gzip, and a lookup that insisted on zstd alone would
+// then miss on every request and refetch the response it already holds.
+std::vector<std::string> clientAcceptsContentEncodings(const Spine::HTTP::Request& request)
 {
   try
   {
-    return Spine::HTTP::selectContentEncoding(request,
-                                              Spine::HTTP::supportedContentEncodings(),
-                                              Spine::HTTP::wildcardContentEncoding());
+    return Spine::HTTP::rankContentEncodings(
+        request, Spine::HTTP::supportedContentEncodings(), Spine::HTTP::wildcardContentEncoding());
   }
   catch (...)
   {
@@ -1073,16 +1077,23 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           // entirely on a cache hit.
           itsProbeConnectionReusable = probeLeftCleanConnection(*responsePtr, std::get<2>(ret));
 
-          // See if we should send a content-encoded response
-          auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
+          // See if we hold a content-encoded response the client accepts
+          auto accepted_encodings = clientAcceptsContentEncodings(itsOriginalRequest);
 
           auto& cache = itsProxy->getCache();
 
-          // Try the client's preferred encoding first
-          auto result = cache.getCachedBuffer(etag, accepted_content_type);
+          // Try the acceptable encodings in the order the client prefers them
+          std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
+
+          for (const auto& encoding : accepted_encodings)
+          {
+            result = cache.getCachedBuffer(etag, encoding);
+            if (result.first)
+              break;
+          }
 
           // Fall back to the identity (uncompressed) representation if there is no encoded match
-          if (!result.first && !accepted_content_type.empty())
+          if (!result.first)
             result = cache.getCachedBuffer(etag, "");
 
           if (!result.first)
