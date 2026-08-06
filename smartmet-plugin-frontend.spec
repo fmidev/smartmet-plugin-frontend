@@ -55,6 +55,8 @@ Requires(postun): systemd
 #TestRequires: smartmet-library-macgyver-devel >= 26.8.19
 #TestRequires: smartmet-library-spine-devel >= 26.8.19
 #TestRequires: smartmet-library-spine >= 26.8.19
+#TestRequires: smartmet-server >= 26.8.17
+#TestRequires: smartmet-engine-sputnik >= 26.6.26
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +105,16 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Aug  6 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.6-1.fmi
+- Cache lookups now negotiate the content encoding with the same rules and the
+  same list of codings as the backend that produced the cached variant, using
+  Spine::HTTP::selectContentEncoding(). The plugin's own negotiation ignored
+  quality values and could not have found the variant a backend chose for a
+  request refusing a coding
+- The entity-tag of a served variant now names its content encoding, while the
+  cache stays keyed by the coding independent entity-tag the backend's ETag
+  probe reports
+
 * Wed Aug 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.19-1.fmi
 - The response_cache sizes are now read with Spine::lookupSizeSetting(), so
   memory_bytes and filesystem_bytes accept readable values such as "32G" or "512MB"

@@ -41,26 +41,17 @@ std::string makeDateString()
 
 // Return the content encoding to serve for this request, as a Content-Encoding token
 // ("gzip", "zstd", ...) or "" for the identity (uncompressed) representation.
+//
+// The backend is the one that encodes the responses; we only look up the variant
+// it produced. Negotiating with the same codings and the same rules is therefore
+// not a nicety but the condition for finding it in the cache at all.
 std::string clientAcceptsContentEncoding(const Spine::HTTP::Request& request)
 {
   try
   {
-    auto accept_encoding = request.getHeader("Accept-Encoding");
-    if (accept_encoding)
-    {
-      // Mirror the backend's preference order (see Server::select_content_encoding):
-      // prefer zstd, fall back to gzip, so the cached variant matches what the backend produced.
-      if (boost::algorithm::contains(*accept_encoding, "zstd"))
-        return "zstd";
-
-      if (*accept_encoding == "*")
-        return "gzip";  // Accepts everything, send zipped
-
-      if (boost::algorithm::contains(*accept_encoding, "gzip"))
-        return "gzip";
-      return "";
-    }
-    return "";
+    return Spine::HTTP::selectContentEncoding(request,
+                                              Spine::HTTP::supportedContentEncodings(),
+                                              Spine::HTTP::wildcardContentEncoding());
   }
   catch (...)
   {
@@ -76,7 +67,12 @@ ResponseCache::CachedResponseMetaData build_metadata(const Spine::HTTP::Response
 
   // Safe to dereference, checked earlier
   meta.mime_type = *response.getHeader("Content-Type");
-  meta.etag = *response.getHeader("ETag");
+
+  // The backend appends the content coding to the entity-tag of an encoded
+  // response, while its ETag-only probe reports the coding independent tag of
+  // the data. Cache the latter, so that all the encodings of one resource are
+  // found by the tag the probe returns.
+  meta.etag = Spine::HTTP::baseETag(*response.getHeader("ETag"));
 
   auto expires = response.getHeader("Expires");
   if (expires)
@@ -152,8 +148,12 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
     // advertise it on every response (200 OK, 304 Not Modified and 412
     // Precondition Failed alike). RFC 7232 requires the ETag to be present on
     // a 304 response, and the current code omitted it there.
+    //
+    // The cached tag identifies the data, so name the content coding of the
+    // variant being served in it, exactly as the backend would have.
     if (!metadata.etag.empty() && metadata.etag != "0")
-      response.setHeader("ETag", metadata.etag);
+      response.setHeader("ETag",
+                         Spine::HTTP::contentCodedETag(metadata.etag, metadata.content_encoding));
 
     // Decide whether the client already holds the current representation and
     // may be answered with "304 Not Modified", whether a conditional
@@ -1062,7 +1062,10 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
         }
         else
         {
-          std::string etag = *etagHeader;
+          // The probe reports the coding independent entity-tag of the data,
+          // which is what the cache is keyed with. Strip a coding anyway, in
+          // case a backend answers the probe from an encoded response.
+          std::string etag = Spine::HTTP::baseETag(*etagHeader);
 
           // The probe is normally answered with a bodyless "204 No Content", so
           // the connection is at a message boundary and can carry whatever comes
