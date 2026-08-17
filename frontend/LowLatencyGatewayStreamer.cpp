@@ -175,8 +175,8 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
 
     auto [full_response_required, suggested_status] = etag_filter.evaluate(metadata.etag);
 
-    if (full_response_required && !etag_filter.has_if_match() &&
-        !etag_filter.has_if_none_match() && originalRequest.getHeader("If-Modified-Since"))
+    if (full_response_required && !etag_filter.has_if_match() && !etag_filter.has_if_none_match() &&
+        originalRequest.getHeader("If-Modified-Since"))
     {
       full_response_required = false;
       suggested_status = Spine::HTTP::Status::not_modified;
@@ -209,6 +209,92 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+// Serialise a request for the backend with a Content-Length that matches the
+// bytes actually produced.
+//
+// Request::toString() re-encodes form-urlencoded parameters rather than echoing
+// the body it was given, so the body it emits can differ in length from the
+// Content-Length the client sent: "a=b+c" comes back as "a=b%20c", 9 bytes
+// declared against 11 produced. The backend then frames the body by the stale
+// length - truncating it, or rejecting the request outright, depending on its
+// parser - and on a connection that gets reused the leftover bytes would be
+// read as the start of the next request.
+std::string serialiseRequest(Spine::HTTP::Request& request)
+{
+  std::string message = request.toString();
+
+  const std::size_t headEnd = message.find("\r\n\r\n");
+  if (headEnd == std::string::npos)
+    return message;
+
+  const std::size_t bodyLength = message.size() - headEnd - 4;
+  const std::string actual = Fmi::to_string(bodyLength);
+  const auto declared = request.getHeader("Content-Length");
+
+  if (declared && *declared == actual)
+    return message;
+  if (!declared && bodyLength == 0)
+    return message;
+
+  // The serialised body does not depend on the Content-Length field, so one
+  // more pass is enough to make the two agree.
+  request.setHeader("Content-Length", actual);
+  return request.toString();
+}
+
+// Hop-by-hop fields describe a single connection and must not be forwarded
+// through a proxy (RFC 9110 7.6.1). Whatever the Connection header itself names
+// is hop-by-hop too.
+void stripHopByHopHeaders(Spine::HTTP::Response& response)
+{
+  static const char* const hopByHop[] = {"Connection",
+                                         "Keep-Alive",
+                                         "Proxy-Connection",
+                                         "Proxy-Authenticate",
+                                         "Proxy-Authorization",
+                                         "TE",
+                                         "Trailer",
+                                         "Upgrade"};
+
+  std::vector<std::string> listed;
+  auto connection = response.getHeader("Connection");
+  if (connection)
+  {
+    std::vector<std::string> tokens;
+    boost::algorithm::split(tokens, *connection, boost::algorithm::is_any_of(","));
+    for (auto& token : tokens)
+    {
+      boost::algorithm::trim(token);
+      if (!token.empty())
+        listed.push_back(token);
+    }
+  }
+
+  for (const auto* name : hopByHop)
+    response.removeHeader(name);
+  for (const auto& name : listed)
+    response.removeHeader(name);
+}
+
+// Strict decimal, as Content-Length requires: anything a proxy and this
+// frontend could read differently is treated as no length at all.
+bool parseContentLength(const std::string& value, std::size_t& result)
+{
+  const std::string trimmed = boost::algorithm::trim_copy(value);
+  if (trimmed.empty() || trimmed.size() > 19)
+    return false;
+
+  std::size_t length = 0;
+  for (const char c : trimmed)
+  {
+    if (c < '0' || c > '9')
+      return false;
+    length = length * 10 + static_cast<std::size_t>(c - '0');
+  }
+  result = length;
+  return true;
 }
 
 }  // namespace
@@ -279,23 +365,23 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
 }
 
 // Factory method
-std::shared_ptr<LowLatencyGatewayStreamer>
-LowLatencyGatewayStreamer::create(const std::shared_ptr<Proxy> theProxy,
-                                  Spine::Reactor& theReactor,
-                                  const std::string& theHostName,
-                                  const std::string& theIP,
-                                  unsigned short thePort,
-                                  int theBackendTimeoutInSeconds,
-                                  const Spine::HTTP::Request& theOriginalRequest)
+std::shared_ptr<LowLatencyGatewayStreamer> LowLatencyGatewayStreamer::create(
+    const std::shared_ptr<Proxy> theProxy,
+    Spine::Reactor& theReactor,
+    const std::string& theHostName,
+    const std::string& theIP,
+    unsigned short thePort,
+    int theBackendTimeoutInSeconds,
+    const Spine::HTTP::Request& theOriginalRequest)
 {
   auto streamer = std::make_shared<LowLatencyGatewayStreamer>(Private(),
-                                                               theProxy,
-                                                               theReactor,
-                                                               theHostName,
-                                                               theIP,
-                                                               thePort,
-                                                               theBackendTimeoutInSeconds,
-                                                               theOriginalRequest);
+                                                              theProxy,
+                                                              theReactor,
+                                                              theHostName,
+                                                              theIP,
+                                                              thePort,
+                                                              theBackendTimeoutInSeconds,
+                                                              theOriginalRequest);
   theProxy->registerStreamerStart(streamer);
   return streamer;
 }
@@ -338,7 +424,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
     // This header signals we query ETag from the backend
     itsOriginalRequest.setHeader("X-Request-ETag", "true");
 
-    std::string content = itsOriginalRequest.toString();
+    std::string content = serialiseRequest(itsOriginalRequest);
     boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
     if (!!err)
     {
@@ -362,10 +448,10 @@ bool LowLatencyGatewayStreamer::sendAndListen()
 
     // Start to listen for the reply, headers not yet received
     std::shared_ptr<LowLatencyGatewayStreamer> me = shared_from_this();
-    itsBackendSocket.async_read_some(boost::asio::buffer(itsSocketBuffer),
-                                     [me](const boost::system::error_code& err,
-                                                               std::size_t bytes_transferred)
-                                     { me->readCacheResponse(err, bytes_transferred); });
+    itsBackendSocket.async_read_some(
+        boost::asio::buffer(itsSocketBuffer),
+        [me](const boost::system::error_code& err, std::size_t bytes_transferred)
+        { me->readCacheResponse(err, bytes_transferred); });
 
     return true;
   }
@@ -373,6 +459,178 @@ bool LowLatencyGatewayStreamer::sendAndListen()
   {
     throw Fmi::Exception::Trace(BCP, "Operation failed!");
   }
+}
+
+void LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response& theHead,
+                                                    const std::string& theBodySoFar)
+{
+  auto head = std::make_unique<Spine::HTTP::Response>(theHead);
+
+  // Work out how the backend delimits its body before the framing fields are
+  // taken out of what the client will see.
+  auto transferEncoding = head->getHeader("Transfer-Encoding");
+  auto contentLength = head->getHeader("Content-Length");
+
+  if (transferEncoding)
+  {
+    itsBodyFraming = BodyFraming::CHUNKED;
+  }
+  else if (contentLength && parseContentLength(*contentLength, itsDeclaredBodyLength))
+  {
+    itsBodyFraming = BodyFraming::LENGTH;
+  }
+  else
+  {
+    // No usable framing header: the body ends when the backend closes. The
+    // client response is framed independently (the server sends it chunked), so
+    // the client connection survives a backend connection that cannot.
+    itsBodyFraming = BodyFraming::UNTIL_CLOSE;
+  }
+
+  stripHopByHopHeaders(*head);
+
+  // The frontend frames the client response itself and may not frame it the
+  // same way, so the backend's framing fields must not be forwarded.
+  head->removeHeader("Content-Length");
+  head->removeHeader("Transfer-Encoding");
+
+  itsBackendHead = std::move(head);
+  itsHeadReady = true;
+
+  if (!theBodySoFar.empty())
+  {
+    if (consumeBodyBytes(theBodySoFar.data(), theBodySoFar.size()))
+      finishBackendResponse();
+  }
+
+  itsHeadReadyEvent.notify_all();
+}
+
+void LowLatencyGatewayStreamer::appendBodyBytes(const char* data, std::size_t length)
+{
+  if (length == 0)
+    return;
+
+  itsClientDataBuffer.append(data, length);
+  itsBodyBytesDecoded += length;
+
+  if (itsResponseIsCacheable)
+  {
+    itsCachedContent.append(data, length);
+    if (itsCachedContent.size() > proxy_max_cached_buffer_size)
+    {
+      // Overflow, do not cache this response
+      itsResponseIsCacheable = false;
+      itsCachedContent.clear();
+    }
+  }
+}
+
+bool LowLatencyGatewayStreamer::consumeBodyBytes(const char* data, std::size_t length)
+{
+  switch (itsBodyFraming)
+  {
+    case BodyFraming::LENGTH:
+    {
+      // Never hand on more than was announced: anything beyond the declared
+      // length belongs to the next response on that backend connection.
+      const std::size_t remaining = itsDeclaredBodyLength - itsBodyBytesDecoded;
+      appendBodyBytes(data, std::min(remaining, length));
+      itsBodyComplete = itsBodyBytesDecoded >= itsDeclaredBodyLength;
+      return itsBodyComplete;
+    }
+
+    case BodyFraming::CHUNKED:
+    {
+      std::string decoded;
+      const auto status = itsChunkDecoder.feed(data, length, decoded);
+      appendBodyBytes(decoded.data(), decoded.size());
+
+      if (status == ChunkedBodyDecoder::Status::FAILED)
+      {
+        std::cout << fmt::format("{} Backend at {}:{} sent a malformed chunked body",
+                                 Spine::log_time_str(),
+                                 itsIP,
+                                 itsPort)
+                  << std::endl;
+        itsResponseIsCacheable = false;
+        itsGatewayStatus = GatewayStatus::FAILED;
+        return false;
+      }
+
+      itsBodyComplete = (status == ChunkedBodyDecoder::Status::COMPLETE);
+      return itsBodyComplete;
+    }
+
+    case BodyFraming::UNTIL_CLOSE:
+    default:
+      appendBodyBytes(data, length);
+      return false;  // Only the backend closing can end this body
+  }
+}
+
+void LowLatencyGatewayStreamer::storeInCacheIfEligible()
+{
+  // Call caching functionality here using the backend buffering thread
+  // We do not want to accidentally block any server threads
+  if (itsResponseIsCacheable && !itsCachedContent.empty() && !itsHasTimedOut)
+  {
+    auto& cache = itsProxy->getCache();
+    cache.insertCachedBuffer(itsBackendMetadata.etag,
+                             itsBackendMetadata.mime_type,
+                             itsBackendMetadata.cache_control,
+                             itsBackendMetadata.expires,
+                             itsBackendMetadata.vary,
+                             itsBackendMetadata.access_control_allow_origin,
+                             itsBackendMetadata.content_encoding,
+                             std::make_shared<std::string>(itsCachedContent));
+  }
+}
+
+void LowLatencyGatewayStreamer::finishBackendResponse()
+{
+  // The response is complete because its own framing says so, without waiting
+  // for the backend to close the socket. That is what makes the backend
+  // connection reusable, and until it is pooled it at least means the socket is
+  // released promptly instead of lingering until EOF.
+  storeInCacheIfEligible();
+
+  itsGatewayStatus = GatewayStatus::FINISHED;
+
+  boost::system::error_code ignored_error;
+  itsBackendSocket.close(ignored_error);
+  if (itsTimeoutTimer)
+    itsTimeoutTimer->cancel();
+
+  markFinishing();
+}
+
+const Spine::HTTP::Response* LowLatencyGatewayStreamer::waitForResponseHead()
+{
+  try
+  {
+    boost::unique_lock<boost::mutex> lock(itsMutex);
+
+    // Bounded by the backend timeout, which the read handlers keep pushing back
+    // while data is flowing; a backend that never answers is caught by the
+    // timer, which sets FAILED.
+    while (!itsHeadReady && itsGatewayStatus == GatewayStatus::ONGOING)
+      itsHeadReadyEvent.timed_wait(lock, boost::posix_time::milliseconds(100));
+
+    if (itsCompleteResponse)
+      return itsCompleteResponse.get();
+
+    return itsBackendHead.get();
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+const Spine::HTTP::Response* LowLatencyGatewayStreamer::getCompleteResponse() const
+{
+  return itsCompleteResponse.get();
 }
 
 // This function is called by the server when it can send more data
@@ -422,42 +680,6 @@ std::string LowLatencyGatewayStreamer::getChunk()
     }
 
     return returnedBuffer;
-  }
-  catch (...)
-  {
-    throw Fmi::Exception::Trace(BCP, "Operation failed!");
-  }
-}
-
-std::string LowLatencyGatewayStreamer::getPeekString(int pos, int len)
-{
-  try
-  {
-    boost::unique_lock<boost::mutex> lock(itsMutex);
-    if (itsClientDataBuffer.empty())
-    {
-      switch (itsGatewayStatus)
-      {
-        case GatewayStatus::ONGOING:
-          // Backend socket is open, but no data read. Slow connection to backend?
-          // Do a timed wait on the condition variable
-          itsDataAvailableEvent.timed_wait(lock, boost::posix_time::milliseconds(100));
-          break;
-
-        case GatewayStatus::FINISHED:
-          setStatus(ContentStreamer::StreamerStatus::EXIT_OK);
-          break;
-
-        case GatewayStatus::FAILED:
-          setStatus(ContentStreamer::StreamerStatus::EXIT_ERROR);
-          break;
-      }
-    }
-
-    if (itsClientDataBuffer.empty())
-      return "";
-
-    return itsClientDataBuffer.substr(pos, len);
   }
   catch (...)
   {
@@ -530,7 +752,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
           itsResponseIsCacheable = false;
 
-          itsClientDataBuffer = itsResponseHeaderBuffer;
+          publishResponseHead(*responsePtr,
+                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
 
           // Go to data response loop
           itsBackendSocket.async_read_some(
@@ -587,9 +810,14 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           if (expiresHeader)
             metadata.expires = *expiresHeader;
 
-          auto clientResponse = buildCacheResponse(itsOriginalRequest, response_buffer, metadata);
-
-          itsClientDataBuffer = clientResponse.toString();
+          // A cache hit needs no backend body at all, so the whole response is
+          // handed over as one object and the caller answers it as an ordinary
+          // buffered response - framed, compressible and safe to keep the
+          // client connection for, exactly like any other plugin response.
+          itsCompleteResponse = std::make_unique<Spine::HTTP::Response>(
+              buildCacheResponse(itsOriginalRequest, response_buffer, metadata));
+          itsHeadReady = true;
+          itsHeadReadyEvent.notify_all();
 
           itsGatewayStatus =
               GatewayStatus::FINISHED;  // Entire response content generated, we are done!
@@ -647,7 +875,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
       return;
     }
 
-    std::string buffer = itsOriginalRequest.toString();
+    std::string buffer = serialiseRequest(itsOriginalRequest);
 
     boost::asio::write(itsBackendSocket, boost::asio::buffer(buffer), err);
 
@@ -755,16 +983,10 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             // Cacheable response, build cache metadata and store it for later use when writing to
             // the cache
             itsBackendMetadata = build_metadata(*responsePtr);
-
-            auto parse_end_iter = std::get<2>(ret);
-            std::string bodyThusFar = std::string(parse_end_iter, itsResponseHeaderBuffer.cend());
-
-            // Content to be cached is stored separately from the entire stream
-            itsCachedContent = bodyThusFar;
           }
 
-          // This data is ready to be sent to client
-          itsClientDataBuffer = itsResponseHeaderBuffer;
+          publishResponseHead(*responsePtr,
+                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
 
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
@@ -777,7 +999,9 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
           // No ETag, response is not cacheable
           itsResponseIsCacheable = false;
 
-          itsClientDataBuffer = itsResponseHeaderBuffer;
+          publishResponseHead(*responsePtr,
+                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
+
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               [me = shared_from_this()](const boost::system::error_code& err,
@@ -815,18 +1039,20 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
     }
     else
     {
-      itsClientDataBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
-
-      if (itsResponseIsCacheable)
+      if (consumeBodyBytes(itsSocketBuffer.data(), bytes_transferred))
       {
-        itsCachedContent.append(itsSocketBuffer.begin(), bytes_transferred);
+        // The body's own framing says it is complete, so there is no need to
+        // wait for the backend to close the socket.
+        finishBackendResponse();
+        itsDataAvailableEvent.notify_one();
+        return;
+      }
 
-        if (itsCachedContent.size() > proxy_max_cached_buffer_size)
-        {
-          // Overflow, do not cache this response
-          itsResponseIsCacheable = false;
-          itsCachedContent.clear();
-        }
+      if (itsGatewayStatus == GatewayStatus::FAILED)
+      {
+        // The decoder rejected the backend's framing
+        itsDataAvailableEvent.notify_one();
+        return;
       }
 
       if (itsClientDataBuffer.size() > proxy_max_buffer_size)
@@ -889,26 +1115,27 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
     // Socket has been closed or is borked
     if (err == boost::asio::error::eof)
     {
-      // Clean shutdown
-
-      // Call caching functionality here using the backend buffering thread
-      // We do not want to accidentally block any server threads
-      if (itsResponseIsCacheable && !itsCachedContent.empty() && !itsHasTimedOut)
+      if (itsHeadReady && itsBodyFraming != BodyFraming::UNTIL_CLOSE && !itsBodyComplete)
       {
-        // Non-empty and cacheable string. Cache it
+        // The backend announced a length, or chunked framing, and then closed
+        // before delivering it. Previously EOF always meant success, so a
+        // truncated response was cached and passed off to the client as
+        // complete.
+        std::cout << fmt::format("{} Backend at {}:{} closed before its response body was complete",
+                                 Spine::log_time_str(),
+                                 itsIP,
+                                 itsPort)
+                  << std::endl;
 
-        auto& cache = itsProxy->getCache();
-        cache.insertCachedBuffer(itsBackendMetadata.etag,
-                                 itsBackendMetadata.mime_type,
-                                 itsBackendMetadata.cache_control,
-                                 itsBackendMetadata.expires,
-                                 itsBackendMetadata.vary,
-                                 itsBackendMetadata.access_control_allow_origin,
-                                 itsBackendMetadata.content_encoding,
-                                 std::make_shared<std::string>(itsCachedContent));
+        itsResponseIsCacheable = false;
+        itsGatewayStatus = GatewayStatus::FAILED;
       }
-
-      itsGatewayStatus = GatewayStatus::FINISHED;
+      else
+      {
+        // Clean shutdown
+        storeInCacheIfEligible();
+        itsGatewayStatus = GatewayStatus::FINISHED;
+      }
     }
     else if (err == boost::asio::error::operation_aborted)
     {
