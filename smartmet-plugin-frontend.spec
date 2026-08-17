@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.7.28
+Version: 26.8.17
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -103,6 +103,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Aug 17 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.8.17-1.fmi
+- Add HTTP 1.1 keep-alive support
+
 * Tue Jul 28 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.7.28-1.fmi
 - Workaround crashes at frontend shutdown
 
