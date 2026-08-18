@@ -631,6 +631,72 @@ bool run_tests(int frontend_port)
     return failed == 0;
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Check that backend connections are actually being reused
+ *
+ * Connection reuse is invisible in the responses - the same bytes come back,
+ * only without a TCP handshake in front of them - so the only way to tell a
+ * working pool from one that opens a connection every time is to ask the
+ * frontend.
+ *
+ * The requests are sent as HTTP/1.1: the frontend forwards the client's protocol
+ * version to the backend, and an HTTP/1.0 request (which is what the file-driven
+ * tests above send) has no persistence to offer.
+ */
+// ----------------------------------------------------------------------
+
+bool check_backend_connection_reuse(int frontend_port)
+{
+    // "Connection: close" applies to this hop only - it keeps the read loop above
+    // from waiting out the frontend's idle timeout - and says nothing about the
+    // frontend's own connections to the backends.
+    const std::string request =
+        "GET /timeseries?starttime=200808051200&places=Helsinki&param=name,time HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Connection: close\r\n"
+        "\r\n";
+
+    const int request_count = 5;
+    for (int i = 0; i < request_count; i++)
+    {
+        const std::string response = send_raw_http_request(frontend_port, request);
+        if (response.find(" 200 ") == std::string::npos)
+        {
+            std::cout << "Backend connection reuse check: request " << (i + 1)
+                      << " did not return 200" << std::endl;
+            return false;
+        }
+    }
+
+    const std::string stats = send_raw_http_request(
+        frontend_port, "GET /admin?what=backendconnections HTTP/1.0\r\n\r\n");
+
+    const std::string marker = "connections reused";
+    const std::size_t at = stats.find(marker);
+    if (at == std::string::npos)
+    {
+        std::cout << "Backend connection reuse check: no reuse counter in the admin reply"
+                  << std::endl;
+        return false;
+    }
+
+    long reused = -1;
+    const std::size_t value_start = stats.find_first_of("0123456789", at + marker.size());
+    if (value_start != std::string::npos)
+        reused = std::stol(stats.substr(value_start));
+
+    if (reused <= 0)
+    {
+        std::cout << "Backend connection reuse check: " << request_count
+                  << " requests reused " << reused << " connections" << std::endl;
+        return false;
+    }
+
+    std::cout << "Backend connections reused: " << reused << std::endl;
+    return true;
+}
+
 int main()
 {
     std::vector<std::pair<pid_t, int>> backends;
@@ -671,6 +737,9 @@ int main()
         std::this_thread::sleep_for(std::chrono::seconds(4));
 
         bool tests_ok = run_tests(frontend_port);
+
+        if (tests_ok)
+            tests_ok = check_backend_connection_reuse(frontend_port);
 
         // Stop all processes after tests are done
         const bool frontend_ok = terminate_and_wait_process("Frontend", frontend_pid, frontend_port);

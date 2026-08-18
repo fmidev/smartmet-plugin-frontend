@@ -256,6 +256,58 @@ Plugin::requestActiveBackends(Spine::Reactor &theReactor,
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Report the state of the pooled backend connections
+ *
+ * Reuse is invisible from the outside - the same requests get the same answers,
+ * only without the handshakes - so this is the only way to tell whether backend
+ * keep-alive is actually working, or whether every connection is being found
+ * dead and replaced.
+ */
+// ----------------------------------------------------------------------
+
+std::unique_ptr<Spine::Table> Plugin::requestBackendConnections(
+    Spine::Reactor & /* theReactor */, const Spine::HTTP::Request & /* theRequest */)
+{
+  try
+  {
+    const auto stats = itsHTTP->getProxy()->getBackendConnectionPool().getStatistics();
+
+    auto reqTable = std::make_unique<Spine::Table>();
+
+    // A flat name/value list: the per-backend idle counts and the pool-wide
+    // counters have nothing in common but the pool they describe.
+    std::size_t row = 0;
+    const auto add = [&](const std::string &theName, const std::string &theValue)
+    {
+      reqTable->set(0, row, theName);
+      reqTable->set(1, row, theValue);
+      ++row;
+    };
+
+    for (const auto &backend : stats.backends)
+      add(fmt::format("idle connections to {}:{}", backend.ip, backend.port),
+          Fmi::to_string(backend.idle));
+
+    add("connections reused", Fmi::to_string(stats.hits));
+    add("connections opened", Fmi::to_string(stats.misses));
+    add("connections returned for reuse", Fmi::to_string(stats.returned));
+    add("idle connections found dead or out of sync", Fmi::to_string(stats.discarded));
+    add("idle connections expired", Fmi::to_string(stats.expired));
+    add("requests replayed on a fresh connection", Fmi::to_string(stats.replayed));
+    add("connections dropped, pool full", Fmi::to_string(stats.rejected));
+
+    reqTable->setNames({"Item", "Value"});
+    reqTable->setTitle("Backend connections");
+    return reqTable;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Forward info request to a randomly selected backend that supports it
  */
 // ----------------------------------------------------------------------
@@ -852,6 +904,16 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
     {
         throw Fmi::Exception(BCP, "Failed to register activebackends request handler");
     }
+
+  if (!theReactor.addAdminTableRequestHandler(
+        this,
+        "backendconnections",
+        AdminRequestAccess::Public,
+        std::bind(&Plugin::requestBackendConnections, this, p::_1, p::_2),
+        "Pooled backend connections"))
+  {
+        throw Fmi::Exception(BCP, "Failed to register backendconnections request handler");
+  }
 
   if (!theReactor.addAdminStringRequestHandler(
         this,

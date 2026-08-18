@@ -38,13 +38,15 @@ Requires `/usr/sbin/smartmetd` to be installed. Uses `--port=0` for dynamic port
 
 ### Core classes
 
-- **`Plugin`** (`frontend/Plugin.{h,cpp}`) — SmartMetPlugin implementation. Registers `/` (health check) and `/admin` handlers. Delegates unmatched requests to `HTTP`. Manages admin sub-requests: `clusterinfo`, `backends`, `activebackends`, `qengine`, `gridgenerations`, `pause`, `continue`. Uses Sputnik engine for backend discovery.
+- **`Plugin`** (`frontend/Plugin.{h,cpp}`) — SmartMetPlugin implementation. Registers `/` (health check) and `/admin` handlers. Delegates unmatched requests to `HTTP`. Manages admin sub-requests: `clusterinfo`, `backends`, `activebackends`, `backendconnections`, `qengine`, `gridgenerations`, `pause`, `continue`. Uses Sputnik engine for backend discovery.
 
 - **`HTTP`** (`frontend/HTTP.{h,cpp}`) — Request forwarding layer. Registers as the Reactor's "no match" handler (the catch-all for requests not handled by other plugins). Selects a backend via `Sputnik::Services::getService()`, strips host prefixes from URIs, and forwards via `Proxy::HTTPForward()`. Retries on `PROXY_FAIL_REMOTE_DENIED`; retires backends on connection failures.
 
   > **High-load retirement is intentional, don't remove it.** A `1234` high-load reply maps to `PROXY_FAIL_REMOTE_DENIED`, and `transport` then calls `Services::removeBackend()` — globally retiring the busy backend. This looks like a bug but is deliberate backpressure: the Sputnik discovery heartbeat re-adds the backend within ~2-3s once it stops reporting high load, so the cluster briefly stops bombarding a struggling backend with requests that would just bounce. It is also what stops the deterministic `sticky` forwarder from looping on one backend, so the resend loop is *not* eternal. Do not "fix" this by dropping the retirement or adding a per-request excluded-backend set. The real defect lives in the engine: `Services::removeBackend` `SIGKILL`s when retirement empties the last service, which under cluster-wide high load can kill the frontend (see `smartmet-engine-sputnik` CLAUDE.md, Backend health tracking).
 
-- **`Proxy`** (`frontend/Proxy.{h,cpp}`) — Manages the backend connection pool (`boost::asio::io_context` with configurable thread count) and two `ResponseCache` instances (compressed + uncompressed). `HTTPForward()` is the main entry point for proxying a request to a specific backend host:port.
+- **`Proxy`** (`frontend/Proxy.{h,cpp}`) — Owns the backend I/O threads (`boost::asio::io_context` with configurable thread count), the `ResponseCache` and the `BackendConnectionPool`. `HTTPForward()` is the main entry point for proxying a request to a specific backend host:port.
+
+- **`BackendConnectionPool`** (`frontend/BackendConnectionPool.{h,cpp}`) — Idle backend connections kept for the next request, keyed by `ip:port`. See "Backend connection reuse" below.
 
 - **`LowLatencyGatewayStreamer`** (`frontend/LowLatencyGatewayStreamer.{h,cpp}`) — Streaming content handler that reads backend responses via async Boost.Asio sockets and feeds them to the Spine HTTP server. Handles caching of streamable responses and backend timeouts. See "Response framing" below: it parses the backend's head and streams the **body only**.
 
@@ -93,8 +95,63 @@ Two consequences worth knowing:
    older than that change will stop feeding sputnik's heartbeat and healthy
    backends will be retired — the two must be deployed together.
 
-Backend connections are still one request per connection. Pooling them is the
-remaining half of BS-3475's frontend work.
+### Backend connection reuse
+
+Because the client response is framed independently of the backend one, a backend
+connection whose response ended at a known boundary no longer has to be thrown
+away. `BackendConnectionPool` (`frontend/BackendConnectionPool.{h,cpp}`) keeps such
+connections, keyed by `ip:port`, on the `Proxy`.
+
+Three things had to be true before this was safe, and all three are checks in the
+code rather than assumptions:
+
+- **The message really ended.** `finishBackendResponse()` only pools a socket when
+  the framing said so: a `Content-Length` that was reached with nothing past it
+  (`itsBodyOverrun`), or a chunked body whose terminating chunk arrived with no
+  bytes left in the decoder (`ChunkedBodyDecoder::pending()`). `UNTIL_CLOSE` bodies
+  can never qualify — the close *is* the framing.
+- **The backend agreed.** `backendAllowsReuse()` reads the response's `Connection`
+  field before it is stripped, with the two versions' opposite defaults: HTTP/1.1
+  persists unless it says `close`, HTTP/1.0 does not unless it says `keep-alive`.
+- **The connection is still there.** A backend closes idle connections on its own
+  keep-alive timeout, so staleness is normal, not exceptional. `acquire()` checks
+  with a `MSG_PEEK | MSG_DONTWAIT` `recv` — zero bytes means the backend closed,
+  *readable* bytes mean the connection is out of sync and is just as unusable —
+  and `retryOnFreshConnection()` replays the request once on a new connection when
+  a reused one dies before answering. Neither is sufficient alone: the check
+  cannot cover the microseconds between the peek and the write.
+
+The frontend also stops asking backends for `Connection: close`, and strips
+hop-by-hop fields (plus `Expect`, whose 100-continue negotiation is finished at
+the client hop and whose interim response would be read as the response head)
+from the forwarded request.
+
+**The cache miss is where most of the win is.** A miss used to cost two
+connections: one for the ETag probe and another for the content. Plugins answer
+the probe with a bodyless `204 No Content`, so `probeLeftCleanConnection()` can
+confirm the socket is at a message boundary and `sendContentRequest()` writes the
+content request straight onto it.
+
+`/admin?what=backendconnections` reports what the pool is doing — reuse is
+invisible in the responses themselves, so this is the only way to distinguish a
+working pool from one that finds every connection dead. `test/RunTests.cpp` asserts
+reuse actually happens, since a subtly broken pool would otherwise still pass every
+response comparison.
+
+Configured under `backend.keepalive` (`enabled`, `idle_timeout`,
+`max_idle_connections`). **`idle_timeout` must stay below the backend server's own
+`keepalive.timeout`** (30 s by default in smartmet-server) or every pooled
+connection is dead by the time it is picked up.
+
+Two limits worth knowing:
+
+- **The client's protocol version decides.** The frontend forwards the client's
+  HTTP version to the backend, so an HTTP/1.0 client request gets `Connection:
+  close` and no reuse. Upgrading it here would change what the backend may answer
+  with, and an HTTP/1.0 request need not carry the `Host` that HTTP/1.1 requires.
+- **Chunked backend bodies are not exercised locally.** `test/cnf` loads no plugin
+  that streams, so the `CHUNKED` reuse path is covered by
+  `ChunkedBodyDecoderTest` and by production traffic, not by `make test`.
 
 ### `info/` subsystem
 
@@ -120,6 +177,9 @@ The plugin reads a libconfig `.conf` file (see `cnf/frontend.conf.sample`). Key 
 - `compressed_cache` / `uncompressed_cache` — Memory and filesystem cache sizes and paths
 - `backend.timeout` — Backend connection timeout in seconds (default: 600)
 - `backend.threads` — Backend IO thread pool size (default: 20)
+- `backend.keepalive.enabled` — Reuse backend connections (default: true)
+- `backend.keepalive.idle_timeout` — Seconds a pooled connection may sit idle (default: 20; must be below the backend's own `keepalive.timeout`)
+- `backend.keepalive.max_idle_connections` — Idle connections kept per backend (default: 32)
 
 ### Plugin loading
 

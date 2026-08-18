@@ -110,6 +110,38 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
  private:
   using DeadlineTimer = boost::asio::basic_waitable_timer<std::chrono::steady_clock>;
 
+  // Which of the two backend exchanges is in flight. A request that has to be
+  // replayed on a fresh connection must restart the right one.
+  enum class Exchange
+  {
+    ETAG_PROBE,  // The "do you still have this ETag" query
+    CONTENT      // The request for the response body itself
+  };
+
+  // Open a connection to the backend, preferring an idle pooled one unless
+  // theAllowPool says otherwise. Sets itsConnectionFromPool.
+  bool openBackendConnection(bool theAllowPool);
+
+  // Open a connection and write theContent on it. A pooled connection that the
+  // backend had already closed is replayed once on a fresh one, since that race
+  // cannot be closed by checking - only by retrying.
+  bool connectAndSend(const std::string& theContent);
+
+  // Replay the current exchange on a fresh connection after a pooled one died
+  // before delivering anything. Returns false when there is nothing to replay,
+  // in which case the caller must treat the error as final.
+  bool retryOnFreshConnection(const boost::system::error_code& theError);
+
+  // May the connection carrying this response be kept for the next request?
+  bool backendAllowsReuse(const Spine::HTTP::Response& theHead) const;
+
+  // Did the ETag probe leave the connection exactly at a message boundary?
+  bool probeLeftCleanConnection(const Spine::HTTP::Response& theHead,
+                                std::string::const_iterator theBodyStart) const;
+
+  // Hand the backend connection back to the pool, or close it
+  void releaseBackendConnection(bool theReusable);
+
   // Requests content from backend
   void sendContentRequest();
 
@@ -132,8 +164,18 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Function to mark the communication to be in finishing stages
   void markFinishing();
 
-  // Publish the parsed backend head and feed it the body bytes already read
-  void publishResponseHead(const Spine::HTTP::Response& theHead, const std::string& theBodySoFar);
+  // ------------------------------------------------------------------
+  /*!
+   * \brief Publish the parsed backend head and feed it the body bytes already read
+   *
+   * Returns true when the exchange is over already - a short response can arrive
+   * whole in the same read as its head, and an error in the body's framing is
+   * equally final. The caller must not schedule another read in that case: the
+   * socket has been handed back to the pool or closed, and reading from it would
+   * report a bogus failure on a response that in fact succeeded.
+   */
+  // ------------------------------------------------------------------
+  bool publishResponseHead(const Spine::HTTP::Response& theHead, const std::string& theBodySoFar);
 
   // Feed raw backend bytes through the framing decoder. Returns true once the
   // body is known to be complete, without waiting for the backend to close.
@@ -150,6 +192,34 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   // Flag to indicate if we should cache the response content
   bool itsResponseIsCacheable = true;
+
+  // Which exchange is in flight, and the exact bytes it wrote to the backend so
+  // that it can be replayed if a reused connection turns out to be dead
+  Exchange itsExchange = Exchange::ETAG_PROBE;
+  std::string itsSentRequest;
+
+  // The current connection was reused rather than freshly opened, so a failure
+  // before the first response byte is a stale-connection race and not a verdict
+  // on the backend
+  bool itsConnectionFromPool = false;
+
+  // The one replay allowed per exchange has been used
+  bool itsReplayed = false;
+
+  // Something of the current response has arrived, so replaying the request
+  // would mean sending it twice
+  bool itsAnyResponseBytes = false;
+
+  // The backend did not ask for its connection to be closed after this response
+  bool itsBackendMayPersist = false;
+
+  // The backend sent more bytes than its Content-Length announced, so where the
+  // next message would start is anybody's guess
+  bool itsBodyOverrun = false;
+
+  // The ETag probe was answered without a body, so its connection can carry the
+  // content request that follows a cache miss
+  bool itsProbeConnectionReusable = false;
 
   // Flag to indicate backend response buffer is full and needs to be extracted by the server
   bool itsBackendBufferFull = false;

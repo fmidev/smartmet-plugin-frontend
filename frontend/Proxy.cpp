@@ -75,10 +75,16 @@ Proxy::Proxy(Proxy::Private,
              const std::filesystem::path& fileCachePath,
              int theBackendThreadCount,
              int theBackendTimeoutInSeconds,
-             int theShutdownGracePeriodInSeconds)
+             int theShutdownGracePeriodInSeconds,
+             bool theBackendKeepAlive,
+             std::size_t theMaxIdleConnectionsPerBackend,
+             int theBackendIdleTimeoutInSeconds)
     : itsResponseCache(memoryCacheSize, filesystemCacheSize, fileCachePath),
       backendIoService(theBackendThreadCount),
       idler(backendIoService.get_executor()),
+      itsBackendConnections(theBackendKeepAlive,
+                            theMaxIdleConnectionsPerBackend,
+                            theBackendIdleTimeoutInSeconds),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds),
       itsShutdownGracePeriodInSeconds(theShutdownGracePeriodInSeconds)
 {
@@ -87,6 +93,15 @@ Proxy::Proxy(Proxy::Private,
   std::cout << fmt::format(fmt::runtime("Backend shutdown grace period = {} seconds"),
                            itsShutdownGracePeriodInSeconds)
             << std::endl;
+  if (theBackendKeepAlive)
+    std::cout << fmt::format(
+                     fmt::runtime("Backend keep-alive enabled: up to {} idle connections per "
+                                  "backend, idle timeout {} seconds"),
+                     theMaxIdleConnectionsPerBackend,
+                     theBackendIdleTimeoutInSeconds)
+              << std::endl;
+  else
+    std::cout << "Backend keep-alive disabled" << std::endl;
   try
   {
     for (int i = 0; i < theBackendThreadCount; ++i)
@@ -112,7 +127,10 @@ Proxy::create(std::size_t memoryCacheSize,
         const std::filesystem::path& fileCachePath,
         int theBackendThreadCount,
         int theBackendTimeoutInSeconds,
-        int theShutdownGracePeriodInSeconds)
+        int theShutdownGracePeriodInSeconds,
+        bool theBackendKeepAlive,
+        std::size_t theMaxIdleConnectionsPerBackend,
+        int theBackendIdleTimeoutInSeconds)
 {
   return std::make_shared<Proxy>(
         Private(),
@@ -121,12 +139,20 @@ Proxy::create(std::size_t memoryCacheSize,
         fileCachePath,
         theBackendThreadCount,
         theBackendTimeoutInSeconds,
-        theShutdownGracePeriodInSeconds);
+        theShutdownGracePeriodInSeconds,
+        theBackendKeepAlive,
+        theMaxIdleConnectionsPerBackend,
+        theBackendIdleTimeoutInSeconds);
 }
 
 ResponseCache& Proxy::getCache()
 {
   return itsResponseCache;
+}
+
+void Proxy::closeBackendConnections(const std::string& theIP, unsigned short thePort)
+{
+  itsBackendConnections.closeBackend(theIP, thePort);
 }
 
 void Proxy::registerStreamerStart(const std::shared_ptr<LowLatencyGatewayStreamer>& theStreamer)
@@ -215,6 +241,10 @@ void Proxy::shutdown()
       }
     }
 
+    // Idle pooled connections have no pending operations, so nothing will ever
+    // close them on their own. Do it before the io_context stops.
+    itsBackendConnections.closeAll();
+
     backendIoService.stop();
     std::cout << fmt::format("{}  -- Shutdown requested (Proxy)", Spine::log_time_str())
               << std::endl;
@@ -260,10 +290,34 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
 
     fwdRequest.setHeader("X-Forwarded-For", theRequestOriginIP);
 
+    // Hop-by-hop fields describe the connection they arrived on, not the one
+    // being opened here (RFC 9110 7.6.1). The server strips them before a plugin
+    // sees the request, so this is belt and braces - but the frontend must not
+    // pass on the client's connection preferences either way.
+    fwdRequest.removeHeader("Connection");
+    fwdRequest.removeHeader("Keep-Alive");
+    fwdRequest.removeHeader("Proxy-Connection");
+    fwdRequest.removeHeader("TE");
+    fwdRequest.removeHeader("Trailer");
+    fwdRequest.removeHeader("Upgrade");
+
+    // The client's body is already in hand, so the 100-continue negotiation is
+    // over and done with at that hop. Forwarding the expectation would only make
+    // the backend answer with an interim "100 Continue" that this frontend has no
+    // use for - and that would be read as the response head, leaving the
+    // connection one message out of step for good.
+    fwdRequest.removeHeader("Expect");
+
     // Keep-alive towards the backend is negotiated on the backend connection
     // alone and says nothing about the client's: the frontend re-frames the
-    // response, so the client connection can persist regardless of this hop.
-    fwdRequest.setHeader("Connection", "close");
+    // response, so the client connection persists (or not) regardless of this hop.
+    //
+    // HTTP/1.1 is persistent by default, so a request forwarded as 1.1 needs no
+    // header at all. An HTTP/1.0 request has no persistence to ask for, and
+    // upgrading it here would change what the backend is allowed to answer with
+    // (chunked framing, interim responses), so it keeps the explicit close.
+    if (!itsBackendConnections.isEnabled() || fwdRequest.getVersion() != "1.1")
+      fwdRequest.setHeader("Connection", "close");
 
     // Establish used protocol. At FMI this is normally set by the F5 load balancer,
     // but in some environments the Frontend server must do this by itself

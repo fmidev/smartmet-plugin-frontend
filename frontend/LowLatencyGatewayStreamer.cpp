@@ -278,6 +278,43 @@ void stripHopByHopHeaders(Spine::HTTP::Response& response)
     response.removeHeader(name);
 }
 
+// Does a comma separated header field list contain this token? Used on the
+// Connection field, whose tokens are case insensitive and may be surrounded by
+// whitespace.
+bool hasHeaderToken(const std::string& theValue, const std::string& theToken)
+{
+  std::vector<std::string> tokens;
+  boost::algorithm::split(tokens, theValue, boost::algorithm::is_any_of(","));
+  for (auto& token : tokens)
+  {
+    boost::algorithm::trim(token);
+    if (boost::algorithm::iequals(token, theToken))
+      return true;
+  }
+  return false;
+}
+
+// Did the connection die under us, as opposed to the request failing on its own
+// merits? Only these are worth replaying: a connection taken from the pool can
+// have been closed by the backend between the liveness check and the write.
+bool isDroppedConnection(const boost::system::error_code& theError)
+{
+  return theError == boost::asio::error::eof || theError == boost::asio::error::connection_reset ||
+         theError == boost::asio::error::connection_aborted ||
+         theError == boost::asio::error::broken_pipe;
+}
+
+// Statuses that are framed by the status code itself: they carry no body, and
+// carry no framing header field either (RFC 9112 6.3). The distinction only
+// started to matter once backend connections became persistent - before that,
+// "the backend closed" was an adequate, if slow, way to learn a body had ended.
+bool statusHasNoBody(Spine::HTTP::Status theStatus)
+{
+  const auto code = static_cast<int>(theStatus);
+  return (code >= 100 && code < 200) || theStatus == Spine::HTTP::Status::no_content ||
+         theStatus == Spine::HTTP::Status::not_modified;
+}
+
 // Strict decimal, as Content-Length requires: anything a proxy and this
 // frontend could read differently is treated as no length at all.
 bool parseContentLength(const std::string& value, std::size_t& result)
@@ -396,18 +433,120 @@ void LowLatencyGatewayStreamer::markFinishing()
   }
 }
 
-// Begin backend communication
-bool LowLatencyGatewayStreamer::sendAndListen()
+// Open a connection to the backend, an idle pooled one for preference
+bool LowLatencyGatewayStreamer::openBackendConnection(bool theAllowPool)
 {
   try
   {
-    ip::tcp::endpoint theEnd(boost::asio::ip::make_address(itsIP), itsPort);
     boost::system::error_code err;
-    itsBackendSocket.connect(theEnd, err);
+    itsBackendSocket.close(err);
 
+    itsConnectionFromPool = theAllowPool && itsProxy->getBackendConnectionPool().acquire(
+                                                itsIP, itsPort, itsBackendSocket);
+
+    if (!itsConnectionFromPool)
+    {
+      ip::tcp::endpoint theEnd(boost::asio::ip::make_address(itsIP), itsPort);
+      itsBackendSocket.connect(theEnd, err);
+
+      if (!!err)
+      {
+        std::cout << fmt::format("{} Backend connection to {} failed with message '{}'",
+                                 Spine::log_time_str(),
+                                 itsIP,
+                                 err.message())
+                  << std::endl;
+        return false;
+      }
+
+      itsProxy->getBackendConnectionPool().recordFreshConnection();
+    }
+
+    // We have determined that this option significantly improves frontend latency.
+    // A pooled connection already carries it; setting it again is harmless.
+    itsBackendSocket.set_option(ip::tcp::no_delay(true), err);
+
+    return true;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+bool LowLatencyGatewayStreamer::connectAndSend(const std::string& theContent)
+{
+  try
+  {
+    // Kept so the request can be sent again if the connection turns out to have
+    // been closed by the backend while it sat idle in the pool
+    itsSentRequest = theContent;
+    itsAnyResponseBytes = false;
+    itsResponseHeaderBuffer.clear();
+
+    bool allowPool = true;
+
+    for (int attempt = 0; attempt < 2; ++attempt)
+    {
+      if (!openBackendConnection(allowPool))
+        return false;  // Connecting itself failed: the backend is unreachable
+
+      boost::system::error_code err;
+      boost::asio::write(itsBackendSocket, boost::asio::buffer(itsSentRequest), err);
+
+      if (!err)
+        return true;
+
+      if (!itsConnectionFromPool)
+      {
+        std::cout << fmt::format("{} Backend write to {} failed with message '{}'",
+                                 Spine::log_time_str(),
+                                 itsIP,
+                                 err.message())
+                  << std::endl;
+        return false;
+      }
+
+      // A pooled connection the backend had already closed. Nothing of the
+      // request reached it, so sending it again is safe.
+      boost::system::error_code ignored;
+      itsBackendSocket.close(ignored);
+      itsReplayed = true;
+      itsProxy->getBackendConnectionPool().recordReplay();
+      allowPool = false;
+    }
+
+    return false;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+bool LowLatencyGatewayStreamer::retryOnFreshConnection(const boost::system::error_code& theError)
+{
+  try
+  {
+    // Only a reused connection that died before answering is worth replaying.
+    // Once a byte of the response has arrived the failure is the backend's, and
+    // sending the request twice could mean doing its work twice.
+    if (!itsConnectionFromPool || itsReplayed || itsAnyResponseBytes)
+      return false;
+    if (itsSentRequest.empty() || !isDroppedConnection(theError))
+      return false;
+
+    itsReplayed = true;
+    itsProxy->getBackendConnectionPool().recordReplay();
+
+    boost::system::error_code err;
+    itsBackendSocket.close(err);
+
+    ip::tcp::endpoint theEnd(boost::asio::ip::make_address(itsIP), itsPort);
+    itsBackendSocket.connect(theEnd, err);
     if (!!err)
     {
-      std::cout << fmt::format("{} Backend connection to {} failed with message '{}'",
+      std::cout << fmt::format("{} Backend reconnection to {} failed with message '{}'",
                                Spine::log_time_str(),
                                itsIP,
                                err.message())
@@ -415,17 +554,11 @@ bool LowLatencyGatewayStreamer::sendAndListen()
       return false;
     }
 
-    // We have determined that this option significantly improves frontend latency
-    boost::asio::ip::tcp::no_delay no_delay_option(true);
-    itsBackendSocket.set_option(no_delay_option);
+    itsConnectionFromPool = false;
+    itsProxy->getBackendConnectionPool().recordFreshConnection();
+    itsBackendSocket.set_option(ip::tcp::no_delay(true), err);
 
-    // Attempt to write to the socket
-
-    // This header signals we query ETag from the backend
-    itsOriginalRequest.setHeader("X-Request-ETag", "true");
-
-    std::string content = serialiseRequest(itsOriginalRequest);
-    boost::asio::write(itsBackendSocket, boost::asio::buffer(content), err);
+    boost::asio::write(itsBackendSocket, boost::asio::buffer(itsSentRequest), err);
     if (!!err)
     {
       std::cout << fmt::format("{} Backend write to {} failed with message '{}'",
@@ -436,8 +569,47 @@ bool LowLatencyGatewayStreamer::sendAndListen()
       return false;
     }
 
+    itsResponseHeaderBuffer.clear();
+
+    std::shared_ptr<LowLatencyGatewayStreamer> me = shared_from_this();
+    if (itsExchange == Exchange::ETAG_PROBE)
+      itsBackendSocket.async_read_some(
+          boost::asio::buffer(itsSocketBuffer),
+          [me](const boost::system::error_code& err, std::size_t bytes_transferred)
+          { me->readCacheResponse(err, bytes_transferred); });
+    else
+      itsBackendSocket.async_read_some(
+          boost::asio::buffer(itsSocketBuffer),
+          [me](const boost::system::error_code& err, std::size_t bytes_transferred)
+          { me->readDataResponseHeaders(err, bytes_transferred); });
+
+    itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+
+    return true;
+  }
+  catch (...)
+  {
+    throw Fmi::Exception::Trace(BCP, "Operation failed!");
+  }
+}
+
+// Begin backend communication
+bool LowLatencyGatewayStreamer::sendAndListen()
+{
+  try
+  {
+    itsExchange = Exchange::ETAG_PROBE;
+
+    // This header signals we query ETag from the backend
+    itsOriginalRequest.setHeader("X-Request-ETag", "true");
+
+    const std::string content = serialiseRequest(itsOriginalRequest);
+
     // Remove cache query header, it is no longer needed
     itsOriginalRequest.removeHeader("X-Request-ETag");
+
+    if (!connectAndSend(content))
+      return false;
 
     // Start the timeout timer
     itsTimeoutTimer = std::make_shared<DeadlineTimer>(
@@ -461,7 +633,7 @@ bool LowLatencyGatewayStreamer::sendAndListen()
   }
 }
 
-void LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response& theHead,
+bool LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response& theHead,
                                                     const std::string& theBodySoFar)
 {
   auto head = std::make_unique<Spine::HTTP::Response>(theHead);
@@ -471,7 +643,15 @@ void LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response&
   auto transferEncoding = head->getHeader("Transfer-Encoding");
   auto contentLength = head->getHeader("Content-Length");
 
-  if (transferEncoding)
+  if (statusHasNoBody(head->getStatus()))
+  {
+    // No body at all, and no header field saying so. Treating this as a
+    // zero-length body ends the exchange here instead of waiting for a close
+    // that a persistent backend connection is never going to bring.
+    itsBodyFraming = BodyFraming::LENGTH;
+    itsDeclaredBodyLength = 0;
+  }
+  else if (transferEncoding)
   {
     itsBodyFraming = BodyFraming::CHUNKED;
   }
@@ -487,6 +667,10 @@ void LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response&
     itsBodyFraming = BodyFraming::UNTIL_CLOSE;
   }
 
+  // Read before the Connection field is stripped: whether this connection may
+  // serve another request is the last thing that field is good for here.
+  itsBackendMayPersist = backendAllowsReuse(theHead);
+
   stripHopByHopHeaders(*head);
 
   // The frontend frames the client response itself and may not frame it the
@@ -497,13 +681,17 @@ void LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response&
   itsBackendHead = std::move(head);
   itsHeadReady = true;
 
-  if (!theBodySoFar.empty())
-  {
-    if (consumeBodyBytes(theBodySoFar.data(), theBodySoFar.size()))
-      finishBackendResponse();
-  }
+  // Fed even when nothing followed the head, so that a response declaring no
+  // body at all is recognised as complete instead of waiting for a close.
+  bool finished = consumeBodyBytes(theBodySoFar.data(), theBodySoFar.size());
+  if (finished)
+    finishBackendResponse();
+  else if (itsGatewayStatus == GatewayStatus::FAILED)
+    finished = true;  // The framing was rejected; there is nothing left to read
 
   itsHeadReadyEvent.notify_all();
+
+  return finished;
 }
 
 void LowLatencyGatewayStreamer::appendBodyBytes(const char* data, std::size_t length)
@@ -535,6 +723,12 @@ bool LowLatencyGatewayStreamer::consumeBodyBytes(const char* data, std::size_t l
       // Never hand on more than was announced: anything beyond the declared
       // length belongs to the next response on that backend connection.
       const std::size_t remaining = itsDeclaredBodyLength - itsBodyBytesDecoded;
+      if (length > remaining)
+      {
+        // Where the next message on this connection would begin is now a guess,
+        // so the connection cannot be handed on
+        itsBodyOverrun = true;
+      }
       appendBodyBytes(data, std::min(remaining, length));
       itsBodyComplete = itsBodyBytesDecoded >= itsDeclaredBodyLength;
       return itsBodyComplete;
@@ -587,18 +781,79 @@ void LowLatencyGatewayStreamer::storeInCacheIfEligible()
   }
 }
 
+bool LowLatencyGatewayStreamer::backendAllowsReuse(const Spine::HTTP::Response& theHead) const
+{
+  if (!itsProxy->getBackendConnectionPool().isEnabled())
+    return false;
+
+  auto connection = theHead.getHeader("Connection");
+  const std::string field = connection ? *connection : std::string();
+
+  // The two protocol versions say the opposite thing by default: HTTP/1.1 keeps
+  // the connection unless told otherwise, HTTP/1.0 drops it unless asked.
+  if (theHead.getVersion() == "1.0")
+    return hasHeaderToken(field, "keep-alive");
+
+  return !hasHeaderToken(field, "close");
+}
+
+bool LowLatencyGatewayStreamer::probeLeftCleanConnection(
+    const Spine::HTTP::Response& theHead, std::string::const_iterator theBodyStart) const
+{
+  // Plugins answer the ETag probe with "204 No Content", so the head is the
+  // whole message and the connection is left exactly at a message boundary.
+  // Anything else - a body we are about to abandon, or bytes past the head -
+  // and the request that follows would be read against the wrong offset.
+  if (theBodyStart != itsResponseHeaderBuffer.cend())
+    return false;
+
+  const auto status = theHead.getStatus();
+  const bool bodyless =
+      (status == Spine::HTTP::Status::no_content || status == Spine::HTTP::Status::not_modified);
+
+  if (!bodyless)
+  {
+    if (theHead.getHeader("Transfer-Encoding"))
+      return false;
+
+    auto length = theHead.getHeader("Content-Length");
+    std::size_t declared = 0;
+    if (!length || !parseContentLength(*length, declared) || declared != 0)
+      return false;
+  }
+
+  return backendAllowsReuse(theHead);
+}
+
+void LowLatencyGatewayStreamer::releaseBackendConnection(bool theReusable)
+{
+  boost::system::error_code ignored_error;
+
+  // A connection that timed out is not at a boundary we can trust, whatever the
+  // framing said, since the timer fires on a connection that stopped delivering.
+  if (theReusable && !itsHasTimedOut && itsBackendSocket.is_open())
+    itsProxy->getBackendConnectionPool().release(itsIP, itsPort, std::move(itsBackendSocket));
+  else
+    itsBackendSocket.close(ignored_error);
+}
+
 void LowLatencyGatewayStreamer::finishBackendResponse()
 {
   // The response is complete because its own framing says so, without waiting
   // for the backend to close the socket. That is what makes the backend
-  // connection reusable, and until it is pooled it at least means the socket is
-  // released promptly instead of lingering until EOF.
+  // connection reusable: the socket sits at a message boundary, so the next
+  // request can go out on it instead of paying for another handshake.
   storeInCacheIfEligible();
 
   itsGatewayStatus = GatewayStatus::FINISHED;
 
-  boost::system::error_code ignored_error;
-  itsBackendSocket.close(ignored_error);
+  const bool atMessageBoundary =
+      !itsBodyOverrun &&
+      (itsBodyFraming == BodyFraming::LENGTH ||
+       (itsBodyFraming == BodyFraming::CHUNKED && itsChunkDecoder.pending() == 0));
+
+  releaseBackendConnection(itsBackendMayPersist && atMessageBoundary);
+
   if (itsTimeoutTimer)
     itsTimeoutTimer->cancel();
 
@@ -696,9 +951,14 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
     if (!!error)
     {
+      if (retryOnFreshConnection(error))
+        return;
       handleError(error);
       return;
     }
+
+    if (bytes_transferred > 0)
+      itsAnyResponseBytes = true;
 
     itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
@@ -752,18 +1012,21 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
           itsResponseIsCacheable = false;
 
-          publishResponseHead(*responsePtr,
-                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
+          const bool complete = publishResponseHead(
+              *responsePtr, std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
 
-          // Go to data response loop
-          itsBackendSocket.async_read_some(
-              boost::asio::buffer(itsSocketBuffer),
-              [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred)
-              { me->readDataResponse(err, bytes_transferred); });
+          if (!complete)
+          {
+            // Go to data response loop
+            itsBackendSocket.async_read_some(
+                boost::asio::buffer(itsSocketBuffer),
+                [me = shared_from_this()](const boost::system::error_code& err,
+                                          std::size_t bytes_transferred)
+                { me->readDataResponse(err, bytes_transferred); });
 
-          // Reset timeout timer
-          itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+            // Reset timeout timer
+            itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+          }
 
           markFinishing();  // Remove backend communication from load balancing
 
@@ -772,6 +1035,12 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
         else
         {
           std::string etag = *etagHeader;
+
+          // The probe is normally answered with a bodyless "204 No Content", so
+          // the connection is at a message boundary and can carry whatever comes
+          // next - the content request on a cache miss, or another request
+          // entirely on a cache hit.
+          itsProbeConnectionReusable = probeLeftCleanConnection(*responsePtr, std::get<2>(ret));
 
           // See if we should send a content-encoded response
           auto accepted_content_type = clientAcceptsContentEncoding(itsOriginalRequest);
@@ -822,11 +1091,12 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           itsGatewayStatus =
               GatewayStatus::FINISHED;  // Entire response content generated, we are done!
 
-          // Explicitly close the socket here, since ASIO doesn't know the backend conversation is
-          // finished
-          // Backend socket will leak without this
-          boost::system::error_code ignored_error;
-          itsBackendSocket.close(ignored_error);
+          // ASIO doesn't know the backend conversation is finished, so the socket
+          // has to be dealt with explicitly here or it leaks. A probe that left
+          // the connection at a message boundary is worth keeping: the response
+          // came from our own cache, so the backend connection is untouched and
+          // ready for the next request.
+          releaseBackendConnection(itsProbeConnectionReusable);
 
           markFinishing();  // Remove backend communication from load balancing
 
@@ -848,59 +1118,61 @@ void LowLatencyGatewayStreamer::sendContentRequest()
 {
   try
   {
-    // Close the socket since we make a new connection to the backend
-    // SmartMet doesn't currently support request pipelining
-    boost::system::error_code err;
-    itsBackendSocket.close(err);
+    // A second exchange on its own connection, so it gets its own replay budget
+    itsExchange = Exchange::CONTENT;
+    itsReplayed = false;
 
     // Clear buffers just in case.
     itsClientDataBuffer.clear();
     itsResponseHeaderBuffer.clear();
     itsCachedContent.clear();
 
-    ip::tcp::endpoint theEnd(boost::asio::ip::make_address(itsIP), itsPort);
+    const std::string buffer = serialiseRequest(itsOriginalRequest);
 
-    itsBackendSocket.connect(theEnd, err);
-
-    if (!!err)
+    if (itsProbeConnectionReusable)
     {
-      std::cout << fmt::format("{} Backend connection to {} failed with message '{}'",
-                               Spine::log_time_str(),
-                               itsIP,
-                               err.message())
-                << std::endl;
+      // The ETag probe was answered without a body, so its connection is at a
+      // message boundary and the content request goes out on it directly. This
+      // is what removes the second TCP handshake a cache miss used to cost.
+      itsSentRequest = buffer;
+      itsAnyResponseBytes = false;
+      itsConnectionFromPool = true;  // Reused, so worth one replay if it is dead
+      itsProxy->getBackendConnectionPool().recordDirectReuse();
 
+      boost::system::error_code err;
+      boost::asio::write(itsBackendSocket, boost::asio::buffer(itsSentRequest), err);
+
+      if (!err)
+      {
+        itsBackendSocket.async_read_some(
+            boost::asio::buffer(itsSocketBuffer),
+            [me = shared_from_this()](const boost::system::error_code& err,
+                                      std::size_t bytes_transferred)
+            { me->readDataResponseHeaders(err, bytes_transferred); });
+
+        itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+        return;
+      }
+
+      // The backend closed the probe connection after answering it after all.
+      // Nothing of the request got through, so it is safe to send again.
+      itsReplayed = true;
+    }
+
+    if (!connectAndSend(buffer))
+    {
       itsGatewayStatus = GatewayStatus::FAILED;
-
       return;
     }
 
-    std::string buffer = serialiseRequest(itsOriginalRequest);
+    // Start to listen for the reply, headers not yet received
+    itsBackendSocket.async_read_some(boost::asio::buffer(itsSocketBuffer),
+                                     [me = shared_from_this()](const boost::system::error_code& err,
+                                                               std::size_t bytes_transferred)
+                                     { me->readDataResponseHeaders(err, bytes_transferred); });
 
-    boost::asio::write(itsBackendSocket, boost::asio::buffer(buffer), err);
-
-    if (!err)
-    {
-      // Start to listen for the reply, headers not yet received
-      itsBackendSocket.async_read_some(
-          boost::asio::buffer(itsSocketBuffer),
-          [me = shared_from_this()](const boost::system::error_code& err,
-                                    std::size_t bytes_transferred)
-          { me->readDataResponseHeaders(err, bytes_transferred); });
-
-      // Reset timeout timer
-      itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
-    }
-    else
-    {
-      std::cout << fmt::format("{} Backed write to {} failed with message '{}'",
-                               Spine::log_time_str(),
-                               itsIP,
-                               err.message())
-                << std::endl;
-
-      itsGatewayStatus = GatewayStatus::FAILED;
-    }
+    // Reset timeout timer
+    itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
   }
   catch (...)
   {
@@ -918,9 +1190,14 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
 
     if (!!error)
     {
+      if (retryOnFreshConnection(error))
+        return;
       handleError(error);
       return;
     }
+
+    if (bytes_transferred > 0)
+      itsAnyResponseBytes = true;
 
     itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
@@ -984,33 +1261,27 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             // the cache
             itsBackendMetadata = build_metadata(*responsePtr);
           }
-
-          publishResponseHead(*responsePtr,
-                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
-
-          itsBackendSocket.async_read_some(
-              boost::asio::buffer(itsSocketBuffer),
-              [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred)
-              { me->readDataResponse(err, bytes_transferred); });
         }
         else
         {
           // No ETag, response is not cacheable
           itsResponseIsCacheable = false;
+        }
 
-          publishResponseHead(*responsePtr,
-                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
+        const bool complete = publishResponseHead(
+            *responsePtr, std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
 
+        if (!complete)
+        {
           itsBackendSocket.async_read_some(
               boost::asio::buffer(itsSocketBuffer),
               [me = shared_from_this()](const boost::system::error_code& err,
                                         std::size_t bytes_transferred)
               { me->readDataResponse(err, bytes_transferred); });
-        }
 
-        // Reset timeout timer
-        itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+          // Reset timeout timer
+          itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+        }
 
         itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
 
@@ -1039,6 +1310,9 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
     }
     else
     {
+      if (bytes_transferred > 0)
+        itsAnyResponseBytes = true;
+
       if (consumeBodyBytes(itsSocketBuffer.data(), bytes_transferred))
       {
         // The body's own framing says it is complete, so there is no need to
