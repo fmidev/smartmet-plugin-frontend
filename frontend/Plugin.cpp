@@ -908,7 +908,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminTableRequestHandler(
         this,
         "backendconnections",
-        AdminRequestAccess::Public,
+        AdminRequestAccess::Private,
         std::bind(&Plugin::requestBackendConnections, this, p::_1, p::_2),
         "Pooled backend connections"))
   {
