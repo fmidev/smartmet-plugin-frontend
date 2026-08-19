@@ -9,10 +9,16 @@ filters = ["frontend","pointforecast","autocomplete"];
 # The former separate 'compressed_cache' and 'uncompressed_cache' blocks are deprecated
 # but still honoured: if no 'response_cache' block is present, their sizes are summed and
 # the first configured directory is used.
+#
+# The sizes may be given either as integers (libconfig requires an 'L' suffix for values
+# not fitting into 32 bits) or as strings with an optional unit. The unit is case
+# insensitive, and B, K, M, G, T and P are accepted both alone and followed by "B" or
+# "iB". All units are binary multiples, so "100G", "100GB" and "100 GiB" all mean the
+# same 107374182400 bytes.
 response_cache =
 {
-        memory_bytes            = 107374182400L; # 100 GB
-        filesystem_bytes        = 214748364800L; # 200 GB
+        memory_bytes            = "100G";
+        filesystem_bytes        = "200G";
         directory               = "/smartmet/cache/frontend-response-cache";
 };
 

@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.8.17
+Version: 26.8.19
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
-BuildRequires: smartmet-library-spine-devel >= 26.8.4
+BuildRequires: smartmet-library-spine-devel >= 26.8.19
 BuildRequires: smartmet-library-grid-files-devel >= 26.7.14
 BuildRequires: smartmet-engine-sputnik-devel >= 26.6.26
 BuildRequires: gdal312-devel
@@ -36,7 +36,7 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.7.9
 Requires: smartmet-server >= 26.8.17
 Requires: smartmet-engine-sputnik >= 26.6.26
-Requires: smartmet-library-spine >= 26.8.4
+Requires: smartmet-library-spine >= 26.8.19
 Requires: smartmet-library-timeseries >= 26.5.5
 Requires: smartmet-library-grid-files >= 26.7.14
 Requires: jsoncpp
@@ -53,8 +53,8 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.7.9
-#TestRequires: smartmet-library-spine-devel >= 26.7.14
-#TestRequires: smartmet-library-spine >= 26.7.14
+#TestRequires: smartmet-library-spine-devel >= 26.8.19
+#TestRequires: smartmet-library-spine >= 26.8.19
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +103,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Aug 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.19-1.fmi
+- The response_cache sizes are now read with Spine::lookupSizeSetting(), so
+  memory_bytes and filesystem_bytes accept readable values such as "32G" or "512MB"
+  in addition to plain integers
+
 * Mon Aug 17 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.8.17-1.fmi
 - Add HTTP 1.1 keep-alive support
 
