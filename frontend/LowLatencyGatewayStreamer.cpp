@@ -343,7 +343,7 @@ LowLatencyGatewayStreamer::~LowLatencyGatewayStreamer()
   itsProxy->registerStreamerStop();
 }
 
-void LowLatencyGatewayStreamer::abortForShutdown()
+void LowLatencyGatewayStreamer::abort(const std::string& theReason)
 {
   try
   {
@@ -352,11 +352,11 @@ void LowLatencyGatewayStreamer::abortForShutdown()
     if (itsGatewayStatus != GatewayStatus::ONGOING)
       return;  // Already finished or failed on its own, nothing to do
 
-    std::cout << fmt::format(
-                     "{} Aborting gateway stream to {}:{} for shutdown, response will be lost",
-                     Spine::log_time_str(),
-                     itsIP,
-                     itsPort)
+    std::cout << fmt::format("{} Aborting gateway stream to {}:{} ({}), response will be lost",
+                             Spine::log_time_str(),
+                             itsIP,
+                             itsPort,
+                             theReason)
               << std::endl;
 
     // Never cache a response we are truncating ourselves
@@ -370,11 +370,14 @@ void LowLatencyGatewayStreamer::abortForShutdown()
 
     markFinishing();  // Remove backend communication from load balancing
 
-    itsDataAvailableEvent.notify_all();  // Wake up the client-facing consumer thread
+    // Both waiters: a request thread may still be waiting for the head, and the
+    // server's writer for the next chunk
+    itsHeadReadyEvent.notify_all();
+    itsDataAvailableEvent.notify_all();
   }
   catch (...)
   {
-    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::abortForShutdown aborted", nullptr);
+    Fmi::Exception ex(BCP, "LowLatencyGatewayStreamer::abort aborted", nullptr);
     ex.printError();
     // Must not throw or execution will terminate
   }
@@ -474,7 +477,7 @@ bool LowLatencyGatewayStreamer::openBackendConnection(bool theAllowPool)
   }
 }
 
-bool LowLatencyGatewayStreamer::connectAndSend(const std::string& theContent)
+bool LowLatencyGatewayStreamer::connectAndSend(const std::string& theContent, bool theAllowPool)
 {
   try
   {
@@ -484,7 +487,7 @@ bool LowLatencyGatewayStreamer::connectAndSend(const std::string& theContent)
     itsAnyResponseBytes = false;
     itsResponseHeaderBuffer.clear();
 
-    bool allowPool = true;
+    bool allowPool = theAllowPool;
 
     for (int attempt = 0; attempt < 2; ++attempt)
     {
@@ -583,7 +586,7 @@ bool LowLatencyGatewayStreamer::retryOnFreshConnection(const boost::system::erro
           [me](const boost::system::error_code& err, std::size_t bytes_transferred)
           { me->readDataResponseHeaders(err, bytes_transferred); });
 
-    itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+    extendBackendDeadline();
 
     return true;
   }
@@ -612,11 +615,9 @@ bool LowLatencyGatewayStreamer::sendAndListen()
       return false;
 
     // Start the timeout timer
-    itsTimeoutTimer = std::make_shared<DeadlineTimer>(
-        itsProxy->backendIoService, std::chrono::seconds(itsBackendTimeoutInSeconds));
-
-    itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err)
-                                { me->handleTimeout(err); });
+    itsTimeoutTimer = std::make_shared<DeadlineTimer>(itsProxy->backendIoService);
+    extendBackendDeadline();
+    armTimeoutTimer();
 
     // Start to listen for the reply, headers not yet received
     std::shared_ptr<LowLatencyGatewayStreamer> me = shared_from_this();
@@ -867,8 +868,8 @@ const Spine::HTTP::Response* LowLatencyGatewayStreamer::waitForResponseHead()
     boost::unique_lock<boost::mutex> lock(itsMutex);
 
     // Bounded by the backend timeout, which the read handlers keep pushing back
-    // while data is flowing; a backend that never answers is caught by the
-    // timer, which sets FAILED.
+    // while data is flowing. A backend that goes quiet is caught by
+    // handleTimeout(), which sets FAILED and wakes this wait.
     while (!itsHeadReady && itsGatewayStatus == GatewayStatus::ONGOING)
       itsHeadReadyEvent.timed_wait(lock, boost::posix_time::milliseconds(100));
 
@@ -930,8 +931,10 @@ std::string LowLatencyGatewayStreamer::getChunk()
                                     std::size_t bytes_transferred)
           { me->readDataResponse(err, bytes_transferred); });
 
-      // Reset timeout timer
-      itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+      // Reset timeout timer. It was cancelled outright when the buffer filled up,
+      // so this one has to be re-armed and not merely pushed back.
+      extendBackendDeadline();
+      armTimeoutTimer();
     }
 
     return returnedBuffer;
@@ -994,7 +997,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
             { me->readCacheResponse(err, bytes_transferred); });
 
         // Reset timeout timer
-        itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+        extendBackendDeadline();
 
         break;
       }
@@ -1025,7 +1028,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
                 { me->readDataResponse(err, bytes_transferred); });
 
             // Reset timeout timer
-            itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+            extendBackendDeadline();
           }
 
           markFinishing();  // Remove backend communication from load balancing
@@ -1121,6 +1124,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
     // A second exchange on its own connection, so it gets its own replay budget
     itsExchange = Exchange::CONTENT;
     itsReplayed = false;
+    bool allowPool = true;
 
     // Clear buffers just in case.
     itsClientDataBuffer.clear();
@@ -1150,16 +1154,19 @@ void LowLatencyGatewayStreamer::sendContentRequest()
                                       std::size_t bytes_transferred)
             { me->readDataResponseHeaders(err, bytes_transferred); });
 
-        itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+        extendBackendDeadline();
         return;
       }
 
       // The backend closed the probe connection after answering it after all.
-      // Nothing of the request got through, so it is safe to send again.
+      // Nothing of the request got through, so it is safe to send again - but on
+      // a connection we know is new. Taking another pooled one could lose the
+      // same race a second time, and the replay budget is now spent.
       itsReplayed = true;
+      allowPool = false;
     }
 
-    if (!connectAndSend(buffer))
+    if (!connectAndSend(buffer, allowPool))
     {
       itsGatewayStatus = GatewayStatus::FAILED;
       return;
@@ -1172,7 +1179,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
                                      { me->readDataResponseHeaders(err, bytes_transferred); });
 
     // Reset timeout timer
-    itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+    extendBackendDeadline();
   }
   catch (...)
   {
@@ -1227,7 +1234,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
             { me->readDataResponseHeaders(err, bytes_transferred); });
 
         // Reset timeout timer
-        itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+        extendBackendDeadline();
 
         return;
       }
@@ -1280,7 +1287,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
               { me->readDataResponse(err, bytes_transferred); });
 
           // Reset timeout timer
-          itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+          extendBackendDeadline();
         }
 
         itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
@@ -1345,7 +1352,7 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
           { me->readDataResponse(err, bytes_transferred); });
 
       // Reset timeout timer
-      itsTimeoutTimer->expires_after(std::chrono::seconds(itsBackendTimeoutInSeconds));
+      extendBackendDeadline();
     }
 
     itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
@@ -1358,21 +1365,70 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
   }
 }
 
-// Function to handle timeouts
+void LowLatencyGatewayStreamer::extendBackendDeadline()
+{
+  itsDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(itsBackendTimeoutInSeconds);
+}
+
+void LowLatencyGatewayStreamer::armTimeoutTimer()
+{
+  itsTimeoutTimer->expires_at(itsDeadline);
+  itsTimeoutTimer->async_wait([me = shared_from_this()](const boost::system::error_code& err)
+                              { me->handleTimeout(err); });
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief The backend has gone quiet for longer than it is allowed to
+ *
+ * This has to end the exchange itself, not just make a note of it. Both waiters
+ * - the request thread in waitForResponseHead(), and the server's writer in
+ * getChunk() - loop while the status says ONGOING, so a backend that accepts a
+ * connection and then says nothing would otherwise hold a request thread for as
+ * long as the process lives.
+ */
+// ----------------------------------------------------------------------
+
 void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& err)
 {
   try
   {
     boost::unique_lock<boost::mutex> lock(itsMutex);
-    if (err != boost::asio::error::operation_aborted)
+
+    if (err == boost::asio::error::operation_aborted)
+      return;  // Cancelled because the exchange finished, or re-armed under us
+
+    if (itsGatewayStatus != GatewayStatus::ONGOING)
+      return;  // Finished between the timer firing and this handler running
+
+    if (std::chrono::steady_clock::now() < itsDeadline)
     {
-      // Cancel pending async tasks
-      // This means readSocket will be called with operation_aborted - error
-      itsHasTimedOut = true;
-      itsResponseIsCacheable = false;
+      // The backend has been heard from since this wait was armed, so the
+      // deadline moved. Wait for the new one instead of firing.
+      armTimeoutTimer();
+      return;
     }
 
-    // The timer was pushed back
+    std::cout << fmt::format("{} Connection to backend at {}:{} timed out in {} seconds",
+                             Spine::log_time_str(),
+                             itsIP,
+                             itsPort,
+                             itsBackendTimeoutInSeconds)
+              << std::endl;
+
+    itsHasTimedOut = true;
+    itsResponseIsCacheable = false;
+    itsGatewayStatus = GatewayStatus::FAILED;
+
+    // Closing cancels whatever read is outstanding. Its handler will see
+    // operation_aborted and, finding itsHasTimedOut set, stop there.
+    boost::system::error_code ignored_error;
+    itsBackendSocket.close(ignored_error);
+
+    markFinishing();  // Remove backend communication from load balancing
+
+    itsHeadReadyEvent.notify_all();
+    itsDataAvailableEvent.notify_all();
   }
   catch (...)
   {
@@ -1413,22 +1469,10 @@ void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err
     }
     else if (err == boost::asio::error::operation_aborted)
     {
-      // Backend timed out or client disconnected
-      if (itsHasTimedOut)
-      {
-        std::cout << fmt::format("{} Connection to backend at {}:{} timed out in {} seconds",
-                                 Spine::log_time_str(),
-                                 itsIP,
-                                 itsPort,
-                                 itsBackendTimeoutInSeconds)
-                  << std::endl;
-
-        itsGatewayStatus = GatewayStatus::FAILED;
-      }
-
-      // If operation_aborted is fired but itHasTimedOut is not set,
-      // the client has disconnected and the connection is destructing.
-      // Gatewaystatus does not matter in this case
+      // The read was cancelled. Either handleTimeout() closed the socket - in
+      // which case it has already reported the timeout and failed the stream -
+      // or the client disconnected and this connection is destructing, where the
+      // gateway status no longer matters.
     }
     else
     {

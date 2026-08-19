@@ -101,11 +101,23 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Body length the backend announced. Meaningful only for BodyFraming::LENGTH.
   std::size_t getDeclaredBodyLength() const { return itsDeclaredBodyLength; }
 
-  // Forcibly fail this stream. Called by Proxy::shutdown() once a still-running stream
-  // has outlived its shutdown grace period, so the client gets a prompt error and the
-  // stream's destructor (and its shared_ptr<Proxy>) is released in time for shutdown to
-  // complete rather than being SIGKILLed mid-transfer.
-  void abortForShutdown();
+  // ------------------------------------------------------------------
+  /*!
+   * \brief Forcibly fail this stream
+   *
+   * Used wherever nobody is going to consume this exchange after all: a shutdown
+   * that has run out of grace period, or a backend denial that the caller is
+   * about to retry on another backend. Does nothing to a stream that has already
+   * finished, so a completed response keeps its pooled connection.
+   */
+  // ------------------------------------------------------------------
+  void abort(const std::string& theReason);
+
+  // Called by Proxy::shutdown() once a still-running stream has outlived its shutdown
+  // grace period, so the client gets a prompt error and the stream's destructor (and its
+  // shared_ptr<Proxy>) is released in time for shutdown to complete rather than being
+  // SIGKILLed mid-transfer.
+  void abortForShutdown() { abort("shutdown"); }
 
  private:
   using DeadlineTimer = boost::asio::basic_waitable_timer<std::chrono::steady_clock>;
@@ -125,7 +137,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Open a connection and write theContent on it. A pooled connection that the
   // backend had already closed is replayed once on a fresh one, since that race
   // cannot be closed by checking - only by retrying.
-  bool connectAndSend(const std::string& theContent);
+  bool connectAndSend(const std::string& theContent, bool theAllowPool = true);
 
   // Replay the current exchange on a fresh connection after a pooled one died
   // before delivering anything. Returns false when there is nothing to replay,
@@ -157,6 +169,15 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   // Function to handle timeouts
   void handleTimeout(const boost::system::error_code& err);
+
+  // Push the backend deadline back. Called whenever the backend shows a sign of
+  // life; deliberately does not touch the timer, which would mean a timer queue
+  // update and a handler allocation on every 8 kB read.
+  void extendBackendDeadline();
+
+  // Wait for the current deadline. Needed at the start, after handleTimeout()
+  // finds the deadline has moved, and after the buffer-full path cancels it.
+  void armTimeoutTimer();
 
   // Function to handle errors in backend communication
   void handleError(const boost::system::error_code& err);
@@ -289,6 +310,10 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   // Flag to signal backend connection has timed out
   bool itsHasTimedOut = false;
+
+  // When the backend has been silent for too long. Kept separately from the
+  // timer so that a read only has to move a time point.
+  std::chrono::steady_clock::time_point itsDeadline;
 
   // Backend timeout in seconds
   int itsBackendTimeoutInSeconds;

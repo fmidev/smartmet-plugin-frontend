@@ -153,6 +153,25 @@ Two limits worth knowing:
   that streams, so the `CHUNKED` reuse path is covered by
   `ChunkedBodyDecoderTest` and by production traffic, not by `make test`.
 
+### The backend timeout
+
+`itsBackendTimeoutInSeconds` is enforced as a deadline plus a re-armed timer, not by
+moving the timer on every read:
+
+- `extendBackendDeadline()` moves `itsDeadline` and nothing else. It runs on every
+  read completion, so it has to stay cheap.
+- `armTimeoutTimer()` waits for the current deadline. `handleTimeout()` re-arms
+  itself if the deadline has moved since, and otherwise **fails the stream**: sets
+  `FAILED`, closes the socket, and wakes both `waitForResponseHead()` and
+  `getChunk()`.
+
+Failing the stream is the part that matters. Both waiters loop while the status says
+`ONGOING`, and `HTTPForward()` blocks in `waitForResponseHead()` on a request-handler
+thread, so a backend that accepts a connection and then says nothing would otherwise
+hold that thread for the life of the process. `boost::asio::basic_waitable_timer`
+also makes the re-arming mandatory: `expires_after()` cancels the outstanding wait,
+so a timer that is pushed back without a new `async_wait()` never fires again.
+
 ### `info/` subsystem
 
 Classes in `frontend/info/` handle aggregating metadata from multiple backends:

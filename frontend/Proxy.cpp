@@ -11,6 +11,7 @@
 #include <spine/Convenience.h>
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -167,6 +168,18 @@ void Proxy::registerStreamerStop()
   boost::unique_lock<boost::mutex> lock(itsStreamerCountMutex);
   if (itsActiveStreamerCount > 0)
     --itsActiveStreamerCount;
+
+  // Drop the streamers that have gone. Without this the vector keeps one entry
+  // per request ever served, and a weak_ptr to a make_shared object holds that
+  // object's whole allocation - a LowLatencyGatewayStreamer is 9 kB, most of it
+  // the socket buffer - so the frontend would grow without bound and shutdown
+  // would scan the entire history of the process. This runs while the streamer
+  // being counted out is still executing its own destructor, so its weak_ptr has
+  // already expired and is swept with the rest.
+  std::erase_if(itsActiveStreamers,
+                [](const std::weak_ptr<LowLatencyGatewayStreamer>& theStreamer)
+                { return theStreamer.expired(); });
+
   if (itsActiveStreamerCount == 0)
     itsStreamerDrainedCond.notify_all();
 }
@@ -350,30 +363,35 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
     const Spine::HTTP::Response* backendHead = responseStreamer->waitForResponseHead();
     if (backendHead == nullptr)
     {
-      // The backend never produced a parseable response
+      // The backend never produced a parseable response. The stream has failed
+      // or timed out to get here, so this is a belt-and-braces release of
+      // whatever it may still be holding.
+      responseStreamer->abort("no response head from the backend");
       return ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
 
-    switch (parseBackendDenyReason(*backendHead))
+    const auto denyReason = parseBackendDenyReason(*backendHead);
+    if (denyReason != BackendDenyReason::NONE)
     {
-      case BackendDenyReason::SHUTDOWN:
-        std::cout << fmt::format("{} *** Remote {}:{} shutting down, resending to another backend",
-                                 Spine::log_time_str(),
-                                 theHostName,
-                                 theBackendPort)
-                  << std::endl;
-        return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
+      const char* what =
+          (denyReason == BackendDenyReason::SHUTDOWN ? "shutting down" : "has high load");
 
-      case BackendDenyReason::HIGH_LOAD:
-        std::cout << fmt::format("{} *** Remote {}:{} has high load, resending to another backend",
-                                 Spine::log_time_str(),
-                                 theHostName,
-                                 theBackendPort)
-                  << std::endl;
-        return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
+      std::cout << fmt::format("{} *** Remote {}:{} {}, resending to another backend",
+                               Spine::log_time_str(),
+                               theHostName,
+                               theBackendPort,
+                               what)
+                << std::endl;
 
-      case BackendDenyReason::NONE:
-        break;
+      // The denial is answered from another backend, so nothing will ever read
+      // this stream. A denial reply is normally short enough to have arrived
+      // whole, in which case the stream has already finished and this does
+      // nothing - keeping its pooled connection. One that has not finished would
+      // otherwise sit there holding a backend socket until the process ends, and
+      // under cluster-wide high load every retry would leave another behind.
+      responseStreamer->abort("backend denied the request");
+
+      return ProxyStatus::PROXY_FAIL_REMOTE_DENIED;
     }
 
     // Re-emit the backend's head as this frontend's own response instead of
