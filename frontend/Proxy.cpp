@@ -176,9 +176,12 @@ void Proxy::registerStreamerStop()
   // would scan the entire history of the process. This runs while the streamer
   // being counted out is still executing its own destructor, so its weak_ptr has
   // already expired and is swept with the rest.
-  std::erase_if(itsActiveStreamers,
-                [](const std::weak_ptr<LowLatencyGatewayStreamer>& theStreamer)
-                { return theStreamer.expired(); });
+  itsActiveStreamers.erase(
+      std::remove_if(itsActiveStreamers.begin(),
+                     itsActiveStreamers.end(),
+                     [](const std::weak_ptr<LowLatencyGatewayStreamer>& theStreamer)
+                     { return theStreamer.expired(); }),
+      itsActiveStreamers.end());
 
   if (itsActiveStreamerCount == 0)
     itsStreamerDrainedCond.notify_all();
