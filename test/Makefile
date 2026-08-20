@@ -41,8 +41,8 @@ test: all
 
 # Regression tests for cluster behaviour: connection reuse across a backend
 # leaving and rejoining, the backend timeout, and what a client gets when a
-# backend dies. Deliberately not part of "make test" - most of the minute they
-# take is spent waiting for sputnik to notice a backend come and go.
+# backend dies. "make test" runs these as well; this target is for iterating on
+# them without waiting for the file-driven tests first.
 cluster-test: all
 	rm -rf log/cluster failures
 	$(MAKE) $(TEST_PREPARE_TARGETS)

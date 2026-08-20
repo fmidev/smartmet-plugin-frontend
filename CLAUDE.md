@@ -11,7 +11,7 @@ The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing re
 ```bash
 make                  # Build frontend.so (runs testsuite/check automatically)
 make test             # Integration tests: starts backend + frontend smartmetd instances, sends HTTP requests
-make cluster-test     # Cluster regression tests (~30 s, not part of "make test")
+make cluster-test     # Cluster regression tests on their own (also run by "make test")
 make -C testsuite check  # Unit tests (Boost.Test): QEngineInfoTest, GridGenerationsInfoTest, ParameterLookupTest, ChunkedBodyDecoderTest
 make format           # clang-format (Google-based, Allman braces, 100-col)
 make clean            # Clean all build artifacts
@@ -37,8 +37,8 @@ compares response bodies against `test/output/`, writes failures to `test/failur
 It then checks that backend connections were actually reused, which no response
 comparison can see.
 
-**`test/RunClusterTests.cpp`** — run by `make cluster-test`, about 30 seconds, and
-deliberately *not* part of `make test`: nearly all of that time is spent waiting for
+**`test/RunClusterTests.cpp`** — run by `make test` alongside `RunTests`, and on its
+own by `make cluster-test`. About 30 seconds, nearly all of it spent waiting for
 sputnik to notice a backend leaving and coming back. It covers what a cluster does
 when backends come and go, all of which has been broken at some point:
 
@@ -56,6 +56,13 @@ of 8 seconds — long enough for queries that take milliseconds, short enough to
 Every request these tests make is bounded by a receive timeout. That is not a detail:
 two of the four are about a frontend that has stopped answering, and without the bound
 a regression makes the test *hang* instead of failing, which is much less useful.
+
+The margins are wide on purpose. The client waits 40 s while the stall test asserts a
+give-up within 18, so a correct frontend (8 s) and a broken one (40 s) land far either
+side of the line rather than a second apart — these run on CI runners, where a second
+of scheduling luck should not decide a verdict. For the same reason "this request
+waited on the stalled backend" is decided from the backend timeout rather than from a
+small number of seconds a merely busy machine could produce.
 
 ## Architecture
 

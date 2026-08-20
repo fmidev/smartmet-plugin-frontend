@@ -58,9 +58,8 @@ profile: all
 test:
 	$(MAKE) -C test $@
 
-# Cluster behaviour regression tests. Separate from "test" because they are slow:
-# most of the half minute they take is spent waiting for sputnik to notice a
-# backend leaving and rejoining.
+# Cluster behaviour regression tests on their own. "make test" runs them too;
+# this target is for iterating on them without waiting for the rest.
 cluster-test:
 	$(MAKE) -C test $@
 
