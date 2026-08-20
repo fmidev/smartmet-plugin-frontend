@@ -18,6 +18,7 @@ endif
 
 TEST_TARGETS += \
 	RunTests \
+	RunClusterTests \
 	test_plugin/denytest.so
 
 LIBS += \
@@ -36,6 +37,17 @@ test: all
 	$(MAKE) $(TEST_FINISH_TARGETS); \
 	$$ok
 
+# Regression tests for cluster behaviour: connection reuse across a backend
+# leaving and rejoining, the backend timeout, and what a client gets when a
+# backend dies. Deliberately not part of "make test" - most of the minute they
+# take is spent waiting for sputnik to notice a backend come and go.
+cluster-test: all
+	rm -rf log/cluster failures
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	ok=false; ./RunClusterTests && ok=true; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	$$ok
+
 clean:
 	rm -rf obj log failures
 	rm -f cnf/geonames.conf cnf/gis.conf
@@ -45,7 +57,10 @@ clean:
 	rm -f test_plugin/denytest.so
 	rm -rf input/deny output/deny
 
-RunTests: obj/RunTests.o
+RunTests: obj/RunTests.o obj/TestHarness.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+RunClusterTests: obj/RunClusterTests.o obj/TestHarness.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 test_plugin/denytest.so: test_plugin/Plugin.cpp
@@ -89,5 +104,10 @@ dummy:
 obj/%.o: %.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
+
+# The .d files have always been generated here but never used, which went
+# unnoticed while every source in this directory was self-contained. Now that
+# they share TestHarness.h, editing it has to rebuild both programs.
+-include $(wildcard obj/*.d)
 
 .PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf cnf/engines/avi.conf dummy prepare-tests

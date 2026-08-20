@@ -11,6 +11,7 @@ The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing re
 ```bash
 make                  # Build frontend.so (runs testsuite/check automatically)
 make test             # Integration tests: starts backend + frontend smartmetd instances, sends HTTP requests
+make cluster-test     # Cluster regression tests (~30 s, not part of "make test")
 make -C testsuite check  # Unit tests (Boost.Test): QEngineInfoTest, GridGenerationsInfoTest, ParameterLookupTest, ChunkedBodyDecoderTest
 make format           # clang-format (Google-based, Allman braces, 100-col)
 make clean            # Clean all build artifacts
@@ -25,14 +26,36 @@ cd testsuite && make QEngineInfoTest && ./QEngineInfoTest
 
 ### Integration tests
 
-The integration test runner (`test/RunTests.cpp`) is a standalone C++ program (not Boost.Test). It:
-1. Starts two `smartmetd` backend processes using configs in `test/cnf/`
-2. Starts a `smartmetd` frontend process
-3. Sends raw HTTP requests from `test/input/` files (`.get`, `.post`, `.options`)
-4. Compares response bodies against expected output in `test/output/`
-5. Writes failures to `test/failures/`
+Two standalone C++ programs (not Boost.Test), sharing `test/TestHarness.{h,cpp}` —
+starting a `smartmetd`, finding the port it picked, talking HTTP to it over a raw
+socket, and shutting it down while noticing whether it died badly. Both require
+`/usr/sbin/smartmetd` to be installed and use `--port=0`.
 
-Requires `/usr/sbin/smartmetd` to be installed. Uses `--port=0` for dynamic port allocation.
+**`test/RunTests.cpp`** — run by `make test`, about 13 seconds. Starts two backends
+and a frontend, replays the requests in `test/input/` (`.get`, `.post`, `.options`),
+compares response bodies against `test/output/`, writes failures to `test/failures/`.
+It then checks that backend connections were actually reused, which no response
+comparison can see.
+
+**`test/RunClusterTests.cpp`** — run by `make cluster-test`, about 30 seconds, and
+deliberately *not* part of `make test`: nearly all of that time is spent waiting for
+sputnik to notice a backend leaving and coming back. It covers what a cluster does
+when backends come and go, all of which has been broken at some point:
+
+| Test | Guards |
+| --- | --- |
+| backend connections are reused | the pool works at all |
+| a paused backend is drained and restored | `/admin?what=pause` and `continue` — how an operator takes a server out — cost the clients nothing |
+| a stalled backend is timed out | the backend timeout fires, instead of pinning a request handler thread forever |
+| a dead backend is answered, not dropped | a request that cannot be served gets a framed HTTP error rather than a dropped connection |
+
+It uses `cnf/reactor_frontend_cluster.conf`, whose only difference is a `backend.timeout`
+of 8 seconds — long enough for queries that take milliseconds, short enough to wait for.
+`RunClusterTests.cpp` hardcodes that number; keep the two in step.
+
+Every request these tests make is bounded by a receive timeout. That is not a detail:
+two of the four are about a frontend that has stopped answering, and without the bound
+a regression makes the test *hang* instead of failing, which is much less useful.
 
 ## Architecture
 

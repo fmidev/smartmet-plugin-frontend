@@ -37,7 +37,7 @@ OBJS = $(patsubst %.cpp, obj/%.o, $(notdir $(SRCS)))
 
 INCLUDES := -I$(SUBNAME) $(INCLUDES)
 
-.PHONY: test rpm examples
+.PHONY: test cluster-test rpm examples
 
 # Detect jemalloc shared library for LD_PRELOAD environment variable
 # Fall back to a common location if ldconfig is not available
@@ -56,6 +56,12 @@ release: all
 profile: all
 
 test:
+	$(MAKE) -C test $@
+
+# Cluster behaviour regression tests. Separate from "test" because they are slow:
+# most of the half minute they take is spent waiting for sputnik to notice a
+# backend leaving and rejoining.
+cluster-test:
 	$(MAKE) -C test $@
 
 check: $(LIBFILE)
