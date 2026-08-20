@@ -115,6 +115,11 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
         return Proxy::ProxyStatus::PROXY_SUCCESS;
       }
 
+      // Nothing retries a PROXY_FAIL_REMOTE_HOST, so this is the client's answer.
+      // It has to be a framed one: a response with no status set makes the server
+      // throw while serialising it and drop the connection, which with keep-alive
+      // takes whatever else the client had queued on it down as well.
+      theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
       return Proxy::ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
 
@@ -150,6 +155,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                          theService->URI(),
                          hostPrefix + theService->URI())
                   << std::endl;
+        theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
         return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
       }
     }
@@ -173,6 +179,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                  theService->URI(),
                                  hostPrefix + theService->URI())
                   << std::endl;
+        theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
         return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
       }
     }
@@ -201,6 +208,14 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
       theReactor.removeBackendRequests(theHost->Name(), theHost->Port());
       itsProxy->closeBackendConnections(theHost->IP(),
                                         static_cast<unsigned short>(theHost->Port()));
+
+      if (proxyStatus != Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
+      {
+        // A denial is resent to another backend, and that attempt writes its own
+        // response. Anything else ends here, so it needs a framed reply rather
+        // than an empty response the server cannot serialise.
+        theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
+      }
     }
     else
     {
