@@ -33,7 +33,9 @@ test: all
 	rm -rf log failures
 	$(MAKE) prepare-tests
 	$(MAKE) $(TEST_PREPARE_TARGETS)
-	ok=false; ./RunTests && ok=true; \
+	ok=true; \
+	./RunTests || ok=false; \
+	./RunClusterTests || ok=false; \
 	$(MAKE) $(TEST_FINISH_TARGETS); \
 	$$ok
 
