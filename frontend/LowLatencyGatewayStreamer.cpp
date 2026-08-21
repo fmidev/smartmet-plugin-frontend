@@ -361,8 +361,8 @@ void LowLatencyGatewayStreamer::abort(const std::string& theReason)
   {
     boost::unique_lock<boost::mutex> lock(itsMutex);
 
-    if (itsGatewayStatus != GatewayStatus::ONGOING)
-      return;  // Already finished or failed on its own, nothing to do
+    if (itsGatewayStatus == GatewayStatus::FINISHED)
+      return;  // Already finished cleanly, nothing to do
 
     std::cout << fmt::format("{} Aborting gateway stream to {}:{} ({}), response will be lost",
                              Spine::log_time_str(),
