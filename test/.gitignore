@@ -1,5 +1,6 @@
 /RunTests
 /RunClusterTests
+/RunLoadTest
 /log
 /obj
 /failures

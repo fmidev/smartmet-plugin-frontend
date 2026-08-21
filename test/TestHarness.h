@@ -10,12 +10,19 @@
 #pragma once
 
 #include <sys/types.h>
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace TestHarness
 {
+
+/**
+ *  Which smartmetd the test programs run: $SMARTMETD if set, otherwise the
+ *  installed /usr/sbin/smartmetd.
+ */
+std::string smartmetd_path();
 
 /**
  *  Starts a background process with the given command and arguments.
@@ -93,5 +100,55 @@ std::string http_get(int port,
 std::string basic_auth_header(const std::string& user, const std::string& password);
 
 void wait_for_ready(int port, const std::string& process_name, int max_wait_seconds = 60);
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief A connection that stays open across requests
+ *
+ * send_raw_http_request() opens a connection, sends one request and reads until
+ * the server closes, which is the right shape for tests that compare responses
+ * and the wrong one for load: the client spends its time in the TCP handshake
+ * instead of keeping the server busy, and the connection-per-request path is not
+ * what real clients do any more.
+ *
+ * Reading one response of several off the same socket means framing it properly,
+ * so this understands Content-Length and chunked bodies. A response it cannot
+ * frame closes the connection rather than guessing, because the alternative is
+ * reading the next response as the tail of this one.
+ */
+// ----------------------------------------------------------------------
+
+class HttpConnection
+{
+ public:
+    HttpConnection() = default;
+    ~HttpConnection();
+
+    HttpConnection(const HttpConnection& other) = delete;
+    HttpConnection& operator=(const HttpConnection& other) = delete;
+
+    bool open(int port, int recv_timeout_seconds = 0);
+    void close_connection();
+    bool is_open() const { return itsFd >= 0; }
+
+    /*!
+     * \brief Send a GET on this connection and read exactly one response
+     *
+     * Returns the status code, or -1 when the exchange failed - in which case the
+     * connection has been closed and the caller has to open a new one.
+     * response_bytes is the size of the whole message, head included.
+     */
+    int get(const std::string& target, std::size_t& response_bytes);
+
+ private:
+    bool send_all(const std::string& data);
+    bool fill_buffer();
+
+    int itsFd = -1;
+    int itsRecvTimeoutSeconds = 0;
+
+    // Bytes read from the socket but not yet accounted to a response
+    std::string itsBuffer;
+};
 
 }  // namespace TestHarness

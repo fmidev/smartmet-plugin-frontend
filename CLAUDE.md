@@ -12,6 +12,7 @@ The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing re
 make                  # Build frontend.so (runs testsuite/check automatically)
 make test             # Integration tests: starts backend + frontend smartmetd instances, sends HTTP requests
 make cluster-test     # Cluster regression tests on their own (also run by "make test")
+make load-test        # Load the frontend under perf (not a test, never in "make test")
 make -C testsuite check  # Unit tests (Boost.Test): QEngineInfoTest, GridGenerationsInfoTest, ParameterLookupTest, ChunkedBodyDecoderTest
 make format           # clang-format (Google-based, Allman braces, 100-col)
 make clean            # Clean all build artifacts
@@ -48,6 +49,7 @@ when backends come and go, all of which has been broken at some point:
 | a paused backend is drained and restored | `/admin?what=pause` and `continue` — how an operator takes a server out — cost the clients nothing |
 | a stalled backend is timed out | the backend timeout fires, instead of pinning a request handler thread forever |
 | a dead backend is answered, not dropped | a request that cannot be served gets a framed HTTP error rather than a dropped connection |
+| a small response is not held for an ACK | the server sets `TCP_NODELAY`; without it a small proxied response costs 40 ms waiting for a delayed ACK, visible only over a kept-alive connection |
 
 It uses `cnf/reactor_frontend_cluster.conf`, whose only difference is a `backend.timeout`
 of 8 seconds — long enough for queries that take milliseconds, short enough to wait for.
@@ -56,6 +58,14 @@ of 8 seconds — long enough for queries that take milliseconds, short enough to
 Every request these tests make is bounded by a receive timeout. That is not a detail:
 two of the four are about a frontend that has stopped answering, and without the bound
 a regression makes the test *hang* instead of failing, which is much less useful.
+
+`SMARTMETD` overrides which server the test programs run, so a locally built
+smartmet-server can be tested without installing it — the difference between
+measuring the change you just made and the one already deployed:
+
+```bash
+SMARTMETD=../../1950-smartmet-server/smartmetd ./RunClusterTests
+```
 
 The margins are wide on purpose. The client waits 40 s while the stall test asserts a
 give-up within 18, so a correct frontend (8 s) and a broken one (40 s) land far either
@@ -201,6 +211,34 @@ thread, so a backend that accepts a connection and then says nothing would other
 hold that thread for the life of the process. `boost::asio::basic_waitable_timer`
 also makes the re-arming mandatory: `expires_after()` cancels the outstanding wait,
 so a timer that is pushed back without a new `async_wait()` never fires again.
+
+### Load driver (`test/RunLoadTest.cpp`)
+
+Not a test — nothing passes or fails. `make load-test` stands up the same cluster,
+keeps the frontend as busy as the client machine can manage, and records it with
+`perf record -p` for the duration. Options are passed through `LOAD_ARGS`, and a
+target containing `&` has to be quoted:
+
+```bash
+make load-test LOAD_ARGS="--seconds=60 --threads=16"
+cd test && ./RunLoadTest '--target=/timeseries?places=Helsinki&param=name,time'
+```
+
+It reports throughput and latency percentiles, and — more importantly — **CPU
+seconds for the frontend, the backends and the load driver separately**. A profile
+of the frontend only means something while the frontend is what is busy, and with
+an 80 kB `obsparameters` response from a test backend on the same machine it is
+not: the backends burn three times the frontend's CPU, and the driver says so
+rather than letting you read a profile of a process that was mostly waiting.
+
+Requests go over kept-alive connections (`TestHarness::HttpConnection`), which is
+what real clients do and what makes the frontend rather than the TCP handshake the
+thing being measured. It honours `Connection: close`, which the server sends every
+`keepalive.maxrequests` responses — a client that does not reports the server's
+correct behaviour as an error.
+
+This is what found the missing `TCP_NODELAY` in smartmet-server: 181 requests/s at
+a suspiciously tight 43 ms p50 while nothing anywhere was using CPU.
 
 ### `info/` subsystem
 

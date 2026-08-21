@@ -370,6 +370,64 @@ bool test_dead_backend_is_answered_not_dropped(int frontend_port, pid_t backend_
     return ok;
 }
 
+/*!
+ * \brief A small proxied response must not sit waiting for an ACK
+ *
+ * A response is written in more than one piece - the head, then the content, and
+ * a streamed one in as many pieces as it arrives in. With Nagle's algorithm on
+ * the server's socket, the second small piece waits for the client to
+ * acknowledge the first, and a client's delayed ACK takes 40 ms on Linux.
+ *
+ * Nothing showed this until connections became persistent, because the close
+ * after each response pushed the pending bytes out with the FIN. Measured on a
+ * 1 kB proxied response over a kept-alive connection: 43 ms per request and 181
+ * requests/s, against 0.9 ms and 8900 requests/s once the server sets
+ * TCP_NODELAY. It needs a keep-alive connection to see at all, which is why this
+ * lives here and not among the request/response comparisons.
+ */
+bool test_small_response_is_not_delayed(int frontend_port)
+{
+    HttpConnection connection;
+    if (!connection.open(frontend_port, request_timeout_seconds))
+    {
+        report("a small response is not held for an ACK", false, "could not connect");
+        return false;
+    }
+
+    std::vector<double> milliseconds;
+    for (int i = 0; i < 20; i++)
+    {
+        std::size_t bytes = 0;
+        const auto start = std::chrono::steady_clock::now();
+        const int status = connection.get(test_query, bytes);
+        const double elapsed =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
+                .count();
+
+        if (status != 200)
+        {
+            report("a small response is not held for an ACK",
+                   false,
+                   "request " + std::to_string(i + 1) + " returned " + std::to_string(status));
+            return false;
+        }
+
+        milliseconds.push_back(elapsed);
+    }
+
+    std::sort(milliseconds.begin(), milliseconds.end());
+    const double median = milliseconds[milliseconds.size() / 2];
+
+    // Far above what a healthy loopback exchange costs, far below the 40 ms an
+    // ACK wait adds, so neither a slow machine nor a fast one decides this.
+    const bool ok = median < 15.0;
+    report("a small response is not held for an ACK",
+           ok,
+           "median " + std::to_string(median).substr(0, 5) + " ms" +
+               (ok ? "" : " - does this server set TCP_NODELAY on accepted sockets?"));
+    return ok;
+}
+
 bool wait_for_all_backends(int frontend_port, int max_wait_seconds = 60)
 {
     Traffic ignored;
@@ -421,6 +479,8 @@ int main()
                   << std::endl;
 
         bool ok = test_connections_are_reused(frontend_port);
+
+        ok = test_small_response_is_not_delayed(frontend_port) && ok;
 
         ok = test_paused_backend_is_drained_and_restored(frontend_port, backends[0].second) && ok;
 

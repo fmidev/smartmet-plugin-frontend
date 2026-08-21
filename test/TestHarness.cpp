@@ -5,12 +5,15 @@
 #include <macgyver/Exception.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <cerrno>
+#include <cstdlib>
 #include <chrono>
 #include <cstring>
 #include <iostream>
@@ -113,6 +116,18 @@ catch (...)
 }
 
 /**
+ *  Which smartmetd to run. Overridable so that a locally built server can be
+ *  tested without installing it, which is the difference between measuring the
+ *  change you just made and measuring the one that is already deployed.
+ */
+std::string smartmetd_path()
+{
+    const char* const from_environment = ::getenv("SMARTMETD");
+    return (from_environment != nullptr && *from_environment != '\0') ? from_environment
+                                                                     : "/usr/sbin/smartmetd";
+}
+
+/**
  *   Start smartmet backend processes and return their PIDs and ports.
  */
 std::vector<std::pair<pid_t, int>> start_backends(const std::vector<std::string>& config_files,
@@ -124,7 +139,7 @@ try
     for (const auto& config : config_files)
     {
         pid_t pid = start_background_process(
-            "/usr/sbin/smartmetd",
+            smartmetd_path(),
             {
                 "--configfile", config,
                 "--port=0" // Let the backend choose an available port
@@ -255,7 +270,7 @@ std::pair<pid_t, int> start_frontend(const std::string& config_file,
 try
 {
     pid_t pid = start_background_process(
-        "/usr/sbin/smartmetd",
+        smartmetd_path(),
         {
             "--configfile", config_file,
             "--port=0" // Let the frontend choose an available port
@@ -446,6 +461,292 @@ std::string http_get(int port,
 std::string basic_auth_header(const std::string& user, const std::string& password)
 {
     return "Authorization: Basic " + Fmi::Base64::encode(user + ":" + password) + "\r\n";
+}
+
+// ----------------------------------------------------------------------
+// HttpConnection
+// ----------------------------------------------------------------------
+
+namespace
+{
+// Case-insensitive search for a header value in a response head
+std::string header_value(const std::string& head_lowercase,
+                         const std::string& head,
+                         const std::string& name_lowercase)
+{
+    std::size_t pos = 0;
+    while ((pos = head_lowercase.find("\r\n", pos)) != std::string::npos)
+    {
+        const std::size_t line = pos + 2;
+        const std::size_t line_end = head_lowercase.find("\r\n", line);
+        if (line_end == std::string::npos)
+        {
+            break;
+        }
+
+        if (head_lowercase.compare(line, name_lowercase.size(), name_lowercase) == 0 &&
+            head_lowercase[line + name_lowercase.size()] == ':')
+        {
+            const std::size_t value = line + name_lowercase.size() + 1;
+            return ba::trim_copy(head.substr(value, line_end - value));
+        }
+
+        pos = line_end;
+    }
+    return {};
+}
+}  // namespace
+
+HttpConnection::~HttpConnection()
+{
+    close_connection();
+}
+
+void HttpConnection::close_connection()
+{
+    if (itsFd >= 0)
+    {
+        close(itsFd);
+        itsFd = -1;
+    }
+    itsBuffer.clear();
+}
+
+bool HttpConnection::open(int port, int recv_timeout_seconds)
+{
+    close_connection();
+    itsRecvTimeoutSeconds = recv_timeout_seconds;
+
+    itsFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (itsFd < 0)
+    {
+        return false;
+    }
+
+    if (recv_timeout_seconds > 0)
+    {
+        timeval tv{};
+        tv.tv_sec = recv_timeout_seconds;
+        setsockopt(itsFd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    }
+
+    const int one = 1;
+    setsockopt(itsFd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(static_cast<uint16_t>(port));
+    if (inet_pton(AF_INET, "127.0.0.1", &address.sin_addr) != 1 ||
+        connect(itsFd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0)
+    {
+        close_connection();
+        return false;
+    }
+
+    return true;
+}
+
+bool HttpConnection::send_all(const std::string& data)
+{
+    std::size_t sent_total = 0;
+    while (sent_total < data.size())
+    {
+        const ssize_t sent = send(itsFd, data.data() + sent_total, data.size() - sent_total, 0);
+        if (sent <= 0)
+        {
+            return false;
+        }
+        sent_total += static_cast<std::size_t>(sent);
+    }
+    return true;
+}
+
+bool HttpConnection::fill_buffer()
+{
+    char buffer[16384];
+    const ssize_t received = recv(itsFd, buffer, sizeof(buffer), 0);
+    if (received <= 0)
+    {
+        return false;
+    }
+    itsBuffer.append(buffer, static_cast<std::size_t>(received));
+    return true;
+}
+
+int HttpConnection::get(const std::string& target, std::size_t& response_bytes)
+{
+    response_bytes = 0;
+
+    if (itsFd < 0)
+    {
+        return -1;
+    }
+
+    // No Connection header: HTTP/1.1 keeps the connection unless told otherwise,
+    // which is the whole point of this class.
+    const std::string request = "GET " + target +
+                                " HTTP/1.1\r\n"
+                                "Host: localhost\r\n"
+                                "\r\n";
+    if (!send_all(request))
+    {
+        close_connection();
+        return -1;
+    }
+
+    // Head first
+    std::size_t head_end = itsBuffer.find("\r\n\r\n");
+    while (head_end == std::string::npos)
+    {
+        if (!fill_buffer())
+        {
+            close_connection();
+            return -1;
+        }
+        head_end = itsBuffer.find("\r\n\r\n");
+    }
+
+    const std::size_t head_size = head_end + 4;
+    const std::string head = itsBuffer.substr(0, head_size);
+    const std::string head_lc = ba::to_lower_copy(head);
+
+    int status = -1;
+    if (head.compare(0, 5, "HTTP/") == 0)
+    {
+        const std::size_t space = head.find(' ');
+        if (space != std::string::npos)
+        {
+            try
+            {
+                status = std::stoi(head.substr(space + 1, 3));
+            }
+            catch (...)
+            {
+                status = -1;
+            }
+        }
+    }
+
+    if (status < 0)
+    {
+        close_connection();
+        return -1;
+    }
+
+    const std::string transfer_encoding = header_value(head_lc, head, "transfer-encoding");
+    const std::string content_length = header_value(head_lc, head, "content-length");
+
+    // The server ends persistence by saying so, and it does say so: after
+    // keepalive.maxrequests responses on one connection, and on any reply it
+    // cannot frame. A client that ignores this reads the close as a failure and
+    // reports the server's correct behaviour as an error.
+    const bool server_closes =
+        ba::to_lower_copy(header_value(head_lc, head, "connection")).find("close") !=
+        std::string::npos;
+
+    std::size_t body_size = 0;
+
+    if (!transfer_encoding.empty())
+    {
+        if (ba::to_lower_copy(transfer_encoding).find("chunked") == std::string::npos)
+        {
+            close_connection();  // A framing we cannot follow
+            return -1;
+        }
+
+        // Walk the chunks, reading more whenever the buffer runs out mid-chunk
+        std::size_t pos = head_size;
+        while (true)
+        {
+            std::size_t eol = itsBuffer.find("\r\n", pos);
+            while (eol == std::string::npos)
+            {
+                if (!fill_buffer())
+                {
+                    close_connection();
+                    return -1;
+                }
+                eol = itsBuffer.find("\r\n", pos);
+            }
+
+            std::size_t chunk_size = 0;
+            try
+            {
+                chunk_size = std::stoul(itsBuffer.substr(pos, eol - pos), nullptr, 16);
+            }
+            catch (...)
+            {
+                close_connection();
+                return -1;
+            }
+
+            // chunk data + its CRLF, or for the last chunk the trailer's blank line
+            const std::size_t needed = eol + 2 + chunk_size + 2;
+            while (itsBuffer.size() < needed)
+            {
+                if (!fill_buffer())
+                {
+                    close_connection();
+                    return -1;
+                }
+            }
+
+            pos = needed;
+            body_size += chunk_size;
+
+            if (chunk_size == 0)
+            {
+                break;
+            }
+        }
+
+        response_bytes = pos;
+        itsBuffer.erase(0, pos);
+        if (server_closes)
+        {
+            close_connection();
+        }
+        return status;
+    }
+
+    if (!content_length.empty())
+    {
+        try
+        {
+            body_size = std::stoul(content_length);
+        }
+        catch (...)
+        {
+            close_connection();
+            return -1;
+        }
+
+        while (itsBuffer.size() < head_size + body_size)
+        {
+            if (!fill_buffer())
+            {
+                close_connection();
+                return -1;
+            }
+        }
+
+        response_bytes = head_size + body_size;
+        itsBuffer.erase(0, response_bytes);
+        if (server_closes)
+        {
+            close_connection();
+        }
+        return status;
+    }
+
+    // Neither: the body ends when the connection does, so there is no next
+    // response to keep this connection for.
+    while (fill_buffer())
+    {
+    }
+    response_bytes = itsBuffer.size();
+    close_connection();
+    return status;
 }
 
 }  // namespace TestHarness

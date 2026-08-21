@@ -19,6 +19,7 @@ endif
 TEST_TARGETS += \
 	RunTests \
 	RunClusterTests \
+	RunLoadTest \
 	test_plugin/denytest.so
 
 LIBS += \
@@ -50,6 +51,18 @@ cluster-test: all
 	$(MAKE) $(TEST_FINISH_TARGETS); \
 	$$ok
 
+# Load the frontend while perf records it. Not a test - nothing here passes or
+# fails - so it is not part of "make test" and never will be. Pass options
+# through, e.g.:
+#
+#   make load-test LOAD_ARGS="--seconds=60 --threads=16"
+#   make load-test LOAD_ARGS="--target=/timeseries?places=Helsinki&param=name,time"
+load-test: all
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	ok=false; ./RunLoadTest $(LOAD_ARGS) && ok=true; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	$$ok
+
 clean:
 	rm -rf obj log failures
 	rm -f cnf/geonames.conf cnf/gis.conf
@@ -64,6 +77,9 @@ RunTests: obj/RunTests.o obj/TestHarness.o
 
 RunClusterTests: obj/RunClusterTests.o obj/TestHarness.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+RunLoadTest: obj/RunLoadTest.o obj/TestHarness.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
 
 test_plugin/denytest.so: test_plugin/Plugin.cpp
 	mkdir -p test_plugin/obj
