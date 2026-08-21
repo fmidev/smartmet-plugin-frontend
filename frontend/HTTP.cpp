@@ -21,25 +21,6 @@ namespace Plugin
 {
 namespace Frontend
 {
-namespace
-{
-std::size_t parse_size(const libconfig::Setting &setting, const char *name)
-{
-  switch (setting.getType())
-  {
-    case libconfig::Setting::TypeInt:
-      return static_cast<unsigned int>(setting);
-    case libconfig::Setting::TypeInt64:
-      return static_cast<unsigned long>(setting);
-    case libconfig::Setting::TypeString:
-      return Fmi::stosz(static_cast<const char *>(setting));
-    default:
-      throw Fmi::Exception(BCP, "Invalid type for size setting").addParameter("Setting", name);
-  }
-}
-
-}  // namespace
-
 Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                    const Spine::HTTP::Request &theRequest,
                                    Spine::HTTP::Response &theResponse)
@@ -264,8 +245,8 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     libconfig::Config config;
 
     // A single response cache holds all content encodings (identity, gzip, zstd, ...).
-    unsigned long long memorySize = 0;
-    unsigned long long filesystemSize = 0;
+    std::size_t memorySize = 0;
+    std::size_t filesystemSize = 0;
 
     // do not use nullptr here or path construction throws
     const char *filesystemCachePath = "";
@@ -299,10 +280,8 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       {
         // New unified configuration
         config.lookupValue("response_cache.directory", filesystemCachePath);
-        if (config.exists(mem_bytes))
-          memorySize = parse_size(config.lookup(mem_bytes), mem_bytes);
-        if (config.exists(file_bytes))
-          filesystemSize = parse_size(config.lookup(file_bytes), file_bytes);
+        Spine::lookupSizeSetting(config, memorySize, mem_bytes);
+        Spine::lookupSizeSetting(config, filesystemSize, file_bytes);
       }
       else
       {
@@ -325,14 +304,10 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
                        "sizes; please migrate to a 'response_cache' block."
                     << std::endl;
 
-        if (config.exists(comp_mem_bytes))
-          memorySize += parse_size(config.lookup(comp_mem_bytes), comp_mem_bytes);
-        if (config.exists(uncomp_mem_bytes))
-          memorySize += parse_size(config.lookup(uncomp_mem_bytes), uncomp_mem_bytes);
-        if (config.exists(comp_file_bytes))
-          filesystemSize += parse_size(config.lookup(comp_file_bytes), comp_file_bytes);
-        if (config.exists(uncomp_file_bytes))
-          filesystemSize += parse_size(config.lookup(uncomp_file_bytes), uncomp_file_bytes);
+        memorySize += Spine::lookupSizeSetting(config, comp_mem_bytes, 0);
+        memorySize += Spine::lookupSizeSetting(config, uncomp_mem_bytes, 0);
+        filesystemSize += Spine::lookupSizeSetting(config, comp_file_bytes, 0);
+        filesystemSize += Spine::lookupSizeSetting(config, uncomp_file_bytes, 0);
 
         // Prefer the compressed cache directory, fall back to the uncompressed one.
         if (!config.lookupValue("compressed_cache.directory", filesystemCachePath))
