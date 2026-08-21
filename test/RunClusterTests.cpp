@@ -27,9 +27,11 @@
 #include <unistd.h>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <set>
 #include <string>
 #include <thread>
@@ -83,6 +85,40 @@ const std::string fg_red = is_tty ? ANSI_FG_RED : "";
 const std::string fg_green = is_tty ? ANSI_FG_GREEN : "";
 const std::string fg_default = is_tty ? ANSI_FG_DEFAULT : "";
 
+/*!
+ *  \brief Print the tail of the frontend's log
+ *
+ *  A failure here is usually about what the frontend did or failed to do, and on
+ *  a CI runner the log is an artifact somebody has to go and find - by which time
+ *  the question is cold. Put it where the failure is.
+ */
+void show_frontend_log(int lines = 25)
+{
+    std::ifstream log("log/cluster-frontend.log");
+    if (!log)
+    {
+        return;
+    }
+
+    std::vector<std::string> tail;
+    std::string line;
+    while (std::getline(log, line))
+    {
+        tail.push_back(line);
+        if (static_cast<int>(tail.size()) > lines)
+        {
+            tail.erase(tail.begin());
+        }
+    }
+
+    std::cout << "        --- last " << tail.size() << " lines of log/cluster-frontend.log:"
+              << std::endl;
+    for (const auto& text : tail)
+    {
+        std::cout << "        | " << text << std::endl;
+    }
+}
+
 void report(const std::string& name, bool ok, const std::string& detail = "")
 {
     std::cout << "  " << (ok ? fg_green + "PASS" : fg_red + "FAIL") << fg_default << "  " << name;
@@ -91,38 +127,52 @@ void report(const std::string& name, bool ok, const std::string& detail = "")
         std::cout << " (" << detail << ")";
     }
     std::cout << std::endl;
+
+    if (!ok)
+    {
+        show_frontend_log();
+    }
 }
 
-std::string admin_request(int port, const std::string& what)
+/*!
+ *  \brief Ask an admin request for output that does not depend on the formatter
+ *
+ *  Admin tables default to the "debug" formatter, which is styled HTML. Parsing
+ *  that means depending on which spine version rendered it: a `<td>` that gains
+ *  an attribute silently yields nothing, and a counter that could not be read
+ *  looks exactly like a counter that is zero. "ascii" is one "name value" line
+ *  per row and has nothing to differ about.
+ */
+std::string admin_request(int port, const std::string& what, const std::string& format = "")
 {
-    return get(port, "/admin?what=" + what, basic_auth_header(admin_user, admin_password));
+    const std::string target = "/admin?what=" + what + (format.empty() ? "" : "&format=" + format);
+    return get(port, target, basic_auth_header(admin_user, admin_password));
 }
 
 /**
- *  Pull the name/value pairs out of an admin table rendered as HTML.
+ *  Pull the name/value pairs out of an admin table asked for in ascii, where
+ *  each row is "some name<space>value" and the value is the last field.
  */
 std::map<std::string, long> parse_admin_table(const std::string& response)
 {
     std::map<std::string, long> values;
 
-    std::vector<std::string> cells;
-    std::size_t pos = 0;
-    while ((pos = response.find("<td>", pos)) != std::string::npos)
-    {
-        const std::size_t end = response.find("</td>", pos);
-        if (end == std::string::npos)
-        {
-            break;
-        }
-        cells.push_back(response.substr(pos + 4, end - pos - 4));
-        pos = end + 5;
-    }
+    const std::size_t body_start = response.find("\r\n\r\n");
+    std::istringstream body(body_start == std::string::npos ? response
+                                                           : response.substr(body_start + 4));
 
-    for (std::size_t i = 0; i + 1 < cells.size(); i += 2)
+    std::string line;
+    while (std::getline(body, line))
     {
+        const std::size_t split = line.find_last_of(' ');
+        if (split == std::string::npos)
+        {
+            continue;
+        }
+
         try
         {
-            values[cells[i]] = std::stol(cells[i + 1]);
+            values[line.substr(0, split)] = std::stol(line.substr(split + 1));
         }
         catch (...)
         {
@@ -133,11 +183,26 @@ std::map<std::string, long> parse_admin_table(const std::string& response)
     return values;
 }
 
+/*!
+ *  A pool counter, or -1 when the admin reply could not be read at all - which is
+ *  worth telling apart from a counter that is genuinely zero, since subtracting
+ *  two unreadable counters gives a plausible-looking nought.
+ */
 long pool_counter(int frontend_port, const std::string& name)
 {
-    const auto values = parse_admin_table(admin_request(frontend_port, "backendconnections"));
+    const std::string response = admin_request(frontend_port, "backendconnections", "ascii");
+    const auto values = parse_admin_table(response);
     const auto pos = values.find(name);
-    return pos == values.end() ? -1 : pos->second;
+
+    if (pos == values.end())
+    {
+        std::cout << "  (could not read '" << name << "' from the admin reply: "
+                  << (response.empty() ? "<no response>" : response.substr(0, 200)) << ")"
+                  << std::endl;
+        return -1;
+    }
+
+    return pos->second;
 }
 
 /**
