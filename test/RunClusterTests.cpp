@@ -271,12 +271,30 @@ bool test_paused_backend_is_drained_and_restored(int frontend_port, int backend_
     return ok;
 }
 
+/**
+ *  Stops a process for as long as it is alive, and resumes it whatever happens -
+ *  including on an exception. A backend left stopped would make the outer cleanup
+ *  block in waitpid() forever.
+ */
+class StoppedProcess
+{
+   public:
+    explicit StoppedProcess(pid_t pid) : itsPid(pid) { kill(itsPid, SIGSTOP); }
+    ~StoppedProcess() { kill(itsPid, SIGCONT); }
+
+    StoppedProcess(const StoppedProcess&) = delete;
+    StoppedProcess& operator=(const StoppedProcess&) = delete;
+
+   private:
+    pid_t itsPid;
+};
+
 bool test_stalled_backend_is_timed_out(int frontend_port, pid_t backend_pid)
 {
     // A stopped process still has its listening socket, so the frontend connects
     // and writes happily and then hears nothing back - which is what a wedged
     // backend looks like, and what the backend timeout exists for.
-    kill(backend_pid, SIGSTOP);
+    StoppedProcess stopped(backend_pid);
 
     double longest = 0;
     int longest_status = 0;
@@ -296,8 +314,6 @@ bool test_stalled_backend_is_timed_out(int frontend_port, pid_t backend_pid)
             longest_status = status;
         }
     }
-
-    kill(backend_pid, SIGCONT);
 
     if (!found)
     {

@@ -361,8 +361,8 @@ void LowLatencyGatewayStreamer::abort(const std::string& theReason)
   {
     boost::unique_lock<boost::mutex> lock(itsMutex);
 
-    if (itsGatewayStatus != GatewayStatus::ONGOING)
-      return;  // Already finished or failed on its own, nothing to do
+    if (itsGatewayStatus == GatewayStatus::FINISHED)
+      return;  // Already finished cleanly, nothing to do
 
     std::cout << fmt::format("{} Aborting gateway stream to {}:{} ({}), response will be lost",
                              Spine::log_time_str(),
@@ -1118,6 +1118,10 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
           itsGatewayStatus =
               GatewayStatus::FINISHED;  // Entire response content generated, we are done!
+
+          // The exchange is complete; do not let the timer retain this streamer.
+          if (itsTimeoutTimer)
+            itsTimeoutTimer->cancel();
 
           // ASIO doesn't know the backend conversation is finished, so the socket
           // has to be dealt with explicitly here or it leaks. A probe that left
