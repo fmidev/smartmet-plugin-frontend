@@ -1119,6 +1119,10 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           itsGatewayStatus =
               GatewayStatus::FINISHED;  // Entire response content generated, we are done!
 
+          // The exchange is complete; do not let the timer retain this streamer.
+          if (itsTimeoutTimer)
+            itsTimeoutTimer->cancel();
+
           // ASIO doesn't know the backend conversation is finished, so the socket
           // has to be dealt with explicitly here or it leaks. A probe that left
           // the connection at a message boundary is worth keeping: the response
