@@ -34,7 +34,7 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.7.9
 BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.7.9
-Requires: smartmet-server >= 26.8.17
+Requires: smartmet-server >= 26.8.21
 Requires: smartmet-engine-sputnik >= 26.6.26
 Requires: smartmet-library-spine >= 26.8.4
 Requires: smartmet-library-timeseries >= 26.5.5
@@ -55,6 +55,7 @@ Requires(postun): systemd
 #TestRequires: smartmet-library-macgyver-devel >= 26.7.9
 #TestRequires: smartmet-library-spine-devel >= 26.7.14
 #TestRequires: smartmet-library-spine >= 26.7.14
+#TestRequires: smartmet-server >= 26.8.21
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
