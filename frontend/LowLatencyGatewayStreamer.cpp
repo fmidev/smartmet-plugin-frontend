@@ -323,6 +323,7 @@ bool statusHasNoBody(Spine::HTTP::Status theStatus, Spine::HTTP::RequestMethod t
   if (theMethod == Spine::HTTP::RequestMethod::HEAD)
     return true;
   return theStatus == Spine::HTTP::Status::no_content ||
+         static_cast<int>(theStatus) == 205 ||  // 205 Reset Content (RFC 9110 15.3.6)
          theStatus == Spine::HTTP::Status::not_modified;
 }
 
