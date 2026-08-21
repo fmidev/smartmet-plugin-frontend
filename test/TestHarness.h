@@ -127,7 +127,16 @@ class HttpConnection
     HttpConnection(const HttpConnection& other) = delete;
     HttpConnection& operator=(const HttpConnection& other) = delete;
 
-    bool open(int port, int recv_timeout_seconds = 0);
+    /*!
+     * \brief Open a connection
+     *
+     * quick_ack disables the client's delayed ACK (Linux TCP_QUICKACK) for every
+     * read on this connection. Measuring the same exchange with it on and off
+     * isolates the ACK wait: it is a fixed kernel timer rather than work, so the
+     * difference between the two does not move when the machine is loaded, while
+     * either measurement on its own does.
+     */
+    bool open(int port, int recv_timeout_seconds = 0, bool quick_ack = false);
     void close_connection();
     bool is_open() const { return itsFd >= 0; }
 
@@ -146,6 +155,7 @@ class HttpConnection
 
     int itsFd = -1;
     int itsRecvTimeoutSeconds = 0;
+    bool itsQuickAck = false;
 
     // Bytes read from the socket but not yet accounted to a response
     std::string itsBuffer;

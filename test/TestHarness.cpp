@@ -512,10 +512,11 @@ void HttpConnection::close_connection()
     itsBuffer.clear();
 }
 
-bool HttpConnection::open(int port, int recv_timeout_seconds)
+bool HttpConnection::open(int port, int recv_timeout_seconds, bool quick_ack)
 {
     close_connection();
     itsRecvTimeoutSeconds = recv_timeout_seconds;
+    itsQuickAck = quick_ack;
 
     itsFd = socket(AF_INET, SOCK_STREAM, 0);
     if (itsFd < 0)
@@ -563,6 +564,14 @@ bool HttpConnection::send_all(const std::string& data)
 
 bool HttpConnection::fill_buffer()
 {
+    if (itsQuickAck)
+    {
+        // Not sticky: the kernel clears it once it has been acted on, so it has to
+        // be set again before every read.
+        const int one = 1;
+        setsockopt(itsFd, IPPROTO_TCP, TCP_QUICKACK, &one, sizeof(one));
+    }
+
     char buffer[16384];
     const ssize_t received = recv(itsFd, buffer, sizeof(buffer), 0);
     if (received <= 0)

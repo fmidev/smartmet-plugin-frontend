@@ -388,6 +388,20 @@ bool test_stalled_backend_is_timed_out(int frontend_port, pid_t backend_pid)
         return false;
     }
 
+    // Tell "the frontend never gave up" apart from "this client ran out of
+    // patience first". They look identical - no status, a long wait - and only the
+    // first is a defect. A starved runner produces the second, and reading it as
+    // the first is what made an earlier CI failure unexplainable.
+    if (longest >= request_timeout_seconds - 1.0)
+    {
+        report("a stalled backend is timed out",
+               false,
+               "inconclusive: this client gave up after " + std::to_string(longest).substr(0, 5) +
+                   " s, its own limit, so what the frontend would have done is unknown. Either it "
+                   "never gave up, or the machine is too loaded to tell.");
+        return false;
+    }
+
     // It must give up close to the configured timeout - not never, which is what
     // it did while the timer was never re-armed - and the client must get a
     // framed error rather than a dropped connection.
@@ -410,18 +424,33 @@ bool test_dead_backend_is_answered_not_dropped(int frontend_port, pid_t backend_
     waitpid(backend_pid, nullptr, 0);
 
     Traffic traffic;
+    int timed_out = 0;
     for (int i = 0; i < 30; i++)
     {
+        const auto start = std::chrono::steady_clock::now();
         const int status = http_status_code(get(frontend_port, test_query));
+        const double seconds =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+
         ++traffic.requests;
         if (status < 0)
         {
-            ++traffic.dropped;
+            // An empty reply because the connection was dropped is the defect this
+            // test is about. An empty reply because this client stopped waiting is
+            // a starved machine, and saying so beats blaming the frontend.
+            if (seconds >= request_timeout_seconds - 1.0)
+            {
+                ++timed_out;
+            }
+            else
+            {
+                ++traffic.dropped;
+            }
 
             // The point is already made, and each unanswered request costs the
             // full client timeout. Thirty of those would outlast the alarm and
             // turn a clean failure back into a killed run.
-            if (traffic.dropped >= 3)
+            if (traffic.dropped + timed_out >= 3)
             {
                 break;
             }
@@ -444,10 +473,14 @@ bool test_dead_backend_is_answered_not_dropped(int frontend_port, pid_t backend_
     // Losing the request that was in flight is by design - it is not resent, in
     // case the request is what killed the backend. Losing the connection is not:
     // the client has to get an answer it can read.
-    const bool ok = traffic.dropped == 0 && recovered == 5;
+    const bool ok = traffic.dropped == 0 && timed_out == 0 && recovered == 5;
     report("a dead backend is answered, not dropped",
            ok,
-           describe(traffic) + ", " + std::to_string(recovered) + "/5 recovered");
+           describe(traffic) + ", " + std::to_string(recovered) + "/5 recovered" +
+               (timed_out > 0 ? ", " + std::to_string(timed_out) +
+                                    " inconclusive: this client gave up first, so the machine may "
+                                    "simply be too loaded to tell"
+                              : ""));
     return ok;
 }
 
@@ -466,45 +499,67 @@ bool test_dead_backend_is_answered_not_dropped(int frontend_port, pid_t backend_
  * TCP_NODELAY. It needs a keep-alive connection to see at all, which is why this
  * lives here and not among the request/response comparisons.
  */
-bool test_small_response_is_not_delayed(int frontend_port)
+/*!
+ *  Median time for the same request repeated over one kept-alive connection, or
+ *  a negative number if any of them did not return 200.
+ */
+double median_request_milliseconds(int port, int count, bool quick_ack = false)
 {
     HttpConnection connection;
-    if (!connection.open(frontend_port, request_timeout_seconds))
+    if (!connection.open(port, request_timeout_seconds, quick_ack))
     {
-        report("a small response is not held for an ACK", false, "could not connect");
-        return false;
+        return -1;
     }
 
     std::vector<double> milliseconds;
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < count; i++)
     {
         std::size_t bytes = 0;
         const auto start = std::chrono::steady_clock::now();
         const int status = connection.get(test_query, bytes);
-        const double elapsed =
+        milliseconds.push_back(
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start)
-                .count();
+                .count());
 
         if (status != 200)
         {
-            report("a small response is not held for an ACK",
-                   false,
-                   "request " + std::to_string(i + 1) + " returned " + std::to_string(status));
-            return false;
+            return -1;
         }
-
-        milliseconds.push_back(elapsed);
     }
 
     std::sort(milliseconds.begin(), milliseconds.end());
-    const double median = milliseconds[milliseconds.size() / 2];
+    return milliseconds[milliseconds.size() / 2];
+}
 
-    // Far above what a healthy loopback exchange costs, far below the 40 ms an
-    // ACK wait adds, so neither a slow machine nor a fast one decides this.
-    const bool ok = median < 15.0;
+bool test_small_response_is_not_delayed(int frontend_port)
+{
+    // The same exchange measured twice over the frontend: once letting this client
+    // delay its ACKs as any client does, once with TCP_QUICKACK forcing them out
+    // immediately. Only the ACK wait differs between the two runs, so the gap
+    // between them *is* the wait - and being a kernel timer rather than work, it
+    // does not grow when the machine is loaded.
+    //
+    // That matters. Comparing the frontend against a backend, or against a fixed
+    // number of milliseconds, both looked fine here and both failed under
+    // contention: a healthy proxied request measured 0.7 ms idle and 30 ms with
+    // the CPUs oversubscribed, which no fixed line survives.
+    const double delayed = median_request_milliseconds(frontend_port, 20, false);
+    const double immediate = median_request_milliseconds(frontend_port, 20, true);
+
+    if (delayed < 0 || immediate < 0)
+    {
+        report("a small response is not held for an ACK", false, "a request did not return 200");
+        return false;
+    }
+
+    const double waited = delayed - immediate;
+
+    // Half the 40 ms a delayed ACK costs on Linux. Nothing legitimate lives here.
+    const bool ok = waited < 20.0;
     report("a small response is not held for an ACK",
            ok,
-           "median " + std::to_string(median).substr(0, 5) + " ms" +
+           std::to_string(delayed).substr(0, 5) + " ms, and " +
+               std::to_string(immediate).substr(0, 5) + " ms with the client's delayed ACK off" +
                (ok ? "" : " - does this server set TCP_NODELAY on accepted sockets?"));
     return ok;
 }
