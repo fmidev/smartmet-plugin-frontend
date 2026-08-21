@@ -304,14 +304,26 @@ bool isDroppedConnection(const boost::system::error_code& theError)
          theError == boost::asio::error::broken_pipe;
 }
 
-// Statuses that are framed by the status code itself: they carry no body, and
-// carry no framing header field either (RFC 9112 6.3). The distinction only
-// started to matter once backend connections became persistent - before that,
-// "the backend closed" was an adequate, if slow, way to learn a body had ended.
-bool statusHasNoBody(Spine::HTTP::Status theStatus)
+// 1xx responses are informational and not final: the backend will send a final
+// response after them. They must be consumed and discarded, not published.
+bool isInterimResponse(Spine::HTTP::Status theStatus)
 {
   const auto code = static_cast<int>(theStatus);
-  return (code >= 100 && code < 200) || theStatus == Spine::HTTP::Status::no_content ||
+  return code >= 100 && code < 200;
+}
+
+// Statuses that are framed by the status code itself: they carry no body, and
+// carry no framing header field either (RFC 9112 6.3). HEAD responses also
+// never carry a body regardless of what Content-Length says (RFC 9110 9.3.2).
+// The distinction only started to matter once backend connections became
+// persistent - before that, "the backend closed" was an adequate, if slow,
+// way to learn a body had ended.
+bool statusHasNoBody(Spine::HTTP::Status theStatus, Spine::HTTP::RequestMethod theMethod)
+{
+  if (theMethod == Spine::HTTP::RequestMethod::HEAD)
+    return true;
+  return theStatus == Spine::HTTP::Status::no_content ||
+         static_cast<int>(theStatus) == 205 ||  // 205 Reset Content (RFC 9110 15.3.6)
          theStatus == Spine::HTTP::Status::not_modified;
 }
 
@@ -644,7 +656,7 @@ bool LowLatencyGatewayStreamer::publishResponseHead(const Spine::HTTP::Response&
   auto transferEncoding = head->getHeader("Transfer-Encoding");
   auto contentLength = head->getHeader("Content-Length");
 
-  if (statusHasNoBody(head->getStatus()))
+  if (statusHasNoBody(head->getStatus(), itsOriginalRequest.getMethod()))
   {
     // No body at all, and no header field saying so. Treating this as a
     // zero-length body ends the exchange here instead of waiting for a close
@@ -1006,6 +1018,19 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
         // Successfull parse.
         auto&& responsePtr = std::get<1>(ret);
 
+        // 1xx interim responses are not final; discard and read the next response.
+        if (isInterimResponse(responsePtr->getStatus()))
+        {
+          itsResponseHeaderBuffer = std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend());
+          itsBackendSocket.async_read_some(
+              boost::asio::buffer(itsSocketBuffer),
+              [me = shared_from_this()](const boost::system::error_code& err,
+                                        std::size_t bytes_transferred)
+              { me->readCacheResponse(err, bytes_transferred); });
+          extendBackendDeadline();
+          break;
+        }
+
         // See if backend responded with ETag
         auto etagHeader = responsePtr->getHeader("ETag");
         if (!etagHeader)
@@ -1242,6 +1267,19 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
       {
         // Headers parsed, determine if we should attempt cache insertion
         auto&& responsePtr = std::get<1>(ret);
+
+        // 1xx interim responses are not final; discard and read the next response.
+        if (isInterimResponse(responsePtr->getStatus()))
+        {
+          itsResponseHeaderBuffer = std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend());
+          itsBackendSocket.async_read_some(
+              boost::asio::buffer(itsSocketBuffer),
+              [me = shared_from_this()](const boost::system::error_code& err,
+                                        std::size_t bytes_transferred)
+              { me->readDataResponseHeaders(err, bytes_transferred); });
+          extendBackendDeadline();
+          return;
+        }
 
         auto etag = responsePtr->getHeader("ETag");
 
