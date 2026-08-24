@@ -12,10 +12,8 @@ ifdef CI
 DB_HOST_EDIT := sed -e 's|"smartmet-test"|"$(TEST_DB_DIR)"|g'
 TEST_PREPARE_TARGETS += start-geonames-db
 TEST_FINISH_TARGETS += stop-test-db
-TEST_PROGRAMS := RunTests
 else
 DB_HOST_EDIT := cat
-TEST_PROGRAMS := RunTests RunClusterTests
 endif
 
 TEST_TARGETS += \
@@ -37,10 +35,8 @@ test: all
 	$(MAKE) prepare-tests
 	$(MAKE) $(TEST_PREPARE_TARGETS)
 	ok=true; \
-	for test_program in $(TEST_PROGRAMS) ; do \
-		echo "Running $$test_program..." ; \
-		./$$test_program || ok=false; \
-	done; \
+	./RunTests || ok=false; \
+	./RunClusterTests || ok=false; \
 	$(MAKE) $(TEST_FINISH_TARGETS); \
 	$$ok
 
