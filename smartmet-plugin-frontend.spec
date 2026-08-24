@@ -108,7 +108,7 @@ rm -rf $RPM_BUILD_ROOT
 * Mon Aug 24 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.24-1.fmi
 - Cache lookups now negotiate the content encoding with the same rules and the
   same list of codings as the backend that produced the cached variant, using
-  Spine::HTTP::selectContentEncoding(). The plugin's own negotiation ignored
+  Spine::HTTP::rankContentEncodings(). The plugin's own negotiation ignored
   quality values and could not have found the variant a backend chose for a
   request refusing a coding
 - The entity-tag of a served variant now names its content encoding, while the
