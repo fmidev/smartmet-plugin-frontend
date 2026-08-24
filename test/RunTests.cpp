@@ -1,3 +1,5 @@
+#include "TestHarness.h"
+
 #include <iostream>
 #include <iomanip>
 #include <filesystem>
@@ -15,264 +17,12 @@
 #include <macgyver/Exception.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <unistd.h>
-#include <signal.h>
-#include <cerrno>
-#include <cstring>
 
 namespace ba = boost::algorithm;
 
+using namespace TestHarness;
 
-/**
- *  Starts a background process with the given command and arguments.
- *  The process's output is redirected to the specified log file.
- */
-pid_t start_background_process(
-    const std::string& command,
-    const std::vector<std::string>& args,
-    const std::string& log_file)
-try
-{
-    pid_t pid = fork();
-    if (pid < 0)
-    {
-        throw std::runtime_error("Failed to fork process");
-    }
-    else if (pid == 0)
-    {
-        // In child process
-        std::vector<char*> c_args;
-        c_args.push_back(const_cast<char*>(command.c_str()));
-        for (const auto& arg : args)
-        {
-            c_args.push_back(const_cast<char*>(arg.c_str()));
-        }
-        c_args.push_back(nullptr);
-
-        // Redirect stdout and stderr to log file
-        freopen(log_file.c_str(), "a", stdout);
-        freopen(log_file.c_str(), "a", stderr);
-
-        execvp(command.c_str(), c_args.data());
-        // If execvp returns, it must have failed
-        std::cerr << "Failed to execute command: " << command << std::endl;
-        exit(1);
-    }
-    // In parent process, return child's PID
-    return pid;
-}
-catch (...)
-{
-    std::cout << Fmi::Exception(BCP, "Failed to start background process: " + command) << std::endl;
-    throw; // Rethrow to allow handling in main
-}
-
-/**
- *  Get TCP/IP port which specified process is listening on.
- *
- *  This is done by from /usr/bin/ss output REGEX parsing.
- *  Ignore also UDP ports, as they are not used in this test.
- */
-int get_process_port(pid_t pid)
-try
-{
-    std::string command = "ss -lntp 2>/dev/null | grep " + std::to_string(pid) + " | grep -v udp";
-    FILE* pipe = popen(command.c_str(), "r");
-    if (!pipe)
-    {
-        throw std::runtime_error("Failed to run command: " + command);
-    }
-
-    char buffer[128];
-    int port = -1;
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
-    {
-        std::string line(buffer);
-        size_t colon_pos = line.find(':');
-        if (colon_pos != std::string::npos)
-        {
-            size_t space_pos = line.find(' ', colon_pos);
-            if (space_pos != std::string::npos)
-            {
-                port = std::stoi(line.substr(colon_pos + 1, space_pos - colon_pos - 1));
-                break;
-            }
-        }
-    }
-    pclose(pipe);
-
-    if (port == -1)
-    {
-        throw std::runtime_error("Failed to find listening port for PID: " + std::to_string(pid));
-    }
-    return port;
-}
-catch (...)
-{
-    std::cout << Fmi::Exception(BCP, "Failed to get process port for PID: " + std::to_string(pid)) << std::endl;
-    throw; // Rethrow to allow handling in main
-}
-
-/**
- *   Start smartmet backend processes and return their PIDs and ports.
- */
-std::vector<std::pair<pid_t, int>> start_backends(
-    const std::vector<std::string>& config_files)
-try
-{
-    int counter = 0;
-    std::vector<std::pair<pid_t, int>> backends;
-    for (const auto& config : config_files)
-    {
-        pid_t pid = start_background_process(
-            "/usr/sbin/smartmetd",
-            {
-                "--configfile", config,
-                "--port=0" // Let the backend choose an available port
-            },
-            "log/backend" + std::to_string(++counter) + ".log");
-        backends.emplace_back(pid, -1); // Temporarily store -1 for port until we retrieve it
-    }
-
-    // Give the processes some time to start and listen on ports
-    // Ports should be available soon after process start, but we add a small delay to be safe and
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    for (auto& item : backends)
-    {
-        pid_t pid = item.first;
-        int port = get_process_port(pid);
-        item.second = port;
-        std::cout << "Started backend with PID: " << pid << " on port: " << port << std::endl;
-    }
-    return backends;
-}
-catch (...)
-{
-    std::cout << Fmi::Exception(BCP, "Failed to start backend processes") << std::endl;
-    throw; // Rethrow to allow handling in main
-}
-
-void stop_backends(const std::vector<std::pair<pid_t, int>>& backends)
-try
-{
-    for (const auto& [pid, port] : backends)
-    {
-        kill(pid, SIGTERM);
-        waitpid(pid, nullptr, 0);
-        std::cout << "Stopped backend with PID: " << pid << " on port: " << port << std::endl;
-    }
-}
-catch (...)
-{
-    std::cout << Fmi::Exception(BCP, "Failed to stop backend processes      ") << std::endl;
-}
-
-bool report_process_exit_status(const std::string& process_name,
-                                pid_t pid,
-                                int port,
-                                int status)
-{
-    if (WIFEXITED(status))
-    {
-        const int exit_code = WEXITSTATUS(status);
-        if (exit_code == 0)
-        {
-            std::cout << process_name << " with PID: " << pid << " on port: " << port
-                      << " exited normally" << std::endl;
-            return true;
-        }
-
-        std::cout << process_name << " with PID: " << pid << " on port: " << port
-                  << " exited with non-zero code: " << exit_code << std::endl;
-        return false;
-    }
-
-    if (WIFSIGNALED(status))
-    {
-        const int sig = WTERMSIG(status);
-        std::cout << process_name << " with PID: " << pid << " on port: " << port
-                  << " terminated by signal " << sig << " (" << strsignal(sig) << ")";
-        if (sig == SIGSEGV)
-        {
-            std::cout << " [SIGSEGV]";
-        }
-        std::cout << std::endl;
-        return false;
-    }
-
-    std::cout << process_name << " with PID: " << pid << " on port: " << port
-              << " ended in unknown state" << std::endl;
-    return false;
-}
-
-bool terminate_and_wait_process(const std::string& process_name, pid_t pid, int port)
-{
-    int status = 0;
-    const pid_t first_wait = waitpid(pid, &status, WNOHANG);
-    if (first_wait == pid)
-    {
-        return report_process_exit_status(process_name, pid, port, status);
-    }
-
-    if (first_wait == -1)
-    {
-        std::cerr << "Failed to query status for " << process_name << " PID " << pid
-                  << ": " << std::strerror(errno) << std::endl;
-        return false;
-    }
-
-    if (kill(pid, SIGTERM) == -1 && errno != ESRCH)
-    {
-        std::cerr << "Failed to send SIGTERM to " << process_name << " PID " << pid
-                  << ": " << std::strerror(errno) << std::endl;
-        return false;
-    }
-
-    const pid_t waited = waitpid(pid, &status, 0);
-    if (waited == -1)
-    {
-        std::cerr << "Failed to wait " << process_name << " PID " << pid
-                  << ": " << std::strerror(errno) << std::endl;
-        return false;
-    }
-
-    return report_process_exit_status(process_name, pid, port, status);
-}
-
-bool stop_backends_checked(const std::vector<std::pair<pid_t, int>>& backends)
-{
-    bool all_ok = true;
-    for (const auto& [pid, port] : backends)
-    {
-        const bool ok = terminate_and_wait_process("Backend", pid, port);
-        all_ok = all_ok && ok;
-    }
-    return all_ok;
-}
-
-std::pair<pid_t, int> start_frontend(const std::string& config_file)
-try
-{
-    pid_t pid = start_background_process(
-        "/usr/sbin/smartmetd",
-        {
-            "--configfile", config_file,
-            "--port=0" // Let the frontend choose an available port
-        },
-        "log/frontend.log");
-    sleep(1); // Give the process some time to start and listen on the port
-    int port = get_process_port(pid);
-    std::cout << "Started frontend with PID: " << pid << " on port: " << port << std::endl;
-    return {pid, port};
-}
-catch (...)
-{
-    std::cout << Fmi::Exception(BCP, "Failed to start frontend process") << std::endl;
-    throw; // Rethrow to allow handling in main
-}
 
 std::string read_file_to_string(const std::filesystem::path& path)
 {
@@ -374,119 +124,6 @@ std::string make_http_request_text(const std::filesystem::path& input_file,
     }
 
     return normalized;
-}
-
-std::string send_raw_http_request(int port, const std::string& request_text)
-{
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_fd < 0)
-    {
-        throw std::runtime_error("Failed to create socket");
-    }
-
-    sockaddr_in address{};
-    address.sin_family = AF_INET;
-    address.sin_port = htons(static_cast<uint16_t>(port));
-    if (inet_pton(AF_INET, "127.0.0.1", &address.sin_addr) != 1)
-    {
-        close(socket_fd);
-        throw std::runtime_error("Failed to parse loopback address");
-    }
-
-    if (connect(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0)
-    {
-        close(socket_fd);
-        throw std::runtime_error("Failed to connect to frontend on port " + std::to_string(port));
-    }
-
-    std::size_t sent_total = 0;
-    while (sent_total < request_text.size())
-    {
-        ssize_t sent = send(socket_fd,
-                            request_text.data() + sent_total,
-                            request_text.size() - sent_total,
-                            0);
-        if (sent < 0)
-        {
-            close(socket_fd);
-            throw std::runtime_error("Failed to send HTTP request");
-        }
-        sent_total += static_cast<std::size_t>(sent);
-    }
-
-    std::string response;
-    char buffer[4096];
-    while (true)
-    {
-        ssize_t received = recv(socket_fd, buffer, sizeof(buffer), 0);
-        if (received == 0)
-        {
-            break;
-        }
-        if (received < 0)
-        {
-            close(socket_fd);
-            throw std::runtime_error("Failed to receive HTTP response");
-        }
-        response.append(buffer, static_cast<std::size_t>(received));
-    }
-
-    close(socket_fd);
-    return response;
-}
-
-std::string extract_http_body(const std::string& response)
-{
-    std::size_t separator = response.find("\r\n\r\n");
-    if (separator != std::string::npos)
-    {
-        return response.substr(separator + 4);
-    }
-
-    separator = response.find("\n\n");
-    if (separator != std::string::npos)
-    {
-        return response.substr(separator + 2);
-    }
-
-    std::cout << "--- Body:\n" << response << "\n--- End of body" << std::endl;
-    throw std::runtime_error("HTTP response does not contain header/body separator");
-}
-
-void wait_for_ready(int port, const std::string& process_name, int max_wait_seconds = 60)
-{
-    const std::string request = "GET /admin?what=waitforready&timeout=1 HTTP/1.0\r\n\r\n";
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(max_wait_seconds);
-
-    std::string last_result;
-    while (std::chrono::steady_clock::now() < deadline)
-    {
-        try
-        {
-            const std::string response = send_raw_http_request(port, request);
-            const std::string body = ba::trim_copy(extract_http_body(response));
-            const std::string body_lc = ba::to_lower_copy(body);
-
-            if (ba::starts_with(body_lc, "ready"))
-            {
-                std::cout << process_name << " on port " << port << " is ready: " << body
-                          << std::endl;
-                return;
-            }
-
-            last_result = body;
-        }
-        catch (const std::exception& e)
-        {
-            last_result = e.what();
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    throw std::runtime_error("Timeout waiting for " + process_name + " on port " +
-                             std::to_string(port) +
-                             " to become ready. Last result: " + last_result);
 }
 
 std::string remove_date_header_from_http_response(const std::string& response)
@@ -631,6 +268,72 @@ bool run_tests(int frontend_port)
     return failed == 0;
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Check that backend connections are actually being reused
+ *
+ * Connection reuse is invisible in the responses - the same bytes come back,
+ * only without a TCP handshake in front of them - so the only way to tell a
+ * working pool from one that opens a connection every time is to ask the
+ * frontend.
+ *
+ * The requests are sent as HTTP/1.1: the frontend forwards the client's protocol
+ * version to the backend, and an HTTP/1.0 request (which is what the file-driven
+ * tests above send) has no persistence to offer.
+ */
+// ----------------------------------------------------------------------
+
+bool check_backend_connection_reuse(int frontend_port)
+{
+    // "Connection: close" applies to this hop only - it keeps the read loop above
+    // from waiting out the frontend's idle timeout - and says nothing about the
+    // frontend's own connections to the backends.
+    const std::string request =
+        "GET /timeseries?starttime=200808051200&places=Helsinki&param=name,time HTTP/1.1\r\n"
+        "Host: localhost\r\n"
+        "Connection: close\r\n"
+        "\r\n";
+
+    const int request_count = 5;
+    for (int i = 0; i < request_count; i++)
+    {
+        const std::string response = send_raw_http_request(frontend_port, request);
+        if (response.find(" 200 ") == std::string::npos)
+        {
+            std::cout << "Backend connection reuse check: request " << (i + 1)
+                      << " did not return 200" << std::endl;
+            return false;
+        }
+    }
+
+    const std::string stats = send_raw_http_request(
+        frontend_port, "GET /admin?what=backendconnections HTTP/1.0\r\n\r\n");
+
+    const std::string marker = "connections reused";
+    const std::size_t at = stats.find(marker);
+    if (at == std::string::npos)
+    {
+        std::cout << "Backend connection reuse check: no reuse counter in the admin reply"
+                  << std::endl;
+        return false;
+    }
+
+    long reused = -1;
+    const std::size_t value_start = stats.find_first_of("0123456789", at + marker.size());
+    if (value_start != std::string::npos)
+        reused = std::stol(stats.substr(value_start));
+
+    if (reused <= 0)
+    {
+        std::cout << "Backend connection reuse check: " << request_count
+                  << " requests reused " << reused << " connections" << std::endl;
+        return false;
+    }
+
+    std::cout << "Backend connections reused: " << reused << std::endl;
+    return true;
+}
+
 int main()
 {
     std::vector<std::pair<pid_t, int>> backends;
@@ -671,6 +374,9 @@ int main()
         std::this_thread::sleep_for(std::chrono::seconds(4));
 
         bool tests_ok = run_tests(frontend_port);
+
+        if (tests_ok)
+            tests_ok = check_backend_connection_reuse(frontend_port);
 
         // Stop all processes after tests are done
         const bool frontend_ok = terminate_and_wait_process("Frontend", frontend_pid, frontend_port);

@@ -18,6 +18,8 @@ endif
 
 TEST_TARGETS += \
 	RunTests \
+	RunClusterTests \
+	RunLoadTest \
 	test_plugin/denytest.so
 
 LIBS += \
@@ -32,7 +34,32 @@ test: all
 	rm -rf log failures
 	$(MAKE) prepare-tests
 	$(MAKE) $(TEST_PREPARE_TARGETS)
-	ok=false; ./RunTests && ok=true; \
+	ok=true; \
+	./RunTests || ok=false; \
+	./RunClusterTests || ok=false; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	$$ok
+
+# Regression tests for cluster behaviour: connection reuse across a backend
+# leaving and rejoining, the backend timeout, and what a client gets when a
+# backend dies. "make test" runs these as well; this target is for iterating on
+# them without waiting for the file-driven tests first.
+cluster-test: all
+	rm -rf log/cluster failures
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	ok=false; ./RunClusterTests && ok=true; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	$$ok
+
+# Load the frontend while perf records it. Not a test - nothing here passes or
+# fails - so it is not part of "make test" and never will be. Pass options
+# through, e.g.:
+#
+#   make load-test LOAD_ARGS="--seconds=60 --threads=16"
+#   make load-test LOAD_ARGS="--target=/timeseries?places=Helsinki&param=name,time"
+load-test: all
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	ok=false; ./RunLoadTest $(LOAD_ARGS) && ok=true; \
 	$(MAKE) $(TEST_FINISH_TARGETS); \
 	$$ok
 
@@ -45,8 +72,14 @@ clean:
 	rm -f test_plugin/denytest.so
 	rm -rf input/deny output/deny
 
-RunTests: obj/RunTests.o
+RunTests: obj/RunTests.o obj/TestHarness.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+RunClusterTests: obj/RunClusterTests.o obj/TestHarness.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+RunLoadTest: obj/RunLoadTest.o obj/TestHarness.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
 
 test_plugin/denytest.so: test_plugin/Plugin.cpp
 	mkdir -p test_plugin/obj
@@ -89,5 +122,10 @@ dummy:
 obj/%.o: %.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
+
+# The .d files have always been generated here but never used, which went
+# unnoticed while every source in this directory was self-contained. Now that
+# they share TestHarness.h, editing it has to rebuild both programs.
+-include $(wildcard obj/*.d)
 
 .PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf cnf/engines/avi.conf dummy prepare-tests

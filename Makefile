@@ -37,7 +37,7 @@ OBJS = $(patsubst %.cpp, obj/%.o, $(notdir $(SRCS)))
 
 INCLUDES := -I$(SUBNAME) $(INCLUDES)
 
-.PHONY: test rpm examples
+.PHONY: test cluster-test load-test rpm examples
 
 # Detect jemalloc shared library for LD_PRELOAD environment variable
 # Fall back to a common location if ldconfig is not available
@@ -57,6 +57,15 @@ profile: all
 
 test:
 	$(MAKE) -C test $@
+
+# Cluster behaviour regression tests on their own. "make test" runs them too;
+# this target is for iterating on them without waiting for the rest.
+cluster-test:
+	$(MAKE) -C test $@
+
+# Load the frontend under perf. Not a test; see test/Makefile for the options.
+load-test:
+	$(MAKE) -C test $@ LOAD_ARGS="$(LOAD_ARGS)"
 
 check: $(LIBFILE)
 	@echo "Running frontend plugin self-test"

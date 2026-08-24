@@ -41,3 +41,28 @@ autocomplete:
 	handler		= "/autocomplete";
 	ip_filters 	= ["*.*.*.*"];
 };
+
+# Backend communication
+backend:
+{
+	timeout			= 600;	# seconds to wait for a backend response
+	threads			= 20;	# backend I/O threads
+	shutdown_grace_period	= 10;	# seconds to let a stream finish at shutdown
+
+	# Backend connections are kept open for the next request instead of being
+	# closed after every response. The frontend re-frames responses for the
+	# client, so this hop's connection lifetime is independent of the client's.
+	#
+	# idle_timeout must stay BELOW the backend server's own "keepalive.timeout"
+	# (30 seconds by default in smartmet-server), or every pooled connection is
+	# already closed by the time it is picked up again.
+	#
+	# Setting enabled = false restores one connection per backend request.
+
+	keepalive:
+	{
+		enabled			= true;	# reuse backend connections
+		idle_timeout		= 20;	# seconds a pooled connection may sit idle
+		max_idle_connections	= 32;	# idle connections kept per backend
+	};
+};

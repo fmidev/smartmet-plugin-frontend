@@ -1,10 +1,12 @@
 /RunTests
+/RunClusterTests
+/RunLoadTest
 /log
 /obj
 /failures
 /tmp-geonames-db
+/cnf/engines/avi.conf
 /cnf/engines/geonames.conf
 /cnf/engines/gis.conf
 /input/deny
 /output/deny
-

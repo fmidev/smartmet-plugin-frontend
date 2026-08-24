@@ -9,6 +9,7 @@
 #include <spine/ConfigTools.h>
 #include <spine/Convenience.h>
 #include <spine/Reactor.h>
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -75,6 +76,8 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     {
       itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
       theReactor.removeBackendRequests(theHost->Name(), theHost->Port());
+      itsProxy->closeBackendConnections(theHost->IP(),
+                                        static_cast<unsigned short>(theHost->Port()));
 
       std::cout << fmt::format("{} Backend {}:{} is marked as dead. Retiring backend server.",
                                Spine::log_time_str(),
@@ -93,6 +96,11 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
         return Proxy::ProxyStatus::PROXY_SUCCESS;
       }
 
+      // Nothing retries a PROXY_FAIL_REMOTE_HOST, so this is the client's answer.
+      // It has to be a framed one: a response with no status set makes the server
+      // throw while serialising it and drop the connection, which with keep-alive
+      // takes whatever else the client had queued on it down as well.
+      theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
       return Proxy::ProxyStatus::PROXY_FAIL_REMOTE_HOST;
     }
 
@@ -128,6 +136,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                          theService->URI(),
                          hostPrefix + theService->URI())
                   << std::endl;
+        theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
         return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
       }
     }
@@ -151,6 +160,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                  theService->URI(),
                                  hostPrefix + theService->URI())
                   << std::endl;
+        theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
         return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
       }
     }
@@ -177,6 +187,16 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
 
       itsSputnikProcess->getServices().removeBackend(theHost->Name(), theHost->Port());
       theReactor.removeBackendRequests(theHost->Name(), theHost->Port());
+      itsProxy->closeBackendConnections(theHost->IP(),
+                                        static_cast<unsigned short>(theHost->Port()));
+
+      if (proxyStatus != Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
+      {
+        // A denial is resent to another backend, and that attempt writes its own
+        // response. Anything else ends here, so it needs a framed reply rather
+        // than an empty response the server cannot serialise.
+        theResponse.setStatus(Spine::HTTP::Status::bad_gateway, true);
+      }
     }
     else
     {
@@ -260,6 +280,14 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     // has time to complete instead of the whole process being SIGKILLed regardless.
     int shutdownGracePeriodInSeconds = 10;
 
+    // Backend connections are kept open for the next request instead of being
+    // closed after every response. The idle timeout must stay below the
+    // backend's own ("keepalive.timeout" in smartmet-server, 30 s by default),
+    // or every pooled connection is dead by the time it is picked up again.
+    bool backendKeepAlive = true;
+    int backendIdleTimeoutInSeconds = 20;
+    int maxIdleConnectionsPerBackend = 32;
+
     try
     {
       // Enable sensible relative include paths
@@ -317,6 +345,9 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.lookupValue("backend.timeout", backendTimeoutInSeconds);
       config.lookupValue("backend.threads", backendThreadCount);
       config.lookupValue("backend.shutdown_grace_period", shutdownGracePeriodInSeconds);
+      config.lookupValue("backend.keepalive.enabled", backendKeepAlive);
+      config.lookupValue("backend.keepalive.idle_timeout", backendIdleTimeoutInSeconds);
+      config.lookupValue("backend.keepalive.max_idle_connections", maxIdleConnectionsPerBackend);
     }
     catch (const libconfig::ParseException &e)
     {
@@ -338,7 +369,10 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
                              std::filesystem::path(filesystemCachePath),
                              backendThreadCount,
                              backendTimeoutInSeconds,
-                             shutdownGracePeriodInSeconds);
+                             shutdownGracePeriodInSeconds,
+                             backendKeepAlive,
+                             static_cast<std::size_t>(std::max(0, maxIdleConnectionsPerBackend)),
+                             backendIdleTimeoutInSeconds);
 
     // Start the "Catcher in the Rye" process in SmartMet core. Must be registered only
     // after itsProxy is fully constructed: the handler dereferences itsProxy, and the
