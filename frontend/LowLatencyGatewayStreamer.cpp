@@ -119,11 +119,11 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
     response.setHeader("Server", "SmartMet Synapse (" __TIME__ " " __DATE__ ")");
     response.setHeader("X-Frontend-Server", boost::asio::ip::host_name());
 
-    if (response.getVersion() == "1.1")
-    {
-      response.setHeader("Connection",
-                         "close");  // Current implementation is one-request-per-Connection
-    }
+    // No Connection header. A freshly constructed Response is HTTP/1.0 (Message's
+    // default), so the "1.1" test this used to sit behind never fired and the
+    // close it wanted was never set - which is just as well, because the frontend
+    // no longer runs one request per connection. The server negotiates the client
+    // connection from the request, for a cache hit exactly as for anything else.
 
     // The cache related response headers should be the same for 200 OK responses
     // and 304 Not Modified responses. RFC7232: "The server generating a 304 response MUST generate
