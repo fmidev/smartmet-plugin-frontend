@@ -63,6 +63,24 @@ load-test: all
 	$(MAKE) $(TEST_FINISH_TARGETS); \
 	$$ok
 
+debug-backend1: all
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	./RunTests --debug-backend 1; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	true
+
+debug-backend2: all
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	./RunTests --debug-backend 2; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	true
+
+debug-frontend: all
+	$(MAKE) $(TEST_PREPARE_TARGETS)
+	./RunTests --debug-frontend; \
+	$(MAKE) $(TEST_FINISH_TARGETS); \
+	true
+
 clean:
 	rm -rf obj log failures
 	rm -f cnf/geonames.conf cnf/gis.conf
