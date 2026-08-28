@@ -564,6 +564,96 @@ bool test_small_response_is_not_delayed(int frontend_port)
     return ok;
 }
 
+/*!
+ *  Strip chunk framing. Enough for a well-formed reply, which is all these tests
+ *  need: a malformed one shows up as a length that does not match.
+ */
+std::string decode_chunked(const std::string& body)
+{
+    std::string decoded;
+    std::size_t pos = 0;
+
+    while (pos < body.size())
+    {
+        const std::size_t eol = body.find("\r\n", pos);
+        if (eol == std::string::npos)
+        {
+            break;
+        }
+
+        std::size_t size = 0;
+        try
+        {
+            size = std::stoul(body.substr(pos, eol - pos), nullptr, 16);
+        }
+        catch (...)
+        {
+            break;
+        }
+
+        if (size == 0)
+        {
+            break;
+        }
+
+        decoded.append(body, eol + 2, size);
+        pos = eol + 2 + size + 2;
+    }
+
+    return decoded;
+}
+
+bool is_chunked(const std::string& response)
+{
+    const std::size_t head_end = response.find("\r\n\r\n");
+    const std::string head = ba::to_lower_copy(response.substr(0, head_end));
+    return head.find("transfer-encoding: chunked") != std::string::npos;
+}
+
+/*!
+ * \brief A chunked response reaches the client whole
+ *
+ * The only chunked response either repo can produce: /streamtest in the test
+ * plugin streams without announcing a length, so the server has to frame it with
+ * Transfer-Encoding. That makes this the one test covering the server's chunked
+ * reply path, on both hops, and the frontend's chunked body decoder against a
+ * real backend rather than a unit test's fixtures.
+ *
+ * Compared against the same request straight to the backend, so nothing has to be
+ * committed as a fixture and the chunk boundaries are free to differ - which they
+ * do, since the frontend re-frames what it forwards.
+ */
+// ----------------------------------------------------------------------
+
+bool test_chunked_response_survives_the_proxy(int frontend_port, int backend_port)
+{
+    const std::string target = "/streamtest?chunks=8&size=32768";
+    const std::size_t expected = 8 * 32768;
+
+    const std::string direct = get(backend_port, target);
+    const std::string proxied = get(frontend_port, target);
+
+    if (!is_chunked(direct) || !is_chunked(proxied))
+    {
+        report("a chunked response survives the proxy",
+               false,
+               std::string("not chunked: backend ") + (is_chunked(direct) ? "yes" : "no") +
+                   ", frontend " + (is_chunked(proxied) ? "yes" : "no"));
+        return false;
+    }
+
+    const std::string direct_body = decode_chunked(extract_http_body(direct));
+    const std::string proxied_body = decode_chunked(extract_http_body(proxied));
+
+    const bool ok = direct_body.size() == expected && proxied_body == direct_body;
+    report("a chunked response survives the proxy",
+           ok,
+           std::to_string(proxied_body.size()) + " of " + std::to_string(expected) +
+               " bytes, " + (proxied_body == direct_body ? "identical to" : "DIFFERENT from") +
+               " the backend's");
+    return ok;
+}
+
 bool wait_for_all_backends(int frontend_port, int max_wait_seconds = 60)
 {
     Traffic ignored;
@@ -617,6 +707,8 @@ int main()
         bool ok = test_connections_are_reused(frontend_port);
 
         ok = test_small_response_is_not_delayed(frontend_port) && ok;
+
+        ok = test_chunked_response_survives_the_proxy(frontend_port, backends[0].second) && ok;
 
         ok = test_paused_backend_is_drained_and_restored(frontend_port, backends[0].second) && ok;
 

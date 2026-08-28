@@ -50,6 +50,7 @@ when backends come and go, all of which has been broken at some point:
 | a stalled backend is timed out | the backend timeout fires, instead of pinning a request handler thread forever |
 | a dead backend is answered, not dropped | a request that cannot be served gets a framed HTTP error rather than a dropped connection |
 | a small response is not held for an ACK | the server sets `TCP_NODELAY`; without it a small proxied response costs 40 ms waiting for a delayed ACK, visible only over a kept-alive connection |
+| a chunked response survives the proxy | the server's chunked reply path on both hops, and `ChunkedBodyDecoder` against a real backend rather than a unit test's fixtures |
 
 It uses `cnf/reactor_frontend_cluster.conf`, whose only difference is a `backend.timeout`
 of 8 seconds — long enough for queries that take milliseconds, short enough to wait for.
@@ -189,9 +190,19 @@ Two limits worth knowing:
   HTTP version to the backend, so an HTTP/1.0 client request gets `Connection:
   close` and no reuse. Upgrading it here would change what the backend may answer
   with, and an HTTP/1.0 request need not carry the `Host` that HTTP/1.1 requires.
-- **Chunked backend bodies are not exercised locally.** `test/cnf` loads no plugin
-  that streams, so the `CHUNKED` reuse path is covered by
-  `ChunkedBodyDecoderTest` and by production traffic, not by `make test`.
+- **Chunked backend bodies are exercised by one endpoint only.** No plugin either
+  repo installs streams — they all answer in a single buffered response — so
+  `test/test_plugin/Plugin.cpp` grew `/streamtest`, which streams a body of a
+  length nobody knows in advance and therefore comes back chunked. It is the only
+  chunked response in either repo's tests, and it covers the server's chunked
+  reply path on both hops as well as `ChunkedBodyDecoder`. The `CHUNKED` *reuse*
+  path (returning such a connection to the pool) still rests on
+  `ChunkedBodyDecoderTest` and production traffic.
+
+  Borrowing the download plugin's `test-qd` cases was tried first and abandoned:
+  they need a working grid engine, which `test/cnf` disables, and a 71 MB dataset
+  in every `make test` run. A purpose-built streamer costs nothing and is
+  deterministic.
 
 ### The backend timeout
 
