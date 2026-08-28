@@ -39,6 +39,32 @@ pid_t start_background_process(const std::string& command,
 int get_process_port(pid_t pid);
 
 /**
+ *  The same, but without throwing when the process is not listening (yet):
+ *  returns -1 instead. Polling for a port that is expected to appear later is a
+ *  normal thing to do, not an error.
+ */
+int try_get_process_port(pid_t pid);
+
+/**
+ *  Which gdb the test programs run: $GDB if set, otherwise "gdb" from $PATH.
+ */
+std::string gdb_path();
+
+/**
+ *  Run a process under an interactive gdb and wait for gdb to exit.
+ *
+ *  Unlike start_background_process(), this inherits the terminal instead of
+ *  redirecting to a log file - the whole point is to type at it. The servers are
+ *  started with --port=0, so the port is not known before the inferior runs;
+ *  a poller reports it under process_name once it appears.
+ *
+ *  Returns gdb's exit code, or -1 if it could not be waited for.
+ */
+int run_under_gdb(const std::string& command,
+                  const std::vector<std::string>& args,
+                  const std::string& process_name);
+
+/**
  *  Start smartmet backend processes and return their PIDs and ports.
  */
 std::vector<std::pair<pid_t, int>> start_backends(const std::vector<std::string>& config_files,

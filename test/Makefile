@@ -147,3 +147,4 @@ obj/%.o: %.cpp
 -include $(wildcard obj/*.d)
 
 .PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf cnf/engines/avi.conf dummy prepare-tests
+.PHONY: debug-backend1 debug-backend2 debug-frontend

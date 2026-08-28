@@ -14,8 +14,12 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstdlib>
+#include <atomic>
 #include <chrono>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
@@ -70,39 +74,68 @@ catch (...)
 }
 
 /**
- *  Get TCP/IP port which specified process is listening on.
+ *  Get TCP/IP port which specified process is listening on, or -1 if it is not
+ *  listening on any.
  *
- *  This is done by from /usr/bin/ss output REGEX parsing.
- *  Ignore also UDP ports, as they are not used in this test.
+ *  This is done by parsing /usr/bin/ss output. Only the lines naming this very
+ *  process are looked at: a bare PID match would also accept a line that merely
+ *  happens to contain those digits in a port number.
  */
-int get_process_port(pid_t pid)
-try
+int try_get_process_port(pid_t pid)
 {
-    std::string command = "ss -lntp 2>/dev/null | grep " + std::to_string(pid) + " | grep -v udp";
-    FILE* pipe = popen(command.c_str(), "r");
+    const std::string marker = "pid=" + std::to_string(pid) + ",";
+    FILE* pipe = popen("ss -lntp 2>/dev/null", "r");
     if (!pipe)
     {
-        throw std::runtime_error("Failed to run command: " + command);
+        return -1;
     }
 
-    char buffer[128];
+    char buffer[512];
     int port = -1;
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
+    while (port == -1 && fgets(buffer, sizeof(buffer), pipe) != nullptr)
     {
-        std::string line(buffer);
-        size_t colon_pos = line.find(':');
-        if (colon_pos != std::string::npos)
+        const std::string line(buffer);
+        if (line.find(marker) == std::string::npos)
         {
-            size_t space_pos = line.find(' ', colon_pos);
-            if (space_pos != std::string::npos)
-            {
-                port = std::stoi(line.substr(colon_pos + 1, space_pos - colon_pos - 1));
-                break;
-            }
+            continue;
+        }
+
+        // State Recv-Q Send-Q Local-Address:Port Peer-Address:Port Process
+        std::vector<std::string> fields;
+        ba::split(fields, line, ba::is_space(), ba::token_compress_on);
+        if (fields.size() < 4)
+        {
+            continue;
+        }
+
+        const std::string& local = fields[3];
+        const std::size_t colon = local.rfind(':');
+        if (colon == std::string::npos)
+        {
+            continue;
+        }
+
+        try
+        {
+            port = std::stoi(local.substr(colon + 1));
+        }
+        catch (const std::exception&)
+        {
+            // Not a port after all: keep looking
         }
     }
     pclose(pipe);
 
+    return port;
+}
+
+/**
+ *  Get TCP/IP port which specified process is listening on.
+ */
+int get_process_port(pid_t pid)
+try
+{
+    const int port = try_get_process_port(pid);
     if (port == -1)
     {
         throw std::runtime_error("Failed to find listening port for PID: " + std::to_string(pid));
@@ -125,6 +158,187 @@ std::string smartmetd_path()
     const char* const from_environment = ::getenv("SMARTMETD");
     return (from_environment != nullptr && *from_environment != '\0') ? from_environment
                                                                      : "/usr/sbin/smartmetd";
+}
+
+/**
+ *  Which gdb to run. Overridable the same way as smartmetd, so that a wrapper
+ *  or a different build of gdb can be used without editing the tests.
+ */
+std::string gdb_path()
+{
+    const char* const from_environment = ::getenv("GDB");
+    return (from_environment != nullptr && *from_environment != '\0') ? from_environment : "gdb";
+}
+
+namespace
+{
+
+pid_t parent_pid_of(pid_t pid)
+{
+    std::ifstream in("/proc/" + std::to_string(pid) + "/stat");
+    std::string line;
+    if (!std::getline(in, line))
+    {
+        return -1;
+    }
+
+    // The comm field is parenthesized and may contain spaces, so the fields
+    // after it are only safe to read from the last ')'.
+    const std::size_t comm_end = line.rfind(')');
+    if (comm_end == std::string::npos)
+    {
+        return -1;
+    }
+
+    std::istringstream rest(line.substr(comm_end + 1));
+    std::string state;
+    pid_t ppid = -1;
+    if (!(rest >> state >> ppid))
+    {
+        return -1;
+    }
+    return ppid;
+}
+
+bool is_descendant_of(pid_t pid, pid_t ancestor)
+{
+    for (int depth = 0; depth < 16 && pid > 1; depth++)
+    {
+        pid = parent_pid_of(pid);
+        if (pid == ancestor)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ *  The port a descendant of the given process listens on, or -1.
+ *
+ *  gdb's inferior is a process of its own, and it only exists once "run" has
+ *  been typed, so the port cannot be asked for at start like it is for the
+ *  processes the tests start themselves.
+ */
+int find_descendant_port(pid_t ancestor)
+try
+{
+    for (const auto& entry : std::filesystem::directory_iterator("/proc"))
+    {
+        const std::string name = entry.path().filename().string();
+        if (name.empty() || name.find_first_not_of("0123456789") != std::string::npos)
+        {
+            continue;
+        }
+
+        const pid_t pid = static_cast<pid_t>(std::stol(name));
+        if (pid == ancestor || !is_descendant_of(pid, ancestor))
+        {
+            continue;
+        }
+
+        const int port = try_get_process_port(pid);
+        if (port > 0)
+        {
+            return port;
+        }
+    }
+    return -1;
+}
+catch (const std::exception&)
+{
+    // Processes come and go under /proc while it is being read: not an error
+    return -1;
+}
+
+}  // anonymous namespace
+
+int run_under_gdb(const std::string& command,
+                  const std::vector<std::string>& args,
+                  const std::string& process_name)
+{
+    const std::string gdb = gdb_path();
+
+    std::vector<std::string> gdb_args = {"--args", command};
+    gdb_args.insert(gdb_args.end(), args.begin(), args.end());
+
+    std::cout << "Starting " << process_name << " under " << gdb << ':';
+    for (const auto& arg : gdb_args)
+    {
+        std::cout << ' ' << arg;
+    }
+    std::cout << "\nType \"run\" at the (gdb) prompt to start it, \"quit\" when done." << std::endl;
+
+    const pid_t pid = fork();
+    if (pid < 0)
+    {
+        throw std::runtime_error("Failed to fork gdb process");
+    }
+
+    if (pid == 0)
+    {
+        // No redirection here, unlike start_background_process(): gdb is meant to
+        // be typed at, so it inherits the terminal
+        std::vector<char*> c_args;
+        c_args.push_back(const_cast<char*>(gdb.c_str()));
+        for (const auto& arg : gdb_args)
+        {
+            c_args.push_back(const_cast<char*>(arg.c_str()));
+        }
+        c_args.push_back(nullptr);
+
+        execvp(gdb.c_str(), c_args.data());
+        std::cerr << "Failed to execute " << gdb << ": " << std::strerror(errno) << std::endl;
+        _exit(127);
+    }
+
+    // The inferior picks its port with --port=0, and only once it is run, so it
+    // is polled for and reported whenever it changes - a second "run" gets a
+    // different port and the old one would send the requests nowhere.
+    std::atomic<bool> finished{false};
+    std::thread port_reporter(
+        [pid, &process_name, &finished]()
+        {
+            int reported = -1;
+            while (!finished.load())
+            {
+                const int port = find_descendant_port(pid);
+                if (port != reported)
+                {
+                    reported = port;
+                    if (port > 0)
+                    {
+                        std::cout << "\n" << process_name << " under gdb is listening on port "
+                                  << port << std::endl;
+                    }
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+        });
+
+    int status = 0;
+    const pid_t waited = waitpid(pid, &status, 0);
+    finished.store(true);
+    port_reporter.join();
+
+    if (waited != pid)
+    {
+        std::cerr << "Failed to wait for gdb: " << std::strerror(errno) << std::endl;
+        return -1;
+    }
+
+    if (WIFEXITED(status))
+    {
+        return WEXITSTATUS(status);
+    }
+
+    if (WIFSIGNALED(status))
+    {
+        const int sig = WTERMSIG(status);
+        std::cout << "gdb terminated by signal " << sig << " (" << strsignal(sig) << ')'
+                  << std::endl;
+    }
+    return -1;
 }
 
 /**

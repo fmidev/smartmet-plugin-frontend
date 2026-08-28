@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <getopt.h>
 
 namespace ba = boost::algorithm;
 
@@ -334,7 +335,125 @@ bool check_backend_connection_reuse(int frontend_port)
     return true;
 }
 
-int main()
+// ----------------------------------------------------------------------
+/*!
+ * \brief The configuration files of the test cluster
+ *
+ * The debug targets start a subset of the very same cluster the tests use, so
+ * that what is being debugged is what is being tested.
+ */
+// ----------------------------------------------------------------------
+
+const std::vector<std::string> backend_configs = {
+    "cnf/reactor_backend1.conf",
+    "cnf/reactor_backend2.conf"
+};
+
+const std::string frontend_config = "cnf/reactor_frontend.conf";
+
+void create_log_directories()
+{
+    std::filesystem::create_directories("log/b1");
+    std::filesystem::create_directories("log/b2");
+    std::filesystem::create_directories("log/frontend");
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Debug one backend under gdb, and nothing else
+ *
+ * A backend that fails to start takes the whole test run with it, and as a
+ * child process with its output in a log file there is nothing to type at. This
+ * starts the one backend asked for, under gdb, on the terminal - no second
+ * backend and no frontend, because neither is any use while the one being
+ * debugged is sitting at a breakpoint.
+ */
+// ----------------------------------------------------------------------
+
+int run_debug_backend(int index)
+{
+    create_log_directories();
+
+    const std::string& config = backend_configs.at(index - 1);
+    std::cout << "Debugging backend " << index << " (" << config << ")" << std::endl;
+
+    const int status = run_under_gdb(smartmetd_path(),
+                                     {"--configfile", config, "--port=0"},
+                                     "Backend " + std::to_string(index));
+
+    return status == 0 ? 0 : 1;
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Debug the frontend under gdb against real backends
+ *
+ * The frontend is not worth much on its own: it forwards, and without backends
+ * to forward to every request comes back as an error. So the backends are
+ * started the way the tests start them - in the background, with their output
+ * in log/ - and only the frontend is put under gdb.
+ *
+ * Sputnik discovery takes a few seconds after the frontend is up, so a request
+ * made the moment the gdb prompt appears may still find no backend.
+ */
+// ----------------------------------------------------------------------
+
+int run_debug_frontend()
+{
+    create_log_directories();
+
+    std::vector<std::pair<pid_t, int>> backends;
+    try
+    {
+        backends = start_backends(backend_configs);
+    }
+    catch (...)
+    {
+        std::cout << Fmi::Exception::Trace(BCP, "Failed to start the backends") << std::endl;
+        (void)stop_backends_checked(backends);
+        return 1;
+    }
+
+    // A backend that never becomes ready is a warning here rather than an error:
+    // debugging the frontend against a broken cluster is a legitimate thing to
+    // do, and refusing to start gdb would take away the only tool for it.
+    for (const auto& [pid, port] : backends)
+    {
+        (void)pid;
+        try
+        {
+            // A shorter wait than the tests use: here it is only there to keep the
+            // gdb prompt from appearing before the backends can answer, and a
+            // backend that is not up in 20 seconds is not coming up at all
+            wait_for_ready(port, "Backend", 20);
+        }
+        catch (const std::exception& e)
+        {
+            std::cout << "WARNING: backend on port " << port << " is not ready: " << e.what()
+                      << std::endl;
+        }
+    }
+
+    std::cout << "Debugging frontend (" << frontend_config << ")" << std::endl;
+
+    int status = -1;
+    try
+    {
+        status = run_under_gdb(smartmetd_path(),
+                               {"--configfile", frontend_config, "--port=0"},
+                               "Frontend");
+    }
+    catch (...)
+    {
+        std::cout << Fmi::Exception::Trace(BCP, "Failed to run the frontend under gdb") << std::endl;
+    }
+
+    const bool backends_ok = stop_backends_checked(backends);
+
+    return (status == 0 && backends_ok) ? 0 : 1;
+}
+
+int run_test_cluster()
 {
     std::vector<std::pair<pid_t, int>> backends;
     pid_t frontend_pid = 1;
@@ -346,15 +465,9 @@ int main()
     try
     {
         // Create log directories if they don't exist
-        std::filesystem::create_directories("log/b1");
-        std::filesystem::create_directories("log/b2");
-        std::filesystem::create_directories("log/frontend");
+        create_log_directories();
 
         // Start backend processes
-        std::vector<std::string> backend_configs = {
-            "cnf/reactor_backend1.conf",
-            "cnf/reactor_backend2.conf"
-        };
         backends = start_backends(backend_configs);
 
         for (const auto& [pid, port] : backends)
@@ -364,7 +477,7 @@ int main()
         }
 
         // Start frontend process
-        std::tie(frontend_pid, frontend_port) = start_frontend("cnf/reactor_frontend.conf");
+        std::tie(frontend_pid, frontend_port) = start_frontend(frontend_config);
 
         wait_for_ready(frontend_port, "Frontend");
 
@@ -413,4 +526,97 @@ int main()
         }
         return 1;
     }
+}
+
+void usage(const char* program)
+{
+    std::cout << "Usage: " << program << " [options]\n"
+              << "\n"
+              << "  With no options the whole cluster is started and the tests are run.\n"
+              << "\n"
+              << "  --debug-backend N  start only backend N (1.."
+              << backend_configs.size() << ") under gdb and run no tests\n"
+              << "  --debug-frontend   start the backends, then the frontend under gdb,\n"
+              << "                     and run no tests\n"
+              << "  --help             this text\n"
+              << "\n"
+              << "  $SMARTMETD chooses which server is run, $GDB which debugger."
+              << std::endl;
+}
+
+int main(int argc, char* argv[])
+{
+    int debug_backend = 0;
+    bool debug_frontend = false;
+
+    const struct option long_options[] = {
+        {"debug-backend", required_argument, nullptr, 'b'},
+        {"debug-frontend", no_argument, nullptr, 'f'},
+        {"help", no_argument, nullptr, 'h'},
+        {nullptr, 0, nullptr, 0}
+    };
+
+    int opt = 0;
+    while ((opt = getopt_long(argc, argv, "", long_options, nullptr)) != -1)
+    {
+        switch (opt)
+        {
+            case 'b':
+                try
+                {
+                    debug_backend = std::stoi(optarg);
+                }
+                catch (const std::exception&)
+                {
+                    debug_backend = 0;
+                }
+                if (debug_backend < 1 ||
+                    static_cast<std::size_t>(debug_backend) > backend_configs.size())
+                {
+                    std::cout << "Invalid backend number: " << optarg << std::endl;
+                    usage(argv[0]);
+                    return 1;
+                }
+                break;
+
+            case 'f':
+                debug_frontend = true;
+                break;
+
+            case 'h':
+                usage(argv[0]);
+                return 0;
+
+            default:
+                usage(argv[0]);
+                return 1;
+        }
+    }
+
+    if (optind < argc)
+    {
+        std::cout << "Unexpected argument: " << argv[optind] << std::endl;
+        usage(argv[0]);
+        return 1;
+    }
+
+    if (debug_backend != 0 && debug_frontend)
+    {
+        std::cout << "--debug-backend and --debug-frontend are mutually exclusive" << std::endl;
+        return 1;
+    }
+
+    // No alarm() in the debug modes: sitting at a breakpoint is what they are for
+
+    if (debug_backend != 0)
+    {
+        return run_debug_backend(debug_backend);
+    }
+
+    if (debug_frontend)
+    {
+        return run_debug_frontend();
+    }
+
+    return run_test_cluster();
 }
