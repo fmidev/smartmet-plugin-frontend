@@ -91,10 +91,10 @@ clean:
 	rm -rf input/deny output/deny
 
 RunTests: obj/RunTests.o obj/TestHarness.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
 
 RunClusterTests: obj/RunClusterTests.o obj/TestHarness.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
 
 RunLoadTest: obj/RunLoadTest.o obj/TestHarness.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
