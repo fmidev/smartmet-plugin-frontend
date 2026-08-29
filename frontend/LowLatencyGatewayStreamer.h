@@ -182,6 +182,14 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // Function to handle errors in backend communication
   void handleError(const boost::system::error_code& err);
 
+  // End the exchange after the backend broke protocol (garbled head, malformed
+  // chunk framing, a request that could not be sent). Fails the stream AND
+  // releases what the failure paths used to leak: the backend socket is no
+  // longer at any known message boundary so it is closed, and the armed timeout
+  // timer - whose pending wait holds shared_from_this(), and with it the client
+  // and cache buffers, until the deadline - is cancelled. Caller holds itsMutex.
+  void failBackendExchange();
+
   // Function to mark the communication to be in finishing stages
   void markFinishing();
 

@@ -760,8 +760,7 @@ bool LowLatencyGatewayStreamer::consumeBodyBytes(const char* data, std::size_t l
                                  itsIP,
                                  itsPort)
                   << std::endl;
-        itsResponseIsCacheable = false;
-        itsGatewayStatus = GatewayStatus::FAILED;
+        failBackendExchange();
         return false;
       }
 
@@ -977,8 +976,19 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
     itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
-    // Attempt to parse the response headers
+    // Attempt to parse the response headers. Any 1xx interim responses already
+    // buffered are discarded here, before the switch: the final response may
+    // have arrived in the same read as the interim preceding it, and a backend
+    // with nothing more to send would never trigger the further read a
+    // schedule-and-wait discard relies on.
     auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+    while (std::get<0>(ret) == Spine::HTTP::ParsingStatus::COMPLETE &&
+           isInterimResponse(std::get<1>(ret)->getStatus()))
+    {
+      itsResponseHeaderBuffer = std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend());
+      ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+    }
+
     switch (std::get<0>(ret))
     {
       case Spine::HTTP::ParsingStatus::FAILED:
@@ -994,7 +1004,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
                          itsResponseHeaderBuffer)
                   << std::endl;
 
-        itsGatewayStatus = GatewayStatus::FAILED;
+        failBackendExchange();
 
         break;
       }
@@ -1015,21 +1025,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
       }
       case Spine::HTTP::ParsingStatus::COMPLETE:
       {
-        // Successfull parse.
+        // Successfull parse. Interim 1xx responses were already discarded above.
         auto&& responsePtr = std::get<1>(ret);
-
-        // 1xx interim responses are not final; discard and read the next response.
-        if (isInterimResponse(responsePtr->getStatus()))
-        {
-          itsResponseHeaderBuffer = std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend());
-          itsBackendSocket.async_read_some(
-              boost::asio::buffer(itsSocketBuffer),
-              [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred)
-              { me->readCacheResponse(err, bytes_transferred); });
-          extendBackendDeadline();
-          break;
-        }
 
         // See if backend responded with ETag
         auto etagHeader = responsePtr->getHeader("ETag");
@@ -1197,7 +1194,7 @@ void LowLatencyGatewayStreamer::sendContentRequest()
 
     if (!connectAndSend(buffer, allowPool))
     {
-      itsGatewayStatus = GatewayStatus::FAILED;
+      failBackendExchange();
       return;
     }
 
@@ -1237,7 +1234,16 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
 
     itsResponseHeaderBuffer.append(itsSocketBuffer.begin(), bytes_transferred);
 
+    // Discard any buffered 1xx interim responses before the switch - see
+    // readCacheResponse() for why a schedule-and-wait discard is not enough.
     auto ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+    while (std::get<0>(ret) == Spine::HTTP::ParsingStatus::COMPLETE &&
+           isInterimResponse(std::get<1>(ret)->getStatus()))
+    {
+      itsResponseHeaderBuffer = std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend());
+      ret = Spine::HTTP::parseResponse(itsResponseHeaderBuffer);
+    }
+
     switch (std::get<0>(ret))
     {
       case Spine::HTTP::ParsingStatus::FAILED:
@@ -1248,7 +1254,7 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
                                  itsIP,
                                  itsPort)
                   << std::endl;
-        itsGatewayStatus = GatewayStatus::FAILED;
+        failBackendExchange();
         return;
       }
 
@@ -1269,21 +1275,9 @@ void LowLatencyGatewayStreamer::readDataResponseHeaders(const boost::system::err
       }
       case Spine::HTTP::ParsingStatus::COMPLETE:
       {
-        // Headers parsed, determine if we should attempt cache insertion
+        // Headers parsed, determine if we should attempt cache insertion.
+        // Interim 1xx responses were already discarded above.
         auto&& responsePtr = std::get<1>(ret);
-
-        // 1xx interim responses are not final; discard and read the next response.
-        if (isInterimResponse(responsePtr->getStatus()))
-        {
-          itsResponseHeaderBuffer = std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend());
-          itsBackendSocket.async_read_some(
-              boost::asio::buffer(itsSocketBuffer),
-              [me = shared_from_this()](const boost::system::error_code& err,
-                                        std::size_t bytes_transferred)
-              { me->readDataResponseHeaders(err, bytes_transferred); });
-          extendBackendDeadline();
-          return;
-        }
 
         auto etag = responsePtr->getHeader("ETag");
 
@@ -1443,6 +1437,16 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
     if (itsGatewayStatus != GatewayStatus::ONGOING)
       return;  // Finished between the timer firing and this handler running
 
+    if (itsBackendBufferFull)
+    {
+      // The exchange is deliberately paused while the client drains the buffer:
+      // readDataResponse() cancelled the timer, but this firing was already
+      // dequeued and would re-arm to a deadline nothing is extending, failing a
+      // healthy transfer to a slow client. getChunk() re-arms both the deadline
+      // and the timer when reading resumes.
+      return;
+    }
+
     if (std::chrono::steady_clock::now() < itsDeadline)
     {
       // The backend has been heard from since this wait was armed, so the
@@ -1478,6 +1482,25 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
     ex.printError();
     // Must not throw or execution will terminate
   }
+}
+
+void LowLatencyGatewayStreamer::failBackendExchange()
+{
+  itsResponseIsCacheable = false;
+  itsCachedContent.clear();
+  itsGatewayStatus = GatewayStatus::FAILED;
+
+  boost::system::error_code ignored_error;
+  itsBackendSocket.close(ignored_error);
+  if (itsTimeoutTimer)
+    itsTimeoutTimer->cancel();
+
+  markFinishing();  // Remove backend communication from load balancing
+
+  // Both waiters: a request thread may still be waiting for the head, and the
+  // server's writer for the next chunk
+  itsHeadReadyEvent.notify_all();
+  itsDataAvailableEvent.notify_all();
 }
 
 void LowLatencyGatewayStreamer::handleError(const boost::system::error_code& err)
