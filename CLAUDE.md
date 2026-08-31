@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing reverse proxy for SmartMet Server clusters. It receives incoming HTTP requests and distributes them across backend servers discovered via UDP broadcasting through the Sputnik engine. It also provides response caching (both compressed/gzip and uncompressed) with memory and filesystem tiers, admin endpoints for cluster management, and pause/continue support for F5 health checks.
+The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing reverse proxy for SmartMet Server clusters. It receives incoming HTTP requests and distributes them across backend servers discovered via UDP broadcasting through the Sputnik engine. It also provides response caching (one cache holding every content encoding) with memory and filesystem tiers, admin endpoints for cluster management, and pause/continue support for F5 health checks.
 
 ## Build commands
 
@@ -93,7 +93,9 @@ small number of seconds a merely busy machine could produce.
 
 - **`ChunkedBodyDecoder`** (`frontend/ChunkedBodyDecoder.{h,cpp}`) — Incremental chunked-body decoder. Separate from the streamer so it can be unit tested (`testsuite/ChunkedBodyDecoderTest.cpp`), since a socket can split a chunk header, its data or its terminator anywhere.
 
-- **`ResponseCache`** (`frontend/ResponseCache.{h,cpp}`) — Two-tier cache (memory LRU + filesystem) keyed by ETag. Stores response metadata (mime type, cache-control, etc.) separately from buffer content.
+- **`ResponseCache`** (`frontend/ResponseCache.{h,cpp}`) — Two-tier cache (memory LRU + filesystem) keyed by (ETag, content encoding), so that the identity, gzip and zstd variants of one resource live side by side. Stores response metadata (mime type, cache-control, etc.) separately from buffer content.
+
+  > **The ETag key is the coding independent one.** A backend appends the content coding to the entity-tag of an encoded response (`"abc-timeseries+zstd"`), but answers the frontend's `X-Request-ETag` probe with the tag of the data itself, since the probe has no body to encode. `Spine::HTTP::baseETag()` therefore strips the coding before the tag is used as a cache key, and `Spine::HTTP::contentCodedETag()` puts it back when a variant is served. Keying on the tag as received would make every lookup miss. Likewise, the codings to look up are negotiated with `Spine::HTTP::rankContentEncodings()` and the server's own `supportedContentEncodings()` — every coding the client accepts, best first, since the backend may no longer offer the best one: it is the backend that encodes the responses, so a negotiation of our own that disagrees with the server's cannot find what the backend produced.
 
 ### Response framing, and why the gateway is no longer a byte stream
 
@@ -272,7 +274,7 @@ These power the `/admin?what=qengine` and `/admin?what=gridgenerations` endpoint
 
 The plugin reads a libconfig `.conf` file (see `cnf/frontend.conf.sample`). Key settings:
 - `user` / `password` — Basic auth credentials for admin endpoints
-- `compressed_cache` / `uncompressed_cache` — Memory and filesystem cache sizes and paths
+- `response_cache` — Memory and filesystem cache sizes and path. The deprecated `compressed_cache` / `uncompressed_cache` blocks are still honoured: their sizes are summed and the first directory is used
 - `backend.timeout` — Backend connection timeout in seconds (default: 600)
 - `backend.threads` — Backend IO thread pool size (default: 20)
 - `backend.keepalive.enabled` — Reuse backend connections (default: true)

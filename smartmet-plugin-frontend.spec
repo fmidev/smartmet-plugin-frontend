@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.8.19
+Version: 26.8.24
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
-BuildRequires: smartmet-library-spine-devel >= 26.8.19
+BuildRequires: smartmet-library-spine-devel >= 26.8.24
 BuildRequires: smartmet-library-grid-files-devel >= 26.7.14
 BuildRequires: smartmet-engine-sputnik-devel >= 26.6.26
 BuildRequires: gdal312-devel
@@ -34,9 +34,9 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.8.19
 BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.8.19
-Requires: smartmet-server >= 26.8.17
+Requires: smartmet-server >= 26.8.24
 Requires: smartmet-engine-sputnik >= 26.6.26
-Requires: smartmet-library-spine >= 26.8.19
+Requires: smartmet-library-spine >= 26.8.24
 Requires: smartmet-library-timeseries >= 26.5.5
 Requires: smartmet-library-grid-files >= 26.7.14
 Requires: jsoncpp
@@ -53,8 +53,10 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.8.19
-#TestRequires: smartmet-library-spine-devel >= 26.8.19
-#TestRequires: smartmet-library-spine >= 26.8.19
+#TestRequires: smartmet-library-spine-devel >= 26.8.24
+#TestRequires: smartmet-library-spine >= 26.8.24
+#TestRequires: smartmet-server >= 26.8.24
+#TestRequires: smartmet-engine-sputnik >= 26.6.26
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +105,20 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Aug 24 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.24-1.fmi
+- Cache lookups now negotiate the content encoding with the same rules and the
+  same list of codings as the backend that produced the cached variant, using
+  Spine::HTTP::rankContentEncodings(). The plugin's own negotiation ignored
+  quality values and could not have found the variant a backend chose for a
+  request refusing a coding
+- The entity-tag of a served variant now names its content encoding, while the
+  cache stays keyed by the coding independent entity-tag the backend's ETag
+  probe reports
+- A cache lookup now tries every content encoding the client accepts, in the
+  order it prefers them, before falling back to the unencoded variant. Insisting
+  on the single best encoding would miss on every request against a backend whose
+  'compresscodings' setting no longer offers it
+
 * Wed Aug 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.19-1.fmi
 - The response_cache sizes are now read with Spine::lookupSizeSetting(), so
   memory_bytes and filesystem_bytes accept readable values such as "32G" or "512MB"
