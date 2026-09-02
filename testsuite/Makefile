@@ -29,7 +29,7 @@ $(PROG) : % : obj/%.o $(foreach obj,$(EXTRA_OBJS),../obj/$(obj))
 
 obj/%.o: %.cpp
 	@mkdir -p obj
-	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
+	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MP -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
 EXTRA_OBJS =
 ChunkedBodyDecoderTest: EXTRA_OBJS += ChunkedBodyDecoder.o

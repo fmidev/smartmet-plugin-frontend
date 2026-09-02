@@ -108,6 +108,6 @@ rpm: clean $(SPEC).spec
 .SUFFIXES: $(SUFFIXES) .cpp
 
 obj/%.o: %.cpp
-	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
+	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MP -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
 -include $(wildcard obj/*.d)

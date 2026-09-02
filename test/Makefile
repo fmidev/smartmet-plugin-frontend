@@ -139,11 +139,16 @@ dummy:
 
 obj/%.o: %.cpp
 	mkdir -p $(dir $@)
-	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
+	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MP -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
 # The .d files have always been generated here but never used, which went
 # unnoticed while every source in this directory was self-contained. Now that
 # they share TestHarness.h, editing it has to rebuild both programs.
+#
+# -MP above is what keeps that safe: it emits an empty rule for every header, so
+# a .d file naming a header that has since moved - one left behind by an RPM
+# build under a different toolchain, say - does not stop the build dead with
+# "No rule to make target".
 -include $(wildcard obj/*.d)
 
 .PHONY: cnf/engines/geonames.conf cnf/engines/gis.conf cnf/engines/avi.conf dummy prepare-tests
