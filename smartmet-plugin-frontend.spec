@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.8.19
+Version: 26.8.29
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -34,7 +34,7 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.8.19
 BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.8.19
-Requires: smartmet-server >= 26.8.17
+Requires: smartmet-server >= 26.8.29
 Requires: smartmet-engine-sputnik >= 26.6.26
 Requires: smartmet-library-spine >= 26.8.19
 Requires: smartmet-library-timeseries >= 26.5.5
@@ -103,6 +103,19 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Sat Aug 29 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.29-1.fmi
+- A backend protocol violation (garbled head, malformed chunk framing, unsendable
+  request) now closes the backend socket and cancels the timeout timer instead of
+  pinning the streamer's buffers and descriptor until backend.timeout
+- A timeout firing that raced the buffer-full pause no longer resurrects a stale
+  deadline and fails a healthy transfer to a slow client
+- Interim 1xx responses buffered together with the final response are discarded
+  by re-parsing instead of waiting for a read that may never come
+- Drop the dead Connection: close on the cache-hit path
+- Require smartmet-server >= 26.8.29: restores the TCP_NODELAY floor a merge
+  regressed to 26.8.17, and picks up the server-side fix that closes the client
+  connection when a chunked proxied response is truncated mid-body
+
 * Wed Aug 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.8.19-1.fmi
 - The response_cache sizes are now read with Spine::lookupSizeSetting(), so
   memory_bytes and filesystem_bytes accept readable values such as "32G" or "512MB"
