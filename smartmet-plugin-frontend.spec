@@ -34,7 +34,7 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.8.19
 BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.8.19
-Requires: smartmet-server >= 26.8.29
+Requires: smartmet-server >= 26.9.2
 Requires: smartmet-engine-sputnik >= 26.6.26
 Requires: smartmet-library-spine >= 26.8.19
 Requires: smartmet-library-timeseries >= 26.5.5
