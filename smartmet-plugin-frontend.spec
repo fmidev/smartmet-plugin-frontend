@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.9.3
+Version: 26.9.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -30,10 +30,10 @@ BuildRequires: smartmet-engine-sputnik-devel >= 26.6.26
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.8.19
+BuildRequires: smartmet-library-macgyver-devel >= 26.9.16
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.8.19
+Requires: smartmet-library-macgyver >= 26.9.16
 Requires: smartmet-server >= 26.9.2
 Requires: smartmet-engine-sputnik >= 26.6.26
 Requires: smartmet-library-spine >= 26.8.19
@@ -52,7 +52,7 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.8.19
+#TestRequires: smartmet-library-macgyver-devel >= 26.9.16
 #TestRequires: smartmet-library-spine-devel >= 26.8.19
 #TestRequires: smartmet-library-spine >= 26.8.19
 #TestRequires: smartmet-engine-querydata
@@ -103,6 +103,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Sep 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> 26.9.16-1.fmi
+- Repackaged due to Fmi::Cache::Cache locking changes
+
 * Thu Sep  3 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.9.3-1.fmi
 - Repackage
 
