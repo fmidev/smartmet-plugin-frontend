@@ -3,7 +3,7 @@
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
 Version: 26.9.18
-Release: 2%{?dist}.fmi
+Release: 3%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -26,7 +26,7 @@ BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
 BuildRequires: smartmet-library-spine-devel >= 26.8.19
 BuildRequires: smartmet-library-grid-files-devel >= 26.7.14
-BuildRequires: smartmet-engine-sputnik-devel >= 26.6.26
+BuildRequires: smartmet-engine-sputnik-devel >= 26.9.18
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
@@ -35,7 +35,7 @@ BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.9.16
 Requires: smartmet-server >= 26.9.2
-Requires: smartmet-engine-sputnik >= 26.6.26
+Requires: smartmet-engine-sputnik >= 26.9.18
 Requires: smartmet-library-spine >= 26.8.19
 Requires: smartmet-library-timeseries >= 26.5.5
 Requires: smartmet-library-grid-files >= 26.7.14
@@ -103,6 +103,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Sep 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.18-3.fmi
+- Rebuilt against smartmet-engine-sputnik 26.9.18, whose Engine layout changed
+
 * Fri Sep 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.18-2.fmi
 - Pause deadlines are now reported in a readable form ('2026-Sep-18 06:18:00 UTC')
   instead of a bare ISO timestamp
