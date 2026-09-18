@@ -542,7 +542,7 @@ std::string Plugin::requestContinue(const Spine::HTTP::Request &theRequest)
     if (time_opt)
     {
       auto deadline = Fmi::TimeParser::parse(*time_opt);
-      pauseUntil(deadline);
+      return pauseUntil(deadline);
     }
 
     // Optional duration:
