@@ -73,6 +73,14 @@ void pin_this_library_in_memory()
     (void)handle;
   }
 }
+
+// Pause deadlines are shown to operators, so they are rendered the way the server log
+// renders its own timestamps. The zone is spelled out since the deadline is UTC while
+// the log timestamps are local.
+std::string format_deadline(const Fmi::DateTime& theTime)
+{
+  return Fmi::to_simple_string(theTime) + " UTC";
+}
 }  // namespace
 
 namespace SmartMet
@@ -107,7 +115,7 @@ void Plugin::baseContentHandler(Spine::Reactor & /* theReactor */,
       theResponse.setContent("Frontend Paused\n");
     else
       theResponse.setContent("Frontend Paused until " +
-                             Fmi::to_iso_string(Fmi::date_time::from_time_t(deadline)));
+                             format_deadline(Fmi::date_time::from_time_t(deadline)));
   }
   catch (...)
   {
@@ -480,7 +488,7 @@ catch (...)
 
 std::string Plugin::pauseUntil(const Fmi::DateTime &theTime)
 {
-  auto timestr = Fmi::to_iso_string(theTime);
+  auto timestr = format_deadline(theTime);
   std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
 
   itsPauseDeadLine = theTime.as_time_t();
