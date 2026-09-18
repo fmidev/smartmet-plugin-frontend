@@ -12,6 +12,9 @@
 #include <spine/Reactor.h>
 #include <spine/SmartMetPlugin.h>
 #include <spine/Table.h>
+#include <atomic>
+#include <ctime>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -56,13 +59,24 @@ class Plugin : public SmartMetPlugin
   std::string itsUsername;
   std::string itsPassword;
 
-  mutable Spine::MutexType itsPauseMutex;
-  mutable bool itsPaused{false};
-  mutable std::optional<Fmi::DateTime> itsPauseDeadLine{};
+  // The plugin may be paused via an admin request. The pause state is encoded into a
+  // single atomic so that it can be read and updated without a lock.
+
+  static constexpr std::time_t NOT_PAUSED = 0;
+  static constexpr std::time_t PAUSED_FOREVER = std::numeric_limits<std::time_t>::max();
+
+  mutable std::atomic<std::time_t> itsPauseDeadLine{NOT_PAUSED};
 
   std::shared_ptr<Engine::Sputnik::Engine> itsSputnikEngine;
 
   void registerAdminRequests(Spine::Reactor& theReactor);
+
+  /**
+   * @brief Return the current pause state, expiring an elapsed deadline
+   *
+   * @return NOT_PAUSED, PAUSED_FOREVER or the deadline itself
+   */
+  std::time_t pauseDeadLine() const;
 
   bool isPaused() const;
 

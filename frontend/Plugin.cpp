@@ -35,6 +35,7 @@
 #include <spine/TableFormatterOptions.h>
 #include <spine/TcpMultiQuery.h>
 #include <timeseries/ParameterFactory.h>
+#include <ctime>
 #include <dlfcn.h>
 #include <random>
 #include <sstream>
@@ -97,16 +98,16 @@ void Plugin::baseContentHandler(Spine::Reactor & /* theReactor */,
     // Must not use word "SmartMet" in paused state, which F5 uses for pattern matching
 
     theResponse.setStatus(Spine::HTTP::Status::ok);
-    if (!isPaused())
+
+    auto deadline = pauseDeadLine();
+
+    if (deadline == NOT_PAUSED)
       theResponse.setContent("SmartMet Server\n");
+    else if (deadline == PAUSED_FOREVER)
+      theResponse.setContent("Frontend Paused\n");
     else
-    {
-      Spine::ReadLock lock(itsPauseMutex);
-      if (!itsPauseDeadLine)
-        theResponse.setContent("Frontend Paused\n");
-      else
-        theResponse.setContent("Frontend Paused until " + Fmi::to_iso_string(*itsPauseDeadLine));
-    }
+      theResponse.setContent("Frontend Paused until " +
+                             Fmi::to_iso_string(Fmi::date_time::from_time_t(deadline)));
   }
   catch (...)
   {
@@ -482,9 +483,7 @@ std::string Plugin::pauseUntil(const Fmi::DateTime &theTime)
   auto timestr = Fmi::to_iso_string(theTime);
   std::cout << Spine::log_time_str() << " *** Frontend paused until " << timestr << std::endl;
 
-  Spine::WriteLock lock(itsPauseMutex);
-  itsPaused = true;
-  itsPauseDeadLine = theTime;
+  itsPauseDeadLine = theTime.as_time_t();
   return "Paused Frontend until " + timestr;
 }
 
@@ -518,9 +517,7 @@ std::string Plugin::requestPause(const Spine::HTTP::Request &theRequest)
     }
 
     std::cout << Spine::log_time_str() << " *** Frontend paused" << std::endl;
-    Spine::WriteLock lock(itsPauseMutex);
-    itsPaused = true;
-    itsPauseDeadLine = std::nullopt;
+    itsPauseDeadLine = PAUSED_FOREVER;
     return "Paused Frontend";
   }
   catch (...)
@@ -559,9 +556,7 @@ std::string Plugin::requestContinue(const Spine::HTTP::Request &theRequest)
     }
 
     std::cout << Spine::log_time_str() << " *** Frontend continues" << std::endl;
-    Spine::WriteLock lock(itsPauseMutex);
-    itsPaused = false;
-    itsPauseDeadLine = std::nullopt;
+    itsPauseDeadLine = NOT_PAUSED;
     return "Frontend continues";
   }
   catch (...)
@@ -572,32 +567,39 @@ std::string Plugin::requestContinue(const Spine::HTTP::Request &theRequest)
 
 // ----------------------------------------------------------------------
 /*!
+ * \brief Return the pause deadline, expiring the pause if the deadline has passed
+ */
+// ----------------------------------------------------------------------
+
+std::time_t Plugin::pauseDeadLine() const
+{
+  auto deadline = itsPauseDeadLine.load();
+
+  if (deadline == NOT_PAUSED || deadline == PAUSED_FOREVER)
+    return deadline;
+
+  if (std::time(nullptr) < deadline)
+    return deadline;
+
+  // Deadline expired, continue. The pause state must not be cleared if it has been
+  // changed by another thread in the meantime.
+
+  if (itsPauseDeadLine.compare_exchange_strong(deadline, NOT_PAUSED))
+    std::cout << Spine::log_time_str() << " *** Frontend pause deadline expired, continuing"
+              << std::endl;
+
+  return NOT_PAUSED;
+}
+
+// ----------------------------------------------------------------------
+/*!
  * \brief Return true if Frontend is paused
  */
 // ----------------------------------------------------------------------
 
 bool Plugin::isPaused() const
 {
-  Spine::UpgradeReadLock readlock(itsPauseMutex);
-  if (!itsPaused)
-    return false;
-
-  if (!itsPauseDeadLine)
-    return true;
-
-  auto now = Fmi::MicrosecClock::universal_time();
-
-  if (now < itsPauseDeadLine)
-    return true;
-
-  // deadline expired, continue
-  std::cout << Spine::log_time_str() << " *** Frontend pause deadline expired, continuing"
-            << std::endl;
-  Spine::UpgradeWriteLock writelock(readlock);
-  itsPaused = false;
-  itsPauseDeadLine = std::nullopt;
-
-  return false;
+  return pauseDeadLine() != NOT_PAUSED;
 }
 
 // ----------------------------------------------------------------------
