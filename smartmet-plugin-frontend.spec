@@ -3,7 +3,7 @@
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
 Version: 26.9.18
-Release: 1%{?dist}.fmi
+Release: 2%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -103,6 +103,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Sep 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.18-2.fmi
+- Pause deadlines are now reported in a readable form ('2026-Sep-18 06:18:00 UTC')
+  instead of a bare ISO timestamp
+
 * Fri Sep 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.18-1.fmi
 - The pause state is now a single atomic instead of a mutex, a boolean and an
   optional deadline. Testing whether the frontend is paused no longer serializes
