@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.9.18
+Version: 26.9.13
 Release: 3%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -23,22 +23,22 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 26.5.5
-BuildRequires: smartmet-library-spine-devel >= 26.8.19
-BuildRequires: smartmet-library-grid-files-devel >= 26.7.14
+BuildRequires: smartmet-library-timeseries-devel >= 26.9.16
+BuildRequires: smartmet-library-spine-devel >= 26.9.23
+BuildRequires: smartmet-library-grid-files-devel >= 26.9.23
 BuildRequires: smartmet-engine-sputnik-devel >= 26.9.18
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.9.16
+BuildRequires: smartmet-library-macgyver-devel >= 26.9.23
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.9.16
+Requires: smartmet-library-macgyver >= 26.9.23
 Requires: smartmet-server >= 26.9.2
 Requires: smartmet-engine-sputnik >= 26.9.18
-Requires: smartmet-library-spine >= 26.8.19
-Requires: smartmet-library-timeseries >= 26.5.5
-Requires: smartmet-library-grid-files >= 26.7.14
+Requires: smartmet-library-spine >= 26.9.23
+Requires: smartmet-library-timeseries >= 26.9.16
+Requires: smartmet-library-grid-files >= 26.9.23
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -52,9 +52,9 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.9.16
-#TestRequires: smartmet-library-spine-devel >= 26.8.19
-#TestRequires: smartmet-library-spine >= 26.8.19
+#TestRequires: smartmet-library-macgyver-devel >= 26.9.23
+#TestRequires: smartmet-library-spine-devel >= 26.9.23
+#TestRequires: smartmet-library-spine >= 26.9.23
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +103,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Sep 23 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.13-3.fmi
+- Repackaged due to base library ABI changes
 * Fri Sep 18 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.18-3.fmi
 - Rebuilt against smartmet-engine-sputnik 26.9.18, whose Engine layout changed
 
