@@ -215,11 +215,9 @@ configuration.
 
 ## 10. Known pitfalls
 
-* **`pause` / `continue` need two sets of credentials.** They are registered with
-  `RequiresAuthentication`, which spine silently ignores unless the server configuration has
-  `admin.user` and `admin.password`. The frontend then checks its own `user` / `password`.
-  Configure both, as `test/cnf/reactor_frontend_cluster.conf` and
-  `test/cnf/plugins/frontend_cluster.conf` do, or the requests do not exist.
+* **`pause` / `continue` need two sets of credentials:** the server's `admin.user` and
+  `admin.password`, and the frontend's own `user` / `password`. Configure both, as
+  `test/cnf/reactor_frontend_cluster.conf` and `test/cnf/plugins/frontend_cluster.conf` do.
 * **No ETag, no cache.** Plugins must emit an ETag for the frontend to cache their
   responses, and it must identify the body completely (§5).
 * **304 without a backend.** When no backend serves the URI, conditional requests get 304
