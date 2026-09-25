@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The SmartMet frontend plugin (`smartmet-plugin-frontend`) is a load-balancing reverse proxy for SmartMet Server clusters. It receives incoming HTTP requests and distributes them across backend servers discovered via UDP broadcasting through the Sputnik engine. It also provides response caching (both compressed/gzip and uncompressed) with memory and filesystem tiers, admin endpoints for cluster management, and pause/continue support for F5 health checks.
 
+Full developer documentation: `docs/developer-guide.md`.
+
 ## Build commands
 
 ```bash
@@ -272,7 +274,7 @@ These power the `/admin?what=qengine` and `/admin?what=gridgenerations` endpoint
 
 The plugin reads a libconfig `.conf` file (see `cnf/frontend.conf.sample`). Key settings:
 - `user` / `password` — Basic auth credentials for admin endpoints
-- `compressed_cache` / `uncompressed_cache` — Memory and filesystem cache sizes and paths
+- `response_cache` (`memory_bytes`, `filesystem_bytes`, `directory`) — the response cache, keyed by (ETag, content encoding). The old `compressed_cache` / `uncompressed_cache` settings are deprecated; they are summed into the one cache with a warning.
 - `backend.timeout` — Backend connection timeout in seconds (default: 600)
 - `backend.threads` — Backend IO thread pool size (default: 20)
 - `backend.keepalive.enabled` — Reuse backend connections (default: true)

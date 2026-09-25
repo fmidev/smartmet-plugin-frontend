@@ -12,6 +12,11 @@ The frontend plugin implements the load-balancing frontend in a SmartMet Server 
 - Request routing and load balancing across backend servers
 - High-availability cluster support
 
+## Documentation
+
+- [Developer guide](docs/developer-guide.md) — routing, the ETag probe and response cache, response framing, backend connections, admin requests
+- [Conditional backend requests](docs/Conditional-Backend-Request-Design.md) — design proposal
+
 ## License
 
 MIT — see [LICENSE](LICENSE)
