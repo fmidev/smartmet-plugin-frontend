@@ -225,10 +225,5 @@ configuration.
 * **304 without a backend.** When no backend serves the URI, conditional requests get 304
   rather than 404. That is intended for outages, but it also means a typo'd URL with
   `If-None-Match` looks "unchanged".
-* **High-load retirement is backpressure**, and sputnik's `removeBackend` can `SIGKILL`
-  the frontend when retirement empties the last service under cluster-wide overload (see
-  CLAUDE.md and the sputnik engine).
+* **High-load retirement is backpressure** (see CLAUDE.md and the sputnik engine).
 * **Frontend and server versions are coupled** by the heartbeat change (§6).
-* **Client IP forwarding.** The unmerged `origin/security` branch changes how the client
-  address is passed to the backends (`X-Forwarded-For`); update this section when it is
-  merged.
