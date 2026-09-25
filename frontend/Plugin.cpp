@@ -441,8 +441,8 @@ try
     if (response) jsonResponse = response->as_json(timeFormat);
     Json::StreamWriterBuilder writerBuilder;
     writerBuilder["indentation"] = "  ";  // pretty print
-    const std::string formattedString = Json::writeString(writerBuilder, jsonResponse);
-    theResponse.setContent(formattedString);
+    std::string formattedString = Json::writeString(writerBuilder, jsonResponse);
+    theResponse.setContent(std::move(formattedString));
     theResponse.setHeader("Content-Type", "application/json; charset=UTF-8");
     theResponse.setStatus(Spine::HTTP::Status::ok);
   }
@@ -468,9 +468,9 @@ try
       table = std::make_unique<Spine::Table>();
       table->setTitle("Backend info summary (no data)");
     }
-    const std::string formattedString = formatter->format(*table, {}, theRequest, options);
+    std::string formattedString = formatter->format(*table, {}, theRequest, options);
     const std::string mime = formatter->mimetype() + "; charset=UTF-8";
-    theResponse.setContent(formattedString);
+    theResponse.setContent(std::move(formattedString));
     theResponse.setHeader("Content-Type", mime);
     theResponse.setStatus(Spine::HTTP::Status::ok);
   }

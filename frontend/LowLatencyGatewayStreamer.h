@@ -39,7 +39,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   };
 
   LowLatencyGatewayStreamer(Private,
-                            const std::shared_ptr<Proxy> theProxy,
+                            const std::shared_ptr<Proxy>& theProxy,
                             Spine::Reactor& theReactor,
                             std::string theHostName,
                             std::string theIP,
@@ -48,7 +48,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
                             const Spine::HTTP::Request& theOriginalRequest);
 
   static std::shared_ptr<LowLatencyGatewayStreamer> create(
-      const std::shared_ptr<Proxy> theProxy,
+      const std::shared_ptr<Proxy>& theProxy,
       Spine::Reactor& theReactor,
       const std::string& theHostName,
       const std::string& theIP,

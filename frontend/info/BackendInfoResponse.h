@@ -27,7 +27,7 @@ public:
    */
   BackendInfoResponse(
     const Json::Value& jsonObject,
-    parser_t recordFactory,
+    const parser_t& recordFactory,
     const BackendInfoFilter& recordFilter,
     const std::string& timeFormat);
 

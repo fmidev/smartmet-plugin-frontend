@@ -410,7 +410,7 @@ void LowLatencyGatewayStreamer::abort(const std::string& theReason)
 }
 
 LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
-                                                     const std::shared_ptr<Proxy> theProxy,
+                                                     const std::shared_ptr<Proxy>& theProxy,
                                                      Spine::Reactor& theReactor,
                                                      std::string theHostName,
                                                      std::string theIP,
@@ -432,7 +432,7 @@ LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
 
 // Factory method
 std::shared_ptr<LowLatencyGatewayStreamer> LowLatencyGatewayStreamer::create(
-    const std::shared_ptr<Proxy> theProxy,
+    const std::shared_ptr<Proxy>& theProxy,
     Spine::Reactor& theReactor,
     const std::string& theHostName,
     const std::string& theIP,
