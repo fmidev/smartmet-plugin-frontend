@@ -283,18 +283,12 @@ Proxy::ProxyStatus Proxy::HTTPForward(Spine::Reactor& theReactor,
 {
   try
   {
-    // Try to resolve the requesters origin IP
-    std::string theRequestOriginIP;
-    auto originIP = theRequest.getHeader("X-Forwarded-For");
-    if (!originIP)
-    {
-      // No proxy forwardign header, the the requesters IP
-      theRequestOriginIP = theRequest.getClientIP();
-    }
-    else
-    {
-      theRequestOriginIP = *originIP;
-    }
+    // The server has already resolved the client IP, believing an incoming
+    // X-Forwarded-For header only from its trusted proxies. The raw header must not
+    // be passed on: the backends trust the frontend, so a client could otherwise
+    // choose the IP the backends see (e.g. X-Forwarded-For: 127.0.0.1) and bypass
+    // their admin and plugin IP filters.
+    const std::string theRequestOriginIP = theRequest.getClientIP();
 
     // Clone the incoming request
 
