@@ -30,10 +30,10 @@ BuildRequires: smartmet-engine-sputnik-devel >= 26.9.18
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.9.23
+BuildRequires: smartmet-library-macgyver-devel >= 26.9.26-2
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.9.23
+Requires: smartmet-library-macgyver >= 26.9.26-2
 Requires: smartmet-server >= 26.9.2
 Requires: smartmet-engine-sputnik >= 26.9.18
 Requires: smartmet-library-spine >= 26.9.26
@@ -52,7 +52,7 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.9.23
+#TestRequires: smartmet-library-macgyver-devel >= 26.9.26-2
 #TestRequires: smartmet-library-spine-devel >= 26.9.26
 #TestRequires: smartmet-library-spine >= 26.9.26
 #TestRequires: smartmet-engine-querydata
@@ -105,6 +105,7 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 * Sat Sep 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.26-2.fmi
 - Repackaged due to grid-files ABI changes
+- Require the 26.9.26 releases of the SmartMet dependencies
 
 * Sat Sep 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.26-1.fmi
 - Security: forward the client IP resolved by the server in X-Forwarded-For instead of passing
