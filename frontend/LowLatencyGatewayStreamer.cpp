@@ -191,6 +191,16 @@ Spine::HTTP::Response buildCacheResponse(const Spine::HTTP::Request& originalReq
     {
       // 304 Not Modified or 412 Precondition Failed: no body
       response.setStatus(suggested_status);
+
+      // A 304 must name the variant the client holds, which need not be the one
+      // we would have served: a cache revalidating its identity copy of a
+      // resource we hold gzip encoded is told to keep using the identity copy.
+      if (suggested_status == Spine::HTTP::Status::not_modified)
+      {
+        auto matched = etag_filter.matchingETag(metadata.etag);
+        if (matched)
+          response.setHeader("ETag", *matched);
+      }
     }
     else
     {
