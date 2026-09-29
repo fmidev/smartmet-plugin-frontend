@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.9.26
-Release: 2%{?dist}.fmi
+Version: 26.9.29
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.9.16
-BuildRequires: smartmet-library-spine-devel >= 26.9.26
+BuildRequires: smartmet-library-spine-devel >= 26.9.29-2
 BuildRequires: smartmet-library-grid-files-devel >= 26.9.26
 BuildRequires: smartmet-engine-sputnik-devel >= 26.9.18
 BuildRequires: gdal312-devel
@@ -34,9 +34,9 @@ BuildRequires: smartmet-library-macgyver-devel >= 26.9.26-2
 BuildRequires: jemalloc
 Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.9.26-2
-Requires: smartmet-server >= 26.9.2
+Requires: smartmet-server >= 26.9.29
 Requires: smartmet-engine-sputnik >= 26.9.18
-Requires: smartmet-library-spine >= 26.9.26
+Requires: smartmet-library-spine >= 26.9.29-2
 Requires: smartmet-library-timeseries >= 26.9.16
 Requires: smartmet-library-grid-files >= 26.9.26
 Requires: jsoncpp
@@ -53,8 +53,8 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.9.26-2
-#TestRequires: smartmet-library-spine-devel >= 26.9.26
-#TestRequires: smartmet-library-spine >= 26.9.26
+#TestRequires: smartmet-library-spine-devel >= 26.9.29-2
+#TestRequires: smartmet-library-spine >= 26.9.29-2
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +103,22 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Sep 29 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.29-1.fmi
+- Cache lookups now negotiate the content encoding with the same rules and the
+  same list of codings as the backend that produced the cached variant, using
+  Spine::HTTP::rankContentEncodings(). The plugin's own negotiation ignored
+  quality values and could not have found the variant a backend chose for a
+  request refusing a coding
+- The entity-tag of a served variant now names its content encoding, while the
+  cache stays keyed by the coding independent entity-tag the backend's ETag
+  probe reports
+- A cache lookup now tries every content encoding the client accepts, in the
+  order it prefers them, before falling back to the unencoded variant. Insisting
+  on the single best encoding would miss on every request against a backend whose
+  'compresscodings' setting no longer offers it
+- A 304 Not Modified answered from the cache names the variant the client
+  revalidated in its ETag
+
 * Sat Sep 26 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.26-2.fmi
 - Repackaged due to grid-files ABI changes
 - Require the 26.9.26 releases of the SmartMet dependencies
