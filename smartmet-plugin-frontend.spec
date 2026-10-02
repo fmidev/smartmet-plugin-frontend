@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.9.29
+Version: 26.10.2
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -24,19 +24,19 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.9.16
-BuildRequires: smartmet-library-spine-devel >= 26.9.29-2
+BuildRequires: smartmet-library-spine-devel >= 26.10.2
 BuildRequires: smartmet-library-grid-files-devel >= 26.9.26
 BuildRequires: smartmet-engine-sputnik-devel >= 26.9.18
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.9.26-2
+BuildRequires: smartmet-library-macgyver-devel >= 26.10.2
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.9.26-2
+Requires: smartmet-library-macgyver >= 26.10.2
 Requires: smartmet-server >= 26.9.29
 Requires: smartmet-engine-sputnik >= 26.9.18
-Requires: smartmet-library-spine >= 26.9.29-2
+Requires: smartmet-library-spine >= 26.10.2
 Requires: smartmet-library-timeseries >= 26.9.16
 Requires: smartmet-library-grid-files >= 26.9.26
 Requires: jsoncpp
@@ -103,6 +103,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Oct 02 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.2-1.fmi
+- Rebuilt against macgyver 26.10.2 where Fmi::Cache::Cache uses CLOCK eviction instead of LRU.
+  CLOCK is faster than LRU since a cache hit only takes a shared lock (ABI change)
+
 * Tue Sep 29 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.9.29-1.fmi
 - Cache lookups now negotiate the content encoding with the same rules and the
   same list of codings as the backend that produced the cached variant, using
