@@ -28,8 +28,10 @@ RestartSec=5s
 # We do not signal completion to systemd
 TimeoutStartSec=0
 
-# Wait for 30s for the server to stop before sending SIGTERM and another 30s before SIGKILL
-TimeoutStopSec=35s
+# Must be longer than the shutdown deadline of the server (spine's shutdownTimeout,
+# default 60 seconds), so that the server's own watchdog ends a stuck shutdown
+# before systemd sends SIGKILL
+TimeoutStopSec=65s
 
 # Disable swapping
 MemorySwapMax=0M
