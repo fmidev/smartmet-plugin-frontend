@@ -17,6 +17,8 @@ DB_HOST_EDIT := cat
 endif
 
 TEST_TARGETS += \
+	ChunkedBodyDecoderTest \
+	ResponseCacheTest \
 	RunTests \
 	RunClusterTests \
 	RunLoadTest \
@@ -35,6 +37,8 @@ test: all
 	$(MAKE) prepare-tests
 	$(MAKE) $(TEST_PREPARE_TARGETS)
 	ok=true; \
+	./ChunkedBodyDecoderTest || ok=false; \
+	./ResponseCacheTest || ok=false; \
 	./RunTests || ok=false; \
 	./RunClusterTests || ok=false; \
 	$(MAKE) $(TEST_FINISH_TARGETS); \
@@ -89,6 +93,12 @@ clean:
 	rm -rf test_plugin/obj
 	rm -f test_plugin/denytest.so
 	rm -rf input/deny output/deny
+
+ChunkedBodyDecoderTest: obj/ChunkedBodyDecoderTest.o ../obj/ChunkedBodyDecoder.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+ResponseCacheTest: obj/ResponseCacheTest.o ../obj/ResponseCache.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 RunTests: obj/RunTests.o obj/TestHarness.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
