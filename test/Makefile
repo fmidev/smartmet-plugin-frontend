@@ -94,11 +94,13 @@ clean:
 	rm -f test_plugin/denytest.so
 	rm -rf input/deny output/deny
 
-ChunkedBodyDecoderTest: obj/ChunkedBodyDecoderTest.o ../obj/ChunkedBodyDecoder.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+# The unit tests compile the plugin sources they test themselves: in CI the test
+# job installs the RPMs and never runs the plugin build which creates ../obj
+ChunkedBodyDecoderTest: obj/ChunkedBodyDecoderTest.o obj/ChunkedBodyDecoder.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
 
-ResponseCacheTest: obj/ResponseCacheTest.o ../obj/ResponseCache.o
-	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+ResponseCacheTest: obj/ResponseCacheTest.o obj/ResponseCache.o
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
 
 RunTests: obj/RunTests.o obj/TestHarness.o
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS) -lpthread
@@ -148,6 +150,10 @@ cnf/engines/avi.conf:
 dummy:
 
 obj/%.o: %.cpp
+	mkdir -p $(dir $@)
+	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MP -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
+
+obj/%.o: ../frontend/%.cpp
 	mkdir -p $(dir $@)
 	$(CXX) $(CFLAGS) $(INCLUDES) -c -MD -MP -MF $(patsubst obj/%.o, obj/%.d, $@) -MT $@ -o $@ $<
 
