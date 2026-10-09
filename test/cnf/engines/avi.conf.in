@@ -128,11 +128,6 @@ message:
 			scope         = "fir";
 		},
 		{
-			name = "VA-SIGMET";
-			timerangetype = "creationtime";
-			latestmessage = false;
-		},
-		{
 			name = "GAFOR";
 			timerangetype = "creationtime";
 			latestmessage = true;
