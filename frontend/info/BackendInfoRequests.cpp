@@ -93,13 +93,7 @@ const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap 
 
 } // anonymousnamespace
 
-
-
-BackendInfoRequests::BackendInfoRequests()
-{
-}
-
-
+BackendInfoRequests::BackendInfoRequests() = default;
 
 BackendInfoRequests::~BackendInfoRequests() = default;
 
