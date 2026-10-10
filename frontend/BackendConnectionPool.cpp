@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <algorithm>
 #include <cerrno>
+#include <tuple>
 #include <utility>
 
 namespace SmartMet
@@ -60,7 +61,7 @@ void BackendConnectionPool::expireIdle(std::deque<Entry>& theEntries)
   while (!theEntries.empty() && now - theEntries.front().idleSince > itsIdleTimeout)
   {
     boost::system::error_code ignored;
-    theEntries.front().socket.close(ignored);
+    std::ignore = theEntries.front().socket.close(ignored);
     theEntries.pop_front();
     ++itsExpired;
   }
@@ -118,7 +119,7 @@ bool BackendConnectionPool::acquire(const std::string& theIP,
       }
 
       boost::system::error_code ignored;
-      entry.socket.close(ignored);
+      std::ignore = entry.socket.close(ignored);
       ++itsDiscarded;
     }
 
@@ -140,7 +141,7 @@ void BackendConnectionPool::release(const std::string& theIP,
 
     if (!itsEnabled || !theSocket.is_open())
     {
-      theSocket.close(ignored);
+      std::ignore = theSocket.close(ignored);
       return;
     }
 
@@ -154,7 +155,7 @@ void BackendConnectionPool::release(const std::string& theIP,
     {
       // More idle connections than this backend is expected to need. Keeping
       // them would only tie up file descriptors on both ends.
-      theSocket.close(ignored);
+      std::ignore = theSocket.close(ignored);
       ++itsRejected;
       return;
     }
@@ -181,7 +182,7 @@ void BackendConnectionPool::closeBackend(const std::string& theIP, unsigned shor
     for (auto& entry : pos->second)
     {
       boost::system::error_code ignored;
-      entry.socket.close(ignored);
+      std::ignore = entry.socket.close(ignored);
     }
 
     itsIdleConnections.erase(pos);
@@ -202,7 +203,7 @@ void BackendConnectionPool::closeAll()
       for (auto& entry : backend.second)
       {
         boost::system::error_code ignored;
-        entry.socket.close(ignored);
+        std::ignore = entry.socket.close(ignored);
       }
 
     itsIdleConnections.clear();

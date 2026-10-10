@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <tuple>
 
 namespace SmartMet
 {
@@ -390,7 +391,7 @@ void LowLatencyGatewayStreamer::abort(const std::string& theReason)
     itsGatewayStatus = GatewayStatus::FAILED;
 
     boost::system::error_code ignored_error;
-    itsBackendSocket.close(ignored_error);
+    std::ignore = itsBackendSocket.close(ignored_error);
     if (itsTimeoutTimer)
       itsTimeoutTimer->cancel();
 
@@ -468,7 +469,7 @@ bool LowLatencyGatewayStreamer::openBackendConnection(bool theAllowPool)
   try
   {
     boost::system::error_code err;
-    itsBackendSocket.close(err);
+    std::ignore = itsBackendSocket.close(err);
 
     itsConnectionFromPool = theAllowPool && itsProxy->getBackendConnectionPool().acquire(
                                                 itsIP, itsPort, itsBackendSocket);
@@ -476,9 +477,7 @@ bool LowLatencyGatewayStreamer::openBackendConnection(bool theAllowPool)
     if (!itsConnectionFromPool)
     {
       ip::tcp::endpoint theEnd(boost::asio::ip::make_address(itsIP), itsPort);
-      itsBackendSocket.connect(theEnd, err);
-
-      if (!!err)
+      if (itsBackendSocket.connect(theEnd, err))
       {
         std::cout << fmt::format("{} Backend connection to {} failed with message '{}'",
                                  Spine::log_time_str(),
@@ -493,7 +492,12 @@ bool LowLatencyGatewayStreamer::openBackendConnection(bool theAllowPool)
 
     // We have determined that this option significantly improves frontend latency.
     // A pooled connection already carries it; setting it again is harmless.
-    itsBackendSocket.set_option(ip::tcp::no_delay(true), err);
+    if (itsBackendSocket.set_option(ip::tcp::no_delay(true), err))
+      std::cout << fmt::format("{} Failed to disable Nagle's algorithm on the connection to {}: {}",
+                               Spine::log_time_str(),
+                               itsIP,
+                               err.message())
+                << std::endl;
 
     return true;
   }
@@ -539,7 +543,7 @@ bool LowLatencyGatewayStreamer::connectAndSend(const std::string& theContent, bo
       // A pooled connection the backend had already closed. Nothing of the
       // request reached it, so sending it again is safe.
       boost::system::error_code ignored;
-      itsBackendSocket.close(ignored);
+      std::ignore = itsBackendSocket.close(ignored);
       itsReplayed = true;
       itsProxy->getBackendConnectionPool().recordReplay();
       allowPool = false;
@@ -569,11 +573,10 @@ bool LowLatencyGatewayStreamer::retryOnFreshConnection(const boost::system::erro
     itsProxy->getBackendConnectionPool().recordReplay();
 
     boost::system::error_code err;
-    itsBackendSocket.close(err);
+    std::ignore = itsBackendSocket.close(err);
 
     ip::tcp::endpoint theEnd(boost::asio::ip::make_address(itsIP), itsPort);
-    itsBackendSocket.connect(theEnd, err);
-    if (!!err)
+    if (itsBackendSocket.connect(theEnd, err))
     {
       std::cout << fmt::format("{} Backend reconnection to {} failed with message '{}'",
                                Spine::log_time_str(),
@@ -585,7 +588,12 @@ bool LowLatencyGatewayStreamer::retryOnFreshConnection(const boost::system::erro
 
     itsConnectionFromPool = false;
     itsProxy->getBackendConnectionPool().recordFreshConnection();
-    itsBackendSocket.set_option(ip::tcp::no_delay(true), err);
+    if (itsBackendSocket.set_option(ip::tcp::no_delay(true), err))
+      std::cout << fmt::format("{} Failed to disable Nagle's algorithm on the connection to {}: {}",
+                               Spine::log_time_str(),
+                               itsIP,
+                               err.message())
+                << std::endl;
 
     boost::asio::write(itsBackendSocket, boost::asio::buffer(itsSentRequest), err);
     if (!!err)
@@ -860,7 +868,7 @@ void LowLatencyGatewayStreamer::releaseBackendConnection(bool theReusable)
   if (theReusable && !itsHasTimedOut && itsBackendSocket.is_open())
     itsProxy->getBackendConnectionPool().release(itsIP, itsPort, std::move(itsBackendSocket));
   else
-    itsBackendSocket.close(ignored_error);
+    std::ignore = itsBackendSocket.close(ignored_error);
 }
 
 void LowLatencyGatewayStreamer::finishBackendResponse()
@@ -1493,7 +1501,7 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
     // Closing cancels whatever read is outstanding. Its handler will see
     // operation_aborted and, finding itsHasTimedOut set, stop there.
     boost::system::error_code ignored_error;
-    itsBackendSocket.close(ignored_error);
+    std::ignore = itsBackendSocket.close(ignored_error);
 
     markFinishing();  // Remove backend communication from load balancing
 
@@ -1515,7 +1523,7 @@ void LowLatencyGatewayStreamer::failBackendExchange()
   itsGatewayStatus = GatewayStatus::FAILED;
 
   boost::system::error_code ignored_error;
-  itsBackendSocket.close(ignored_error);
+  std::ignore = itsBackendSocket.close(ignored_error);
   if (itsTimeoutTimer)
     itsTimeoutTimer->cancel();
 
