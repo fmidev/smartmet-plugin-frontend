@@ -140,7 +140,7 @@ try
         SmartMet::Spine::HTTP::Request request = build_backend_request(host, port, ri);
         const std::string request_str = request.toString();
         const std::string id = fmt::format("{0:05d}", ++counter);
-        id_mapping.emplace_back(std::make_pair(fmt::format("{}:{}", host, port), id));
+        id_mapping.emplace_back(fmt::format("{}:{}", host, port), id);
         multi_query.add_query(id, host, std::to_string(port), request_str);
 
         //std::cout << "Frontend::getBackendMessages: sending backend info request to "
