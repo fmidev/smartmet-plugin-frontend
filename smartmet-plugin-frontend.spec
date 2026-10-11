@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.10
+Version: 26.10.11
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -23,22 +23,22 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 26.10.3
-BuildRequires: smartmet-library-spine-devel >= 26.10.3
-BuildRequires: smartmet-library-grid-files-devel >= 26.9.26
+BuildRequires: smartmet-library-timeseries-devel >= 26.10.11
+BuildRequires: smartmet-library-spine-devel >= 26.10.11
+BuildRequires: smartmet-library-grid-files-devel >= 26.10.11
 BuildRequires: smartmet-engine-sputnik-devel >= 26.10.3
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.10.3
+BuildRequires: smartmet-library-macgyver-devel >= 26.10.11
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.10.3
-Requires: smartmet-server >= 26.9.29
+Requires: smartmet-library-macgyver >= 26.10.11
+Requires: smartmet-server >= 26.10.11
 Requires: smartmet-engine-sputnik >= 26.10.3
-Requires: smartmet-library-spine >= 26.10.3
-Requires: smartmet-library-timeseries >= 26.10.3
-Requires: smartmet-library-grid-files >= 26.9.26
+Requires: smartmet-library-spine >= 26.10.11
+Requires: smartmet-library-timeseries >= 26.10.11
+Requires: smartmet-library-grid-files >= 26.10.11
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -52,9 +52,9 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.10.3
-#TestRequires: smartmet-library-spine-devel >= 26.10.3
-#TestRequires: smartmet-library-spine >= 26.10.3
+#TestRequires: smartmet-library-macgyver-devel >= 26.10.11
+#TestRequires: smartmet-library-spine-devel >= 26.10.11
+#TestRequires: smartmet-library-spine >= 26.10.11
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,7 +103,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Sat Oct 10 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.10-1.fmi
+* Sun Oct 11 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.11-1.fmi
 - Report a failure to disable Nagle's algorithm on backend connections and ignore socket close errors explicitly
 - Use = default and using declarations where clang-tidy suggests it, no functional changes
 - Use emplace and C++ standard library headers where clang-tidy suggests it, no functional changes
