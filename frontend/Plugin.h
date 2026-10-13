@@ -47,7 +47,7 @@ class Plugin : public SmartMetPlugin
                       const Spine::HTTP::Request& theRequest,
                       Spine::HTTP::Response& theResponse) override;
 
-  void baseContentHandler(Spine::Reactor& theReactor,
+  void baseContentHandler(const Spine::Reactor& theReactor,
                           const Spine::HTTP::Request& theRequest,
                           Spine::HTTP::Response& theResponse);
 
@@ -90,20 +90,20 @@ class Plugin : public SmartMetPlugin
    */
   Engine::Sputnik::Engine* getSputnikEngine();
 
-  void requestClusterInfo(Spine::Reactor& theReactor,
+  void requestClusterInfo(const Spine::Reactor& theReactor,
                           const Spine::HTTP::Request& theRequest,
                           Spine::HTTP::Response& theResponse);
 
-  std::unique_ptr<Spine::Table> requestBackendInfo(Spine::Reactor& theReactor,
+  std::unique_ptr<Spine::Table> requestBackendInfo(const Spine::Reactor& theReactor,
                                                    const Spine::HTTP::Request& theRequest);
 
   void requestBackendInfoSummary(const Spine::HTTP::Request& theRequest,
                                  Spine::HTTP::Response& theResponse);
 
-  std::unique_ptr<Spine::Table> requestActiveBackends(Spine::Reactor& theReactor,
+  std::unique_ptr<Spine::Table> requestActiveBackends(const Spine::Reactor& theReactor,
                                                       const Spine::HTTP::Request &theRequest);
 
-  std::unique_ptr<Spine::Table> requestBackendConnections(Spine::Reactor& theReactor,
+  std::unique_ptr<Spine::Table> requestBackendConnections(const Spine::Reactor& theReactor,
                                                           const Spine::HTTP::Request &theRequest);
 
   void requestNoMatchInfo(Spine::Reactor& theReactor,

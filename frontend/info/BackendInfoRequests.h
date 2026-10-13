@@ -31,9 +31,8 @@ public:
 
     void register_requests(SmartMet::Spine::Reactor& rector);
 
-    std::shared_ptr<BackendInfoResponse>
-    perform_backend_info_request(
-        std::vector<BackendAddr>& backends,
+    std::shared_ptr<BackendInfoResponse> perform_backend_info_request(
+        const std::vector<BackendAddr>& backends,
         const SmartMet::Spine::HTTP::Request& frontendRequest);
 
 private:

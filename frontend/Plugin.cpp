@@ -97,7 +97,7 @@ namespace Frontend
 // ----------------------------------------------------------------------
 
 // this is the content handler for URL /
-void Plugin::baseContentHandler(Spine::Reactor & /* theReactor */,
+void Plugin::baseContentHandler(const Spine::Reactor& /* theReactor */,
                                 const Spine::HTTP::Request & /* theRequest */,
                                 Spine::HTTP::Response &theResponse)
 {
@@ -169,7 +169,7 @@ Engine::Sputnik::Engine* Frontend::Plugin::getSputnikEngine()
  */
 // ----------------------------------------------------------------------
 
-void Frontend::Plugin::requestClusterInfo(Spine::Reactor& theReactor,
+void Frontend::Plugin::requestClusterInfo(const Spine::Reactor& theReactor,
                                           const Spine::HTTP::Request& theRequest,
                                           Spine::HTTP::Response& theResponse)
 try
@@ -197,9 +197,8 @@ catch (...)
  */
 // ----------------------------------------------------------------------
 
-std::unique_ptr<Spine::Table>
-Frontend::Plugin::requestBackendInfo(Spine::Reactor& theReactor,
-                                     const Spine::HTTP::Request& theRequest)
+std::unique_ptr<Spine::Table> Frontend::Plugin::requestBackendInfo(
+    const Spine::Reactor& theReactor, const Spine::HTTP::Request& theRequest)
 {
     auto *sputnik = getSputnikEngine();
     const std::optional<std::string> adminUri = theReactor.getAdminUri();
@@ -215,9 +214,8 @@ Frontend::Plugin::requestBackendInfo(Spine::Reactor& theReactor,
  */
 // ----------------------------------------------------------------------
 
-std::unique_ptr<Spine::Table>
-Plugin::requestActiveBackends(Spine::Reactor &theReactor,
-                              const Spine::HTTP::Request &theRequest)
+std::unique_ptr<Spine::Table> Plugin::requestActiveBackends(const Spine::Reactor& theReactor,
+                                                            const Spine::HTTP::Request& theRequest)
 {
   try
   {
@@ -275,7 +273,7 @@ Plugin::requestActiveBackends(Spine::Reactor &theReactor,
 // ----------------------------------------------------------------------
 
 std::unique_ptr<Spine::Table> Plugin::requestBackendConnections(
-    Spine::Reactor & /* theReactor */, const Spine::HTTP::Request & /* theRequest */)
+    const Spine::Reactor& /* theReactor */, const Spine::HTTP::Request& /* theRequest */)
 {
   try
   {

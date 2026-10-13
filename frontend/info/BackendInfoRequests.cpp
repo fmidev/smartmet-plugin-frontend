@@ -97,12 +97,8 @@ BackendInfoRequests::BackendInfoRequests() = default;
 
 BackendInfoRequests::~BackendInfoRequests() = default;
 
-
-
-std::shared_ptr<BackendInfoResponse>
-BackendInfoRequests::perform_backend_info_request(
-    std::vector<BackendAddr>& backends,
-    const SmartMet::Spine::HTTP::Request& frontendRequest)
+std::shared_ptr<BackendInfoResponse> BackendInfoRequests::perform_backend_info_request(
+    const std::vector<BackendAddr>& backends, const SmartMet::Spine::HTTP::Request& frontendRequest)
 try
 {
     RequestInfo ri(frontendRequest);

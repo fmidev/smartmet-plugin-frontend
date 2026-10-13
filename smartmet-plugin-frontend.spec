@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.11
+Version: 26.10.13
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -24,8 +24,8 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.10.11
-BuildRequires: smartmet-library-spine-devel >= 26.10.11
-BuildRequires: smartmet-library-grid-files-devel >= 26.10.11
+BuildRequires: smartmet-library-spine-devel >= 26.10.13
+BuildRequires: smartmet-library-grid-files-devel >= 26.10.13
 BuildRequires: smartmet-engine-sputnik-devel >= 26.10.3
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
@@ -36,9 +36,9 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.10.11
 Requires: smartmet-server >= 26.10.11
 Requires: smartmet-engine-sputnik >= 26.10.3
-Requires: smartmet-library-spine >= 26.10.11
+Requires: smartmet-library-spine >= 26.10.13
 Requires: smartmet-library-timeseries >= 26.10.11
-Requires: smartmet-library-grid-files >= 26.10.11
+Requires: smartmet-library-grid-files >= 26.10.13
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -53,8 +53,8 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.10.11
-#TestRequires: smartmet-library-spine-devel >= 26.10.11
-#TestRequires: smartmet-library-spine >= 26.10.11
+#TestRequires: smartmet-library-spine-devel >= 26.10.13
+#TestRequires: smartmet-library-spine >= 26.10.13
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +103,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Oct 13 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.13-1.fmi
+- Declare member functions and parameters const where nothing is modified (const correctness), no functional changes
+- Requires 26.10.13 versions of spine, grid-files due to their ABI changes
+
 * Sun Oct 11 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.11-1.fmi
 - Report a failure to disable Nagle's algorithm on backend connections and ignore socket close errors explicitly
 - Use = default and using declarations where clang-tidy suggests it, no functional changes
