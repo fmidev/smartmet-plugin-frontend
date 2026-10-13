@@ -32,6 +32,8 @@ namespace
 bool isStillUsable(int theFd)
 {
   char probe = 0;
+  // codechecker_false_positive [unix.BlockInCriticalSection] MSG_DONTWAIT makes the call
+  // non-blocking
   const ssize_t bytes = ::recv(theFd, &probe, 1, MSG_PEEK | MSG_DONTWAIT);
 
   if (bytes > 0)
