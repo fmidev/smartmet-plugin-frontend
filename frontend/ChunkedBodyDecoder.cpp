@@ -19,7 +19,7 @@ bool parseChunkSize(const std::string& field, std::size_t& result)
   std::size_t size = 0;
   for (const char c : field)
   {
-    int digit;
+    int digit = 0;
     if (c >= '0' && c <= '9')
       digit = c - '0';
     else if (c >= 'a' && c <= 'f')

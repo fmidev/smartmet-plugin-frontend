@@ -38,58 +38,36 @@ struct BackendInfoRequestsSetupInfo
 // Always use "iso" time format for backend requests; frontend can reformat as needed.
 // No need ti different formats here.
 const std::map<std::string, BackendInfoRequestsSetupInfo> backendInfoRequestMap = {
-    {
-        "qengine",
-        {
-            "qengine"
-            , true
-            , [](const Json::Value& jsonObject, const std::string& timeFormat)
-              {
-                  return std::make_shared<QEngineInfoRec>(jsonObject, "iso"s);
-              }
-            , "Available Querydata"
-        }
-    }
+    {"qengine",
+     {"qengine",
+      true,
+      [](const Json::Value& jsonObject, const std::string& /*timeFormat*/)
+      { return std::make_shared<QEngineInfoRec>(jsonObject, "iso"s); },
+      "Available Querydata"}}
 
-    ,{
-        "gridgenerations",
-        {
-            "gridgenerations"
-            , false
-            , [](const Json::Value& jsonObject, const std::string& timeFormat)
-              {
-                  return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s);
-              }
-            , "Available Grid Generations"
-        }
-    }
+    ,
+    {"gridgenerations",
+     {"gridgenerations",
+      false,
+      [](const Json::Value& jsonObject, const std::string& /*timeFormat*/)
+      { return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s); },
+      "Available Grid Generations"}}
 
-    ,{
-        "gridgenerationsqd"
-        , {
-            "gridgenerationsqd"
-            , false
-            , [](const Json::Value& jsonObject, const std::string& timeFormat)
-              {
-                  return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s);
-              }
-            , "Available QD Grid Generations"
-        }
-    }
+    ,
+    {"gridgenerationsqd",
+     {"gridgenerationsqd",
+      false,
+      [](const Json::Value& jsonObject, const std::string& /*timeFormat*/)
+      { return std::make_shared<GridGenerationsInfoRec>(jsonObject, "iso"s); },
+      "Available QD Grid Generations"}}
 
-    ,{
-        "gridparameters"
-        , {
-            "gridparameters"
-            , false
-            , [](const Json::Value& jsonObject, const std::string& timeFormat)
-              {
-                  return std::make_shared<GridParametersInfoRec>(jsonObject, "iso"s);
-              }
-            , "Available Grid Parameters"
-        }
-    }
-};
+    ,
+    {"gridparameters",
+     {"gridparameters",
+      false,
+      [](const Json::Value& jsonObject, const std::string& /*timeFormat*/)
+      { return std::make_shared<GridParametersInfoRec>(jsonObject, "iso"s); },
+      "Available Grid Parameters"}}};
 
 } // anonymousnamespace
 
@@ -222,13 +200,9 @@ BackendInfoFilter BackendInfoRequests::create_record_filter(const RequestInfo& r
     return filter;
 }
 
-
-
-SmartMet::Spine::HTTP::Request
-BackendInfoRequests::build_backend_request(
-    const std::string& host,
-    int port,
-    const RequestInfo& ri)
+SmartMet::Spine::HTTP::Request BackendInfoRequests::build_backend_request(const std::string& host,
+                                                                          int /*port*/,
+                                                                          const RequestInfo& ri)
 {
     SmartMet::Spine::HTTP::Request request;
 
@@ -297,8 +271,8 @@ try
         for (const auto& param : temp)
         {
             const auto name = boost::algorithm::trim_copy(param);
-            if (name != "")
-                parameters.push_back(name);
+            if (!name.empty())
+              parameters.push_back(name);
         }
     }
 }

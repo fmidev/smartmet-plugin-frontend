@@ -30,7 +30,7 @@ catch (...)
 
 GridParametersInfoRec::~GridParametersInfoRec() = default;
 
-std::vector<std::string> GridParametersInfoRec::as_vector(const std::string& timeFormat) const
+std::vector<std::string> GridParametersInfoRec::as_vector(const std::string& /*timeFormat*/) const
 try
 {
     std::vector<std::string> result;
@@ -47,7 +47,7 @@ catch (...)
   throw Fmi::Exception::Trace(BCP, "Operation failed!");
 }
 
-Json::Value GridParametersInfoRec::as_json(const std::string& timeFormat) const
+Json::Value GridParametersInfoRec::as_json(const std::string& /*timeFormat*/) const
 try
 {
     Json::Value jsonObject;
@@ -112,7 +112,7 @@ const std::vector<std::string>& GridParametersInfoRec::get_parameters() const
     return params;
 }
 
-bool GridParametersInfoRec::contains_parameters(const std::vector<std::string>&, bool all) const
+bool GridParametersInfoRec::contains_parameters(const std::vector<std::string>&, bool /*all*/) const
 {
     // This record type doesn't have a list of parameters, so it only matches if no parameters are specified in the filter
     return false;

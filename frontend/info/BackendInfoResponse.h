@@ -57,13 +57,13 @@ public:
 
   Json::Value as_json(const std::string& timeFormat = "iso") const;
 
-  inline std::size_t get_summary_size() const { return summary_size; }
+  std::size_t get_summary_size() const { return summary_size; }
 
-  inline void set_title(const std::string& theTitle) { title = theTitle; }
+  void set_title(const std::string& theTitle) { title = theTitle; }
 
-  inline std::string get_title() const { return title; }
+  std::string get_title() const { return title; }
 
-private:
+ private:
   /**
    * @brief Map of backend info records keyed by producer name
    */

@@ -11,7 +11,7 @@ using namespace boost::unit_test;
 using namespace SmartMet::Plugin::Frontend;
 using namespace std::string_literals;
 
-test_suite* init_unit_test_suite(int argc, char* argv[])
+test_suite* init_unit_test_suite(int /*argc*/, char* /*argv*/[])
 {
   const char* name = "GridGenerations Info tester";
   std::filesystem::create_directory("output");
