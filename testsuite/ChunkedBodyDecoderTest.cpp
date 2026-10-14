@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(handles_uppercase_and_large_hex_sizes)
   std::string body;
   const std::string data(0x1AB, 'x');
   BOOST_CHECK(decodeAtOnce("1AB\r\n" + data + "\r\n0\r\n\r\n", body) == Status::COMPLETE);
-  BOOST_CHECK_EQUAL(body.size(), 0x1ABu);
+  BOOST_CHECK_EQUAL(body.size(), 0x1ABU);
 }
 
 BOOST_AUTO_TEST_CASE(handles_an_empty_body)
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE(does_not_hold_bytes_back_once_complete)
   std::string body;
   const std::string wire = "5\r\nhello\r\n0\r\n\r\n";
   BOOST_CHECK(decoder.feed(wire.data(), wire.size(), body) == Status::COMPLETE);
-  BOOST_CHECK_EQUAL(decoder.pending(), 0u);
+  BOOST_CHECK_EQUAL(decoder.pending(), 0U);
 }
 
 BOOST_AUTO_TEST_CASE(decodes_many_chunks)

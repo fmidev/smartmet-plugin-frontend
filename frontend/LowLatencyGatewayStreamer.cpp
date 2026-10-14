@@ -410,7 +410,7 @@ void LowLatencyGatewayStreamer::abort(const std::string& theReason)
   }
 }
 
-LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private,
+LowLatencyGatewayStreamer::LowLatencyGatewayStreamer(Private /*unused*/,
                                                      const std::shared_ptr<Proxy>& theProxy,
                                                      Spine::Reactor& theReactor,
                                                      std::string theHostName,

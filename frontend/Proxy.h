@@ -41,7 +41,7 @@ class Proxy : public std::enable_shared_from_this<Proxy>
     PROXY_INTERNAL_ERROR = 500
   };
 
-  Proxy(Private,
+  Proxy(Private /*unused*/,
         std::size_t memoryCacheSize,
         std::size_t filesystemCacheSize,
         const std::filesystem::path& fileCachePath,

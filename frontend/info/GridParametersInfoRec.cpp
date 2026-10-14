@@ -112,7 +112,8 @@ const std::vector<std::string>& GridParametersInfoRec::get_parameters() const
     return params;
 }
 
-bool GridParametersInfoRec::contains_parameters(const std::vector<std::string>&, bool /*all*/) const
+bool GridParametersInfoRec::contains_parameters(const std::vector<std::string>& /*parameters*/,
+                                                bool /*all*/) const
 {
     // This record type doesn't have a list of parameters, so it only matches if no parameters are specified in the filter
     return false;

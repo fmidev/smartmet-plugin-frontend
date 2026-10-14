@@ -70,7 +70,7 @@ BackendDenyReason parseBackendDenyReason(const Spine::HTTP::Response& response)
 }
 }  // namespace
 
-Proxy::Proxy(Proxy::Private,
+Proxy::Proxy(Proxy::Private /*unused*/,
              std::size_t memoryCacheSize,
              std::size_t filesystemCacheSize,
              const std::filesystem::path& fileCachePath,
@@ -83,9 +83,8 @@ Proxy::Proxy(Proxy::Private,
     : itsResponseCache(memoryCacheSize, filesystemCacheSize, fileCachePath),
       backendIoService(theBackendThreadCount),
       idler(backendIoService.get_executor()),
-      itsBackendConnections(theBackendKeepAlive,
-                            theMaxIdleConnectionsPerBackend,
-                            theBackendIdleTimeoutInSeconds),
+      itsBackendConnections(
+          theBackendKeepAlive, theMaxIdleConnectionsPerBackend, theBackendIdleTimeoutInSeconds),
       itsBackendTimeoutInSeconds(theBackendTimeoutInSeconds),
       itsShutdownGracePeriodInSeconds(theShutdownGracePeriodInSeconds)
 {

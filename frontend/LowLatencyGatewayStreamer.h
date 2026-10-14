@@ -38,7 +38,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
     UNTIL_CLOSE,  // Neither, so the body ends when the backend closes
   };
 
-  LowLatencyGatewayStreamer(Private,
+  LowLatencyGatewayStreamer(Private /*unused*/,
                             const std::shared_ptr<Proxy>& theProxy,
                             Spine::Reactor& theReactor,
                             std::string theHostName,

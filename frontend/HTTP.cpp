@@ -223,14 +223,14 @@ void HTTP::requestHandler(Spine::Reactor &theReactor,
     // Try to send the request until it is sent or no backends are available.
     // Currently we do not resend on PROXY_FAIL_REMOTE_HOST since the request
     // may have crashed the backend.
-    do
+    for (bool more = true; more; more = theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
     {
       theStatus = transport(theReactor, theRequest, theResponse);
 
       if (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED)
         std::cout << fmt::format("{} Resending URI {}", Spine::log_time_str(), theRequest.getURI())
                   << std::endl;
-    } while (theStatus == Proxy::ProxyStatus::PROXY_FAIL_REMOTE_DENIED);
+    }
 
     return;
   }
