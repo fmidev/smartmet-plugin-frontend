@@ -28,6 +28,7 @@ public:
         bool all = true);
 
     ~BackendInfoFilter();
+    BackendInfoFilter(const BackendInfoFilter&) = default;
 
     virtual bool operator()(const BackendInfoRec& record) const;
 
