@@ -30,7 +30,7 @@ public:
     ~BackendInfoFilter();
     BackendInfoFilter(const BackendInfoFilter&) = default;
 
-    virtual bool operator()(const BackendInfoRec& record) const;
+    bool operator()(const BackendInfoRec& record) const;
 
 private:
     const std::optional<std::string> itsProducer;
