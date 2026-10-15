@@ -1,4 +1,4 @@
-REQUIRES = jsoncpp
+REQUIRES = jsoncpp fmt
 
 include $(shell smartbuildcfg --prefix)/share/smartmet/devel/makefile.inc
 

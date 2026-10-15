@@ -76,6 +76,7 @@ class BackendConnectionPool
   BackendConnectionPool(BackendConnectionPool&& other) = delete;
   BackendConnectionPool& operator=(const BackendConnectionPool& other) = delete;
   BackendConnectionPool& operator=(BackendConnectionPool&& other) = delete;
+  ~BackendConnectionPool() = default;
 
   bool isEnabled() const { return itsEnabled; }
 

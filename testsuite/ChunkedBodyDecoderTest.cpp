@@ -2,6 +2,7 @@
 
 #include "../frontend/ChunkedBodyDecoder.h"
 #include <boost/test/included/unit_test.hpp>
+#include <fmt/format.h>
 #include <string>
 #include <vector>
 
@@ -139,9 +140,7 @@ BOOST_AUTO_TEST_CASE(decodes_many_chunks)
   for (int i = 1; i <= 64; ++i)
   {
     const std::string piece(i, static_cast<char>('a' + (i % 26)));
-    char header[16];
-    std::snprintf(header, sizeof(header), "%x\r\n", i);
-    wire += header + piece + "\r\n";
+    wire += fmt::format("{:x}\r\n", i) + piece + "\r\n";
     expected += piece;
   }
   wire += "0\r\n\r\n";
