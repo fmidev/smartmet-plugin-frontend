@@ -39,9 +39,10 @@ namespace
     return jsonObject;
   }
 
-  std::shared_ptr<BackendInfoResponse> read_response(const std::string& filePath,
-                                                     BackendInfoResponse::parser_t recordFactory,
-                                                     const std::string& timeFormat)
+  std::shared_ptr<BackendInfoResponse> read_response(
+      const std::string& filePath,
+      const BackendInfoResponse::parser_t& recordFactory,
+      const std::string& timeFormat)
   {
     Json::Value jsonObject = parse_json_file(filePath);
     return std::make_shared<BackendInfoResponse>(

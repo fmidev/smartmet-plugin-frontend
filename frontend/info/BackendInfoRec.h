@@ -67,33 +67,30 @@ protected:
     const std::string& separators);
 
 public:
-  template <typename... ParamLists>
-  static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...), bool>::type
-  lookup_parameter(
-    const std::string& searchParam,
-    ParamLists... paramLists)
-  {
-    if constexpr (sizeof...(paramLists) == 0)
-    {
-      return false;
-    }
-    else
-    {
-      const auto contains = [&](const std::vector<std::string>& paramList, const std::string& param)
-      {
-        return (std::find(paramList.begin(), paramList.end(), param) != paramList.end());
-      };
+ template <typename... ParamLists>
+ static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...),
+                                bool>::type
+ lookup_parameter(const std::string& searchParam, const ParamLists...& paramLists)
+ {
+   if constexpr (sizeof...(paramLists) == 0)
+   {
+     return false;
+   }
+   else
+   {
+     const auto contains = [&](const std::vector<std::string>& paramList, const std::string& param)
+     { return (std::find(paramList.begin(), paramList.end(), param) != paramList.end()); };
 
       return (contains(paramLists, searchParam) || ...);
     }
   }
 
   template <typename... ParamLists>
-  static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...), bool>::type
-  lookup_parameters(
-    const std::vector<std::string>& searchParams,
+  static typename std::enable_if<(std::is_same<ParamLists, std::vector<std::string>>::value && ...),
+  bool>::type
+    lookup_parameters(const std::vector<std::string>& searchParams,
     bool all,
-    ParamLists... paramLists)
+    const ParamLists...& paramLists)
   {
     if constexpr (sizeof...(paramLists) == 0)
     {
