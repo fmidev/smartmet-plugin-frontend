@@ -978,6 +978,67 @@ std::string LowLatencyGatewayStreamer::getChunk()
   }
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * \brief Pass a response without an ETag through to the client
+ *
+ * The plugin does not support frontend caching. The mutex must be locked.
+ */
+// ----------------------------------------------------------------------
+
+void LowLatencyGatewayStreamer::passThroughResponse(const Spine::HTTP::Response& theResponse,
+                                                    const std::string& theBodySoFar)
+{
+  itsResponseIsCacheable = false;
+
+  const bool complete = publishResponseHead(theResponse, theBodySoFar);
+
+  if (!complete)
+  {
+    // Go to data response loop
+    itsBackendSocket.async_read_some(
+        boost::asio::buffer(itsSocketBuffer),
+        [me = shared_from_this()](const boost::system::error_code& err,
+                                  std::size_t bytes_transferred)
+        { me->readDataResponse(err, bytes_transferred); });
+
+    // Reset timeout timer
+    extendBackendDeadline();
+  }
+
+  markFinishing();  // Remove backend communication from load balancing
+
+  itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
+}
+
+// ----------------------------------------------------------------------
+/*!
+ * \brief Find a cached response in an encoding acceptable to the client
+ */
+// ----------------------------------------------------------------------
+
+std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData>
+LowLatencyGatewayStreamer::findCachedResponse(ResponseCache& cache,
+                                              const std::string& etag,
+                                              const std::vector<std::string>& accepted_encodings)
+{
+  // Try the acceptable encodings in the order the client prefers them
+  std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
+
+  for (const auto& encoding : accepted_encodings)
+  {
+    result = cache.getCachedBuffer(etag, encoding);
+    if (result.first)
+      break;
+  }
+
+  // Fall back to the identity (uncompressed) representation if there is no encoded match
+  if (!result.first)
+    result = cache.getCachedBuffer(etag, "");
+
+  return result;
+}
+
 void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_code& error,
                                                   std::size_t bytes_transferred)
 {
@@ -1057,27 +1118,8 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
           // Backend responded without the ETag-header, this plugin doesn't support frontend
           // caching. Pass response through as before
 
-          itsResponseIsCacheable = false;
-
-          const bool complete = publishResponseHead(
-              *responsePtr, std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
-
-          if (!complete)
-          {
-            // Go to data response loop
-            itsBackendSocket.async_read_some(
-                boost::asio::buffer(itsSocketBuffer),
-                [me = shared_from_this()](const boost::system::error_code& err,
-                                          std::size_t bytes_transferred)
-                { me->readDataResponse(err, bytes_transferred); });
-
-            // Reset timeout timer
-            extendBackendDeadline();
-          }
-
-          markFinishing();  // Remove backend communication from load balancing
-
-          itsDataAvailableEvent.notify_one();  // Tell consumer thread to proceed
+          passThroughResponse(*responsePtr,
+                              std::string(std::get<2>(ret), itsResponseHeaderBuffer.cend()));
         }
         else
         {
@@ -1097,19 +1139,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
 
           auto& cache = itsProxy->getCache();
 
-          // Try the acceptable encodings in the order the client prefers them
-          std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> result;
-
-          for (const auto& encoding : accepted_encodings)
-          {
-            result = cache.getCachedBuffer(etag, encoding);
-            if (result.first)
-              break;
-          }
-
-          // Fall back to the identity (uncompressed) representation if there is no encoded match
-          if (!result.first)
-            result = cache.getCachedBuffer(etag, "");
+          auto result = findCachedResponse(cache, etag, accepted_encodings);
 
           if (!result.first)
           {

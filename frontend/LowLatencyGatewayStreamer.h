@@ -166,6 +166,12 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
 
   // This buffers backend response to cache query
   void readCacheResponse(const boost::system::error_code& error, std::size_t bytes_transferred);
+  void passThroughResponse(const Spine::HTTP::Response& theResponse,
+                           const std::string& theBodySoFar);
+  std::pair<std::shared_ptr<std::string>, ResponseCache::CachedResponseMetaData> findCachedResponse(
+      ResponseCache& cache,
+      const std::string& etag,
+      const std::vector<std::string>& accepted_encodings);
 
   // Function to handle timeouts
   void handleTimeout(const boost::system::error_code& err);
