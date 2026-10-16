@@ -50,6 +50,11 @@ class ChunkedBodyDecoder
   std::size_t pending() const { return itsPending.size(); }
 
  private:
+  bool readSizeLine(std::size_t& pos, Status& status);
+  bool readData(std::size_t& pos, std::string& theBody);
+  bool readDataCrlf(std::size_t& pos, Status& status);
+  bool readTrailer(std::size_t& pos, Status& status);
+
   enum class State
   {
     SIZE,       // Reading the "chunk-size [ ; chunk-ext ]" line
