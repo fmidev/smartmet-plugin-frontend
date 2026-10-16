@@ -22,6 +22,73 @@ namespace Plugin
 {
 namespace Frontend
 {
+namespace
+{
+// True if the request only asks whether the response has changed
+bool is_conditional_request(const Spine::HTTP::Request &theRequest)
+{
+  auto if_none_match = theRequest.getHeader("If-None-Match");
+  auto if_modified_since = theRequest.getHeader("If-Modified-Since");
+  return (if_none_match || if_modified_since);
+}
+
+// Rewrite the resource for the backend, or log the problem and return false if it does not match
+bool backend_resource(const Spine::HTTP::Request &theRequest,
+                      const BackendService &theService,
+                      const std::string &hostPrefix,
+                      std::string &resource)
+{
+  if (theService.DefinesPrefix())
+  {
+    if (ba::starts_with(resource, theService.URI()))
+    {
+      // Direct match IRU prefix: can use initial resource URI.
+    }
+    else if (ba::starts_with(resource, hostPrefix + "/"))
+    {
+      // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
+      resource = resource.substr(hostPrefix.length());
+    }
+    if (not ba::starts_with(resource, theService.URI()))
+    {
+      // Something unexpected happened.
+      std::cout << fmt::format(
+                       "{} Request resource '{}' does not beging with either of '{}' and '{}'",
+                       Spine::log_time_str(),
+                       theRequest.getResource(),
+                       theService.URI(),
+                       hostPrefix + theService.URI())
+                << std::endl;
+      return false;
+    }
+  }
+  else
+  {
+    if (resource == theService.URI())
+    {
+      // Direct match: can use initial resource URI.
+    }
+    else if (resource == hostPrefix + theService.URI())
+    {
+      // Host prefix found. Remove it when sending request to backend
+      resource = theService.URI();
+    }
+    else
+    {
+      // Something unexpected happened.
+      std::cout << fmt::format("{} Request resource '{}' is neither of '{}' and '{}'",
+                               Spine::log_time_str(),
+                               theRequest.getResource(),
+                               theService.URI(),
+                               hostPrefix + theService.URI())
+                << std::endl;
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
                                    const Spine::HTTP::Request &theRequest,
                                    Spine::HTTP::Response &theResponse)
@@ -45,9 +112,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
       // In this case there were no available backends. If the request merely asked if the
       // response has changed, return "304 Not Modified" instead of an error.
 
-      auto if_none_match = theRequest.getHeader("If-None-Match");
-      auto if_modified_since = theRequest.getHeader("If-Modified-Since");
-      if (if_none_match || if_modified_since)
+      if (is_conditional_request(theRequest))
       {
         theResponse.setStatus(Spine::HTTP::Status::not_modified);
         return Proxy::ProxyStatus::PROXY_SUCCESS;
@@ -88,9 +153,7 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
       // Respond Not Modified if possible to minimize damage. Note that the query is
       // not sent to another backend just in case the query caused the backend to crash.
 
-      auto if_none_match = theRequest.getHeader("If-None-Match");
-      auto if_modified_since = theRequest.getHeader("If-Modified-Since");
-      if (if_none_match || if_modified_since)
+      if (is_conditional_request(theRequest))
       {
         theResponse.setStatus(Spine::HTTP::Status::not_modified);
         return Proxy::ProxyStatus::PROXY_SUCCESS;
@@ -115,54 +178,10 @@ Proxy::ProxyStatus HTTP::transport(Spine::Reactor &theReactor,
     const std::string hostName = theHost->Name();
     const std::string hostPrefix = "/" + hostName;
 
-    if (theService->DefinesPrefix())
+    if (!backend_resource(theRequest, *theService, hostPrefix, resource))
     {
-      if (ba::starts_with(resource, theService->URI()))
-      {
-        // Direct match IRU prefix: can use initial resource URI.
-      }
-      else if (ba::starts_with(resource, hostPrefix + "/"))
-      {
-        // Begins with host prefix + "/". Strip it from resource URI, but leave final '/'
-        resource = resource.substr(hostPrefix.length());
-      }
-      if (not ba::starts_with(resource, theService->URI()))
-      {
-        // Something unexpected happened.
-        std::cout << fmt::format(
-                         "{} Request resource '{}' does not beging with either of '{}' and '{}'",
-                         Spine::log_time_str(),
-                         theRequest.getResource(),
-                         theService->URI(),
-                         hostPrefix + theService->URI())
-                  << std::endl;
-        theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
-        return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
-      }
-    }
-    else
-    {
-      if (resource == theService->URI())
-      {
-        // Direct match: can use initial resource URI.
-      }
-      else if (resource == hostPrefix + theService->URI())
-      {
-        // Host prefix found. Remove it when sending request to backend
-        resource = theService->URI();
-      }
-      else
-      {
-        // Something unexpected happened.
-        std::cout << fmt::format("{} Request resource '{}' is neither of '{}' and '{}'",
-                                 Spine::log_time_str(),
-                                 theRequest.getResource(),
-                                 theService->URI(),
-                                 hostPrefix + theService->URI())
-                  << std::endl;
-        theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
-        return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
-      }
+      theResponse.setStatus(Spine::HTTP::Status::internal_server_error, true);
+      return Proxy::ProxyStatus::PROXY_INTERNAL_ERROR;
     }
 
     proxyStatus = itsProxy->HTTPForward(theReactor,
