@@ -766,6 +766,9 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
       if (itsApiCatalog->settings().openapi.ui &&
           !theReactor->addContentHandler(this, "/api/docs", catalog_handler, {}, true))
         throw Fmi::Exception(BCP, "Failed to register the API documentation handler");
+      if (itsApiCatalog->settings().explorer &&
+          !theReactor->addContentHandler(this, "/api/explorer", catalog_handler, {}, true))
+        throw Fmi::Exception(BCP, "Failed to register the data explorer handler");
     }
 
 #ifndef NDEBUG

@@ -42,7 +42,9 @@ void ApiCatalog::handle(const Spine::HTTP::Request& theRequest, Spine::HTTP::Res
   {
     // The file requests do not need the entries
     const auto& resource = theRequest.getResource();
-    const bool files = (resource.size() > 10 && resource.compare(0, 10, "/api/docs/") == 0);
+    const bool files = (resource.size() > 10 && resource.compare(0, 10, "/api/docs/") == 0) ||
+                       (resource.size() > 14 && resource.compare(0, 14, "/api/explorer/") == 0) ||
+                       resource == "/api/explorer";
     const auto list = (files ? std::vector<OA::CatalogEntry>() : entries());
 
     if (!itsCatalog.handle(theRequest, theResponse, list))
