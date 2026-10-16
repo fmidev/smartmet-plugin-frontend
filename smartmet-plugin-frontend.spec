@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.15
+Version: 26.10.16
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -23,22 +23,22 @@ BuildRequires: rpm-build
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
-BuildRequires: smartmet-library-timeseries-devel >= 26.10.15
-BuildRequires: smartmet-library-spine-devel >= 26.10.15
-BuildRequires: smartmet-library-grid-files-devel >= 26.10.15
-BuildRequires: smartmet-engine-sputnik-devel >= 26.10.15
+BuildRequires: smartmet-library-timeseries-devel >= 26.10.16
+BuildRequires: smartmet-library-spine-devel >= 26.10.16
+BuildRequires: smartmet-library-grid-files-devel >= 26.10.16
+BuildRequires: smartmet-engine-sputnik-devel >= 26.10.16
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
 BuildRequires: protobuf-devel
-BuildRequires: smartmet-library-macgyver-devel >= 26.10.15
+BuildRequires: smartmet-library-macgyver-devel >= 26.10.16
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.10.15
-Requires: smartmet-server >= 26.10.15
-Requires: smartmet-engine-sputnik >= 26.10.15
-Requires: smartmet-library-spine >= 26.10.15
-Requires: smartmet-library-timeseries >= 26.10.15
-Requires: smartmet-library-grid-files >= 26.10.15
+Requires: smartmet-library-macgyver >= 26.10.16
+Requires: smartmet-server >= 26.10.16
+Requires: smartmet-engine-sputnik >= 26.10.16
+Requires: smartmet-library-spine >= 26.10.16
+Requires: smartmet-library-timeseries >= 26.10.16
+Requires: smartmet-library-grid-files >= 26.10.16
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -52,9 +52,9 @@ Requires(post): systemd
 Requires(postun): systemd
 %endif
 
-#TestRequires: smartmet-library-macgyver-devel >= 26.10.15
-#TestRequires: smartmet-library-spine-devel >= 26.10.15
-#TestRequires: smartmet-library-spine >= 26.10.15
+#TestRequires: smartmet-library-macgyver-devel >= 26.10.16
+#TestRequires: smartmet-library-spine-devel >= 26.10.16
+#TestRequires: smartmet-library-spine >= 26.10.16
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +103,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-1.fmi
+- Fixed compiler warnings and clang-tidy findings (unused code, unreachable code, empty statements, member initialization, parameter passing, noexcept), no functional changes
+
 * Thu Oct 15 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.15-1.fmi
 - Declare member functions and parameters const where nothing is modified (const correctness), no functional changes
 - Requires 26.10.15 versions of spine, grid-files due to their ABI changes
