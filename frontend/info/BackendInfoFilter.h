@@ -29,6 +29,7 @@ public:
 
     ~BackendInfoFilter();
     BackendInfoFilter(const BackendInfoFilter&) = default;
+    BackendInfoFilter& operator=(const BackendInfoFilter&) = default;
 
     bool operator()(const BackendInfoRec& record) const;
 
