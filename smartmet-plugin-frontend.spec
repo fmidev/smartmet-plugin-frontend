@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.16
-Release: 2%{?dist}.fmi
+Version: 26.10.17
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -33,12 +33,12 @@ BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 26.10.16
 BuildRequires: jemalloc
 Requires: protobuf
-Requires: smartmet-library-macgyver >= 26.10.16
-Requires: smartmet-server >= 26.10.16
+Requires: smartmet-library-macgyver >= 26.10.17
+Requires: smartmet-server >= 26.10.17
 Requires: smartmet-engine-sputnik >= 26.10.16
-Requires: smartmet-library-spine >= 26.10.16
+Requires: smartmet-library-spine >= 26.10.17
 Requires: smartmet-library-timeseries >= 26.10.16
-Requires: smartmet-library-grid-files >= 26.10.16
+Requires: smartmet-library-grid-files >= 26.10.17
 Requires: jsoncpp
 Requires: jemalloc
 %if 0%{rhel} >= 7
@@ -54,7 +54,7 @@ Requires(postun): systemd
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.10.16
 #TestRequires: smartmet-library-spine-devel >= 26.10.16
-#TestRequires: smartmet-library-spine >= 26.10.16
+#TestRequires: smartmet-library-spine >= 26.10.17
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -103,6 +103,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Sat Oct 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-1.fmi
+- Split functions with a cognitive complexity above 25 into smaller helpers, no functional changes
+
 * Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-2.fmi
 - Copy assignments that are implicitly deleted are declared deleted instead of defaulted
 
