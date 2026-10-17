@@ -1,5 +1,6 @@
-#Activated filter list
-filters = ["frontend","pointforecast","autocomplete"];
+# Basic authentication credentials of the pause and continue admin requests
+user     = "admin";
+password = "secret";
 
 # Cache definition
 #
@@ -22,25 +23,6 @@ response_cache =
         directory               = "/smartmet/cache/frontend-response-cache";
 };
 
-
-#Filter definitions
-frontend:
-{
-	handler		= "/admin";
-	ip_filters 	= ["*.*.*.*"];
-};
-
-pointforecast:
-{
-	handler		= "/pointforecast";
-	ip_filters 	= ["*.*.*.*"];
-};
-
-autocomplete:
-{
-	handler		= "/autocomplete";
-	ip_filters 	= ["*.*.*.*"];
-};
 
 # Backend communication
 backend:
