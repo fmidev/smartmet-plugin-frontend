@@ -211,6 +211,10 @@ at `/api/docs` (spine §11, *API catalog*).
   serving `/api` changes. One request at a time rebuilds it; the others get the previous
   catalog meanwhile. A backend that fails to answer within 5 seconds is left out.
 * The definitions themselves (`/edr/api` etc.) are forwarded to the backends as usual.
+* The frontend also serves the data explorer of the cluster at `/api/explorer` (spine §11,
+  *Data explorer*) from its own files, so the explorer sees every API of the cluster; its
+  requests go through the frontend to the backends like any other. `explorer = false` leaves
+  the explorer out, for example on frontends whose users should not see it.
 * The settings are the `api_catalog` group of the server configuration file:
 
   ```
@@ -221,6 +225,12 @@ at `/api/docs` (spine §11, *API catalog*).
     swagger_ui_dir = "/usr/share/smartmet/swagger-ui";
     title          = "SmartMet Server APIs";
     description    = "Weather and climate data APIs of FMI";
+    explorer       = true;    # serve /api/explorer, default true
+    explorer_dir   = "/usr/share/smartmet/explorer";
+    uplot_dir      = "/usr/share/smartmet/uplot";
+    palette_dir    = "/usr/share/smartmet/qdless/palettes";
+    palette_config = "/usr/share/smartmet/qdless/qdless.conf";
+    # explorer_defaults: { ... };   # regional defaults, see spine OpenApi.h
   };
   ```
 
