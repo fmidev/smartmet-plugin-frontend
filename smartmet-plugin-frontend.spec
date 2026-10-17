@@ -2,8 +2,8 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.16
-Release: 3%{?dist}.fmi
+Version: 26.10.17
+Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
 URL: https://github.com/fmidev/smartmet-plugin-frontend
@@ -104,9 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-3.fmi
+* Sat Oct 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-1.fmi
 - Serve the data explorer at /api/explorer
-- Rebuilt for the smartmet-library-spine 26.10.16-3 catalog changes
+- Rebuilt for the smartmet-library-spine 26.10.17-1 catalog changes (explorer_defaults)
 
 * Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-2.fmi
 - Serve the API catalog of the cluster at /api, /.well-known/api-catalog and /api/docs:
