@@ -30,8 +30,9 @@ Related documents:
 6. [Response framing](#6-response-framing)
 7. [Backend connections and timeouts](#7-backend-connections-and-timeouts)
 8. [Admin requests and pausing](#8-admin-requests-and-pausing)
-9. [Configuration](#9-configuration)
-10. [Known pitfalls](#10-known-pitfalls)
+9. [The API catalog](#9-the-api-catalog)
+10. [Configuration](#10-configuration)
+11. [Known pitfalls](#11-known-pitfalls)
 
 ---
 
@@ -57,13 +58,14 @@ clients ──> (F5) ──> frontend smartmetd ──> backend smartmetd × N
 
 | File | Role |
 |------|------|
-| `frontend/Plugin.{h,cpp}` | The plugin: `/` health check, `/admin` with the cluster admin requests, pause and continue, starting sputnik. |
+| `frontend/Plugin.{h,cpp}` | The plugin: `/` health check, the API catalog handlers, `/admin` with the cluster admin requests, pause and continue, starting sputnik. |
 | `frontend/HTTP.{h,cpp}` | The "no match" handler: picks a backend through sputnik, fixes up the URI, forwards with `Proxy::HTTPForward()`, retries and retires backends. Builds the response cache from the configuration. |
 | `frontend/Proxy.{h,cpp}` | Owns the backend I/O threads (`front-be-N`), the `ResponseCache` and the `BackendConnectionPool`; `HTTPForward()` runs one exchange. |
 | `frontend/LowLatencyGatewayStreamer.{h,cpp}` | One backend exchange: ETag probe, cache lookup, content request, parsing the backend's head, streaming the body, timeouts, pooling the connection afterwards. |
 | `frontend/ChunkedBodyDecoder.{h,cpp}` | Incremental decoder for chunked backend bodies. |
 | `frontend/BackendConnectionPool.{h,cpp}` | Idle backend connections keyed by `ip:port`. |
 | `frontend/ResponseCache.{h,cpp}` | Memory + filesystem cache of response bodies keyed by ETag and content encoding. |
+| `frontend/ApiCatalog.{h,cpp}` | `/api`, `/.well-known/api-catalog` and `/api/docs`: the catalogs of the backends serving `/api`, fetched with `TcpMultiQuery`, merged and cached. |
 | `frontend/info/` | The `qengine`, `gridgenerations` and similar admin requests that gather information from all backends (`TcpMultiQuery`). |
 
 ## 3. Building and testing
@@ -195,7 +197,34 @@ Paused` (or paused-until) when paused. The F5 load balancer matches the word `Sm
 a paused frontend stops receiving traffic while it keeps serving what it gets. Timed pauses
 expire on their own.
 
-## 9. Configuration
+## 9. The API catalog
+
+The frontend serves the API catalog of the cluster (RFC 9727) at `/.well-known/api-catalog`
+and `/api` (a linkset, or an HTML page for browsers) and the documentation page of all APIs
+at `/api/docs` (spine §11, *API catalog*).
+
+* The backends that have plugins with OpenAPI definitions serve their own catalogs at `/api`.
+  The frontend fetches `/api?f=json` from each backend sputnik lists for `/api`, without a
+  `Host` header so that the backends answer with relative URLs, and merges the APIs by root
+  path. The URLs of the result point to the frontend.
+* The merged catalog is cached for 60 seconds, and rebuilt at once when the set of backends
+  serving `/api` changes. One request at a time rebuilds it; the others get the previous
+  catalog meanwhile. A backend that fails to answer within 5 seconds is left out.
+* The definitions themselves (`/edr/api` etc.) are forwarded to the backends as usual.
+* The settings are the `api_catalog` group of the server configuration file:
+
+  ```
+  api_catalog:
+  {
+    enabled        = true;    # default true
+    ui             = true;    # serve /api/docs, default true
+    swagger_ui_dir = "/usr/share/smartmet/swagger-ui";
+    title          = "SmartMet Server APIs";
+    description    = "Weather and climate data APIs of FMI";
+  };
+  ```
+
+## 10. Configuration
 
 Plugin configuration (see `cnf/frontend.conf.sample`):
 
@@ -213,7 +242,7 @@ Plugin configuration (see `cnf/frontend.conf.sample`):
 The forwarding strategy and the discovery settings belong to the sputnik engine's
 configuration.
 
-## 10. Known pitfalls
+## 11. Known pitfalls
 
 * **`pause` / `continue` need two sets of credentials:** the server's `admin.user` and
   `admin.password`, and the frontend's own `user` / `password`. Configure both, as

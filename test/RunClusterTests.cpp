@@ -654,6 +654,70 @@ bool test_chunked_response_survives_the_proxy(int frontend_port, int backend_por
     return ok;
 }
 
+// ----------------------------------------------------------------------
+/*!
+ * The frontend serves the API catalog of the cluster: the catalogs of the
+ * backends merged, with URLs pointing to the frontend.
+ */
+// ----------------------------------------------------------------------
+
+bool test_api_catalog(int frontend_port)
+{
+  const auto body = [](const std::string& response)
+  {
+    const auto pos = response.find("\r\n\r\n");
+    return pos == std::string::npos ? std::string() : response.substr(pos + 4);
+  };
+
+  const auto linkset = get(frontend_port, "/.well-known/api-catalog");
+  const auto text = body(linkset);
+  bool ok = http_status_code(linkset) == 200 &&
+            ba::icontains(linkset, "content-type: application/linkset+json") &&
+            ba::icontains(linkset, "rel=\"api-catalog\"");
+
+  // Both backends serve EDR and TimeSeries: each API is listed once
+  const auto count = [&text](const std::string& what)
+  {
+    std::size_t n = 0;
+    for (auto pos = text.find(what); pos != std::string::npos; pos = text.find(what, pos + 1))
+      ++n;
+    return n;
+  };
+  ok = ok && count("\"href\":\"http://localhost/edr\",") == 1 &&
+       count("\"href\":\"http://localhost/timeseries\",") == 1 &&
+       text.find("\"href\":\"http://localhost/timeseries/api\"") != std::string::npos;
+  report("API catalog lists the APIs of the backends once", ok, text.substr(0, 300));
+
+  const auto api = get(frontend_port, "/api");
+  const bool same = http_status_code(api) == 200 && body(api) == text;
+  report("/api is the API catalog", same, body(api).substr(0, 200));
+
+  const auto page = get(frontend_port, "/api", "Accept: text/html\r\n");
+  const bool html = http_status_code(page) == 200 &&
+                    ba::icontains(page, "content-type: text/html") &&
+                    page.find("href=\"edr/api/docs\"") != std::string::npos &&
+                    page.find("href=\"timeseries/api/docs\"") != std::string::npos;
+  report("API catalog page", html, body(page).substr(0, 200));
+
+  const auto docs = get(frontend_port, "/api/docs");
+  const bool selector = http_status_code(docs) == 200 &&
+                        docs.find("\"url\":\"../edr/api\"") != std::string::npos &&
+                        docs.find("\"url\":\"../timeseries/api\"") != std::string::npos;
+  report("documentation page of all APIs", selector, body(docs).substr(0, 200));
+
+  const auto file = get(frontend_port, "/api/docs/smartmet-swagger-ui.js");
+  const bool served = http_status_code(file) == 200;
+  report("documentation files", served, file.substr(0, 100));
+
+  // The definitions themselves come from the backends
+  const auto definition = get(frontend_port, "/edr/api");
+  const bool forwarded = http_status_code(definition) == 200 &&
+                         ba::icontains(definition, "application/vnd.oai.openapi+json");
+  report("API definitions are forwarded to the backends", forwarded, definition.substr(0, 200));
+
+  return ok && same && html && selector && served && forwarded;
+}
+
 bool wait_for_all_backends(int frontend_port, int max_wait_seconds = 60)
 {
     Traffic ignored;
@@ -705,6 +769,9 @@ int main()
                   << std::endl;
 
         bool ok = test_connections_are_reused(frontend_port);
+
+        ok = wait_for_all_backends(frontend_port) && ok;
+        ok = test_api_catalog(frontend_port) && ok;
 
         ok = test_small_response_is_not_delayed(frontend_port) && ok;
 

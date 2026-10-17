@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "ApiCatalog.h"
 #include "HTTP.h"
 #include <macgyver/CacheStats.h>
 #include <spine/HTTP.h>
@@ -68,6 +69,9 @@ class Plugin : public SmartMetPlugin
   mutable std::atomic<std::time_t> itsPauseDeadLine{NOT_PAUSED};
 
   std::shared_ptr<Engine::Sputnik::Engine> itsSputnikEngine;
+
+  // The merged API catalog of the backends
+  std::unique_ptr<ApiCatalog> itsApiCatalog;
 
   void registerAdminRequests(Spine::Reactor& theReactor);
 

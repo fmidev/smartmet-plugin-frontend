@@ -746,6 +746,31 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
                                        }))
       throw Fmi::Exception(BCP, "Failed to register base content handler");
 
+    // The API catalog of the cluster. The handlers must be public: private handlers accept
+    // only local network addresses.
+    auto catalog_settings =
+        Spine::OpenAPI::CatalogSettings::parse(theReactor->getOptions().itsConfig);
+    if (catalog_settings.openapi.enabled)
+    {
+      itsApiCatalog = std::make_unique<ApiCatalog>(std::move(catalog_settings),
+                                                   [this]() { return getSputnikEngine(); });
+      const auto catalog_handler = [this](Spine::Reactor& /* theReactor */,
+                                          const Spine::HTTP::Request& theRequest,
+                                          Spine::HTTP::Response& theResponse)
+      { itsApiCatalog->handle(theRequest, theResponse); };
+
+      for (const char* uri : {"/api", "/.well-known/api-catalog"})
+        if (!theReactor->addContentHandler(this, uri, catalog_handler))
+          throw Fmi::Exception(
+              BCP, std::string("Failed to register the API catalog handler for ") + uri);
+      if (itsApiCatalog->settings().openapi.ui &&
+          !theReactor->addContentHandler(this, "/api/docs", catalog_handler, {}, true))
+        throw Fmi::Exception(BCP, "Failed to register the API documentation handler");
+      if (itsApiCatalog->settings().explorer &&
+          !theReactor->addContentHandler(this, "/api/explorer", catalog_handler, {}, true))
+        throw Fmi::Exception(BCP, "Failed to register the data explorer handler");
+    }
+
 #ifndef NDEBUG
     if (!theReactor->addContentHandler(this,
                                        "/sleep",

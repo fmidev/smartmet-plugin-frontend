@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.10.16
-BuildRequires: smartmet-library-spine-devel >= 26.10.16
+BuildRequires: smartmet-library-spine-devel >= 26.10.17-1
 BuildRequires: smartmet-library-grid-files-devel >= 26.10.16
 BuildRequires: smartmet-engine-sputnik-devel >= 26.10.16
 BuildRequires: gdal312-devel
@@ -36,7 +36,8 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.10.17
 Requires: smartmet-server >= 26.10.17
 Requires: smartmet-engine-sputnik >= 26.10.16
-Requires: smartmet-library-spine >= 26.10.17
+Requires: smartmet-library-spine >= 26.10.17-1
+Requires: smartmet-swagger-ui
 Requires: smartmet-library-timeseries >= 26.10.16
 Requires: smartmet-library-grid-files >= 26.10.17
 Requires: jsoncpp
@@ -53,8 +54,8 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.10.16
-#TestRequires: smartmet-library-spine-devel >= 26.10.16
-#TestRequires: smartmet-library-spine >= 26.10.17
+#TestRequires: smartmet-library-spine-devel >= 26.10.17-1
+#TestRequires: smartmet-library-spine >= 26.10.17-1
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -104,6 +105,11 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 * Sat Oct 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-1.fmi
+- Serve the data explorer at /api/explorer
+- Rebuilt for the smartmet-library-spine 26.10.17-1 catalog changes (explorer_defaults)
+- Serve the API catalog of the cluster at /api, /.well-known/api-catalog and /api/docs:
+  the catalogs of the backends are merged and cached for a minute (api_catalog settings of
+  the server configuration)
 - Split functions with a cognitive complexity above 25 into smaller helpers, no functional changes
 
 * Fri Oct 16 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.16-2.fmi
