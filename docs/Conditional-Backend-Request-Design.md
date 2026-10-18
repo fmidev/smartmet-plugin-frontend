@@ -1,11 +1,13 @@
 # Frontend conditional backend requests — design
 
-Status: **proposal, partially prepared** — the RFC 7232 building blocks and the
-cache-variant plumbing have landed (see *Already done* below); the protocol
-change itself (single conditional request, render-free `304` on the miss path)
-is **not implemented**.
-Last reviewed: 2026-07-30 (line references verified against
-frontend `26.7.28-1.fmi`, spine `26.7.16`, server `26.7.30-1.fmi`).
+Status: **proposal, partially implemented** — the RFC 7232 building blocks,
+per-encoding entity-tags, the `(ETag, encoding)` response cache and backend
+connection reuse have landed (see *Already done* below). The protocol change
+itself (one conditional request instead of the ETag probe, and a request→ETag
+index) is **not implemented**: every proxied request still starts with the
+`X-Request-ETag` probe.
+Last reviewed: 2026-10-18 against frontend, spine and server `26.10.17`. Code is
+referred to by function name; line numbers are deliberately left out.
 
 Scope: `smartmet-plugin-frontend` (`LowLatencyGatewayStreamer`, `Proxy`) +
 `smartmet-library-spine` (protocol constants/helpers) + the **four** backend
@@ -14,118 +16,131 @@ plugins that emit an ETag (`wms`, `timeseries`, `edr`, `grid-gui`). See
 
 ## Motivation
 
-On a **frontend-cache miss**, the frontend talks to the backend **twice over two
-separate TCP connections**:
+On a **frontend-cache miss**, the frontend talks to the backend **twice**:
 
 1. An ETag *probe* — the request is sent with `X-Request-ETag: true`
-   (`LowLatencyGatewayStreamer.cpp:339`); the backend answers with the ETag only
-   (`204 No Content`).
-2. If the ETag is not in the frontend cache, `sendContentRequest()`
-   (`LowLatencyGatewayStreamer.cpp:619`) **closes the socket and opens a new
-   one** — "SmartMet doesn't currently support request pipelining"
-   (`:624`) — and re-sends the request for the full body.
+   (`LowLatencyGatewayStreamer::sendAndListen()`); the backend answers with the
+   ETag only (`204 No Content`), read by `readCacheResponse()`.
+2. If no variant of that ETag is in the frontend cache, `sendContentRequest()`
+   re-sends the request for the full body, read by `readDataResponseHeaders()`.
 
-This wastes a connection and a round-trip on every miss, and for
-**expensive-ETag** plugins it can waste an entire render (see below). The goal
-is to collapse the miss path to **one conditional request on one connection**.
+Since the backend connection pool landed, step 2 normally goes out **on the
+probe's connection** (`probeLeftCleanConnection()` confirms the bodyless `204`
+left it at a message boundary), so a miss no longer costs a second TCP
+connection. It still costs a **second round-trip**, and for **expensive-ETag**
+plugins it can waste an entire render (see below). The goal is to collapse the
+miss path to **one conditional request**.
 
 ## Background: how the ETag is computed differs by plugin
 
-The cost of the probe — and therefore what the second connection is really
-wasting — depends on how the backend derives its ETag:
+The cost of the probe depends on how the backend derives its ETag:
 
 - **Cheap ETag** — computable from *inputs* without rendering: the data
   generation / model-run identity for the requested timestep, the (JSON) config
   hash, and the request parameters. **WMS** is predominantly here:
   `product.hash_value(theState)` is evaluated **before** any rendering
-  (`wms/Plugin.cpp:308`, `wms/tiles/Handler.cpp:1235`), so a tile for a timestep
-  whose gridded data and config are unchanged keeps the same ETag and the
-  backend can answer without rendering. `grid-gui` is also cheap (ETag is a hash
-  of file id + message index + rendering parameters + colour-map mtime,
-  `grid-gui/Plugin.cpp:2243-2251`).
+  (`wms/Plugin.cpp`, `wms/tiles/Handler.cpp`), so a tile for a timestep whose
+  gridded data and config are unchanged keeps the same ETag and the backend can
+  answer without rendering. `grid-gui` is also cheap (its ETag is a hash of the
+  file id, message index, rendering parameters and colour-map modification time).
   Note WMS *falls back* to a body hash when the product hash is unavailable
-  (`Fmi::hash_value(theSvg)` / `Fmi::hash_value(*buffer)`, `wms/Plugin.cpp:496,541`)
+  (`Fmi::hash_value(theSvg)` / `Fmi::hash_value(*buffer)` in `wms/Plugin.cpp`)
   — that fallback path behaves like an expensive ETag.
 - **Expensive ETag** — the ETag *is* a hash of the rendered body. **timeseries**
-  and **edr** are here: `product_hash = Fmi::hash_value(*result)`
-  (`timeseries/Plugin.cpp:435,500`, `edr/PluginImpl.cpp:441,507`); the
-  parameter-only hash was tried and abandoned — commented out entirely in
-  timeseries (`Plugin.cpp:411-421`), while edr still computes
-  `qph.hash_value(state, request, q)` for its product cache
-  (`PluginImpl.cpp:419`) but has its early `etag_only()` call disabled
-  (`:432-433`) and overwrites the hash with the body hash. So **edr already has
-  a cheap input hash on hand** — a candidate for the cheap path if it can be
-  shown to encode generation identity (principle 4). Here the probe
-  **renders the whole product**, hashes it, returns `204`, and discards the body
-  (`etag_only`, `timeseries/Plugin.cpp:128-152`, `edr/PluginImpl.cpp:155-179`).
-  On a frontend miss the content request then renders **again** — a double
-  render unless the backend's own product cache still holds it.
+  and **edr** are here: `product_hash = Fmi::hash_value(*result)`. The
+  parameter-only hash was tried and abandoned — the early `etag_only()` call is
+  commented out in both plugins. edr still computes `qph.hash_value(state,
+  request, q)` for its product cache, so **edr has a cheap input hash on hand** —
+  a candidate for the cheap path if it can be shown to encode generation
+  identity (principle 4). Here the probe **renders the whole product**, hashes
+  it, returns `204`, and discards the body (`etag_only()` in
+  `timeseries/Plugin.cpp` and `edr/PluginImpl.cpp`). On a frontend miss the
+  content request then renders **again** — a double render unless the backend's
+  own product cache still holds it.
 
-So: second connection = a wasted connect+round-trip for cheap-ETag plugins, and
+So: the second request = a wasted round-trip for cheap-ETag plugins, and
 potentially a wasted **render** for expensive-ETag plugins.
 
-## Already done (prerequisites that landed since the first draft)
+## Already done
 
-These are in master and reduce the remaining work; the doc body below is written
-against this state.
+These are in master; the rest of this document is written against this state.
 
-1. **RFC 7232 evaluation lives in spine** (`spine` 26.7.7, `add-etag-filter`).
+1. **RFC 7232 evaluation lives in spine** (`spine/HTTP.h`).
    - `Spine::HTTP::ETagFilter` — parses `If-Match` / `If-None-Match` (multiple
      entity-tags, `*`, weak/strong comparison) and
-     `evaluate(etag) -> {full_response_required, suggested_status}`
-     (`spine/HTTP.h:813-880`).
+     `evaluate(etag) -> {full_response_required, suggested_status}`;
+     `matchingETag(etag)` returns the `If-None-Match` tag that matched.
    - `Spine::HTTP::conditionalResponseStatus(request, etag)` — the backend-side
-     convenience layer returning the bodyless status or `std::nullopt`
-     (`spine/HTTP.h:926`).
-   - `Spine::HTTP::request_etag_header` — the `X-Request-ETag` constant
-     (`spine/HTTP.h:904`).
+     convenience layer returning the bodyless status or `std::nullopt`.
+   - `Spine::HTTP::request_etag_header` — the `X-Request-ETag` constant.
    - **Crucially**, `conditionalResponseStatus()` returns `std::nullopt` while
      the frontend is probing, so a backend never shortcuts a *client's*
      conditional behind the frontend's back (asserted in
-     `spine/test/ETagFilterTest.cpp:392-397`). This is exactly the hook the new
-     protocol needs: the frontend's own conditional must be distinguishable from
-     a forwarded client conditional.
-2. **Backend-side conditional handling is complete in WMS** (`wms` 26.7.8,
-   `use-etag-filter`) — *all* ETag paths honour `If-None-Match`/`If-Match`
-   before generating a body: `wms/Plugin.cpp:339`, `wms/wms/Handler.cpp:1056`
-   (GetCapabilities) and `:1138`, `wms/wmts/Handler.cpp:725`,
-   `wms/tiles/Handler.cpp:1248`. The earlier draft claimed only
-   GetCapabilities had this. **Consequence: for WMS the backend half of this
-   design already exists.** Once the frontend stops sending the probe header and
-   sends its candidate as a conditional instead, WMS answers render-free.
-3. **Frontend cache-hit path uses `ETagFilter`** (`frontend` 26.7.8) —
-   `buildCacheResponse()` (`LowLatencyGatewayStreamer.cpp:110`) evaluates
-   preconditions at `:174-183`, emits `304`/`412`, and now always advertises
-   the `ETag` and a `Vary: Accept-Encoding` default on conditional responses
-   (`:143-156`) as RFC 7232 requires.
-4. **One encoding-keyed response cache** (`frontend` 26.7.14, commit `edf907f`) —
-   the former compressed/uncompressed `ResponseCache` pair is a single cache
-   keyed by `(ETag, content-encoding-token)` (`ResponseCache.cpp:15-19`,
-   `ResponseCache.h:28-43`). Encoding is a free-form lowercased token, so any
-   codec caches side by side. Config block `response_cache`
+     `spine/test/ETagFilterTest.cpp`). This is exactly the hook the new protocol
+     needs: the frontend's own conditional must be distinguishable from a
+     forwarded client conditional.
+2. **Per-encoding entity-tags** (spine/server/frontend `26.9.29`). An encoded
+   response is a different representation, so the server appends the content
+   coding to the plugin's entity-tag when it compresses a body
+   (`Spine::HTTP::contentCodedETag()`, called from `compress_response()` in
+   `server/source/Utility.cpp`): `"abc-timeseries"` becomes
+   `"abc-timeseries+zstd"`. `Spine::HTTP::baseETag()` strips the coding again.
+   `ETagFilter` matches a coded tag only when the request accepts that coding,
+   and a `304` names the variant the client holds
+   (`Spine::HTTP::notModifiedETag()`, applied by the server to every `304` in
+   `AsyncConnection`). The probe answers with the coding independent tag, since
+   it has no body to encode.
+3. **Backend-side conditional handling.** These answer `If-None-Match` /
+   `If-Match` with `conditionalResponseStatus()` before generating a body:
+   - **wms** — all ETag paths (`wms/Plugin.cpp`, GetCapabilities and GetMap in
+     `wms/wms/Handler.cpp`, `wms/wmts/Handler.cpp`, `wms/tiles/Handler.cpp`);
+   - **edr** — `etag_only()` in `edr/PluginImpl.cpp` (after rendering, since the
+     ETag is a body hash), plus its metadata documents;
+   - **grid-gui** — its former exact-string `If-None-Match` comparison was
+     replaced with `conditionalResponseStatus()`.
+
+   **timeseries** is the exception: its `etag_only()` only answers the probe and
+   ignores client conditionals, so it always sends the body.
+4. **Frontend cache-hit path uses `ETagFilter`** — `buildCacheResponse()`
+   evaluates the client's preconditions, emits `304`/`412` (a `304` carrying
+   `matchingETag()`), and always advertises the `ETag` (coded with the served
+   variant's encoding) and a `Vary: Accept-Encoding` default. A bare
+   `If-Modified-Since` (no entity-tag precondition) is answered `304` on a hit,
+   since the frontend keeps no `Last-Modified` and a hit means the ETag is
+   current.
+5. **One encoding-keyed response cache** — the former compressed/uncompressed
+   `ResponseCache` pair is a single cache keyed by `(base ETag, content
+   encoding)` (`ResponseCache.{h,cpp}`). Encoding is a free-form lowercased
+   token, so any codec caches side by side. Config block `response_cache`
    (legacy `compressed_cache`/`uncompressed_cache` deprecated); admin stats are
    `Frontend::response_cache::*`.
-5. **zstd on the backend + matching frontend negotiation** (`server` 26.7.14,
-   commit `db7a94f`) — `select_content_encoding()` (`server/source/Utility.cpp:75`)
-   prefers zstd over gzip, called from `AsyncConnection::startRegularReply()`
-   (`server/source/AsyncConnection.cpp:1023`); the frontend's
-   `clientAcceptsContentEncoding()` mirrors that preference order
-   (`LowLatencyGatewayStreamer.cpp:44-69`) so zstd variants hit the cache.
-   Only the non-streamed reply path is compressed; chunked replies deliberately
-   are not.
-6. **Miss-path lookup already tolerates encoding mismatch** — after the probe
-   the frontend looks up `(etag, preferred-encoding)` and falls back to
-   `(etag, "")` (`LowLatencyGatewayStreamer.cpp:554-563`). This matters because
-   the frontend *cannot* predict the backend's choice: the backend also honours
-   a `gzip=1` request parameter and skips compression below `compressLimit`
-   (`server/source/Utility.cpp:94-104`). Any request→ETag index must inherit the
-   same "encoding is a hint, identity is the fallback" discipline.
+6. **Content-coding negotiation shared with the server** — the server picks the
+   coding with `Spine::HTTP::rankContentEncodings()` over
+   `supportedContentEncodings()` (q-values honoured, zstd preferred over gzip).
+   The frontend's `clientAcceptsContentEncodings()` uses the same function and
+   returns **every** acceptable coding, best first, and `findCachedResponse()`
+   tries them in that order before falling back to the identity variant. This
+   matters because the frontend *cannot* predict the backend's choice: the
+   backend may not offer the best coding (`compresscodings`), honours a
+   `gzip=1` request parameter, and skips compression below `compressLimit`. Any
+   request→ETag index must inherit the same "encoding is a hint, identity is the
+   fallback" discipline.
+7. **Backend connection reuse** (server keep-alive `26.9.2`, frontend
+   `26.9.3`) — `BackendConnectionPool` keeps idle backend connections, and on a
+   miss `sendContentRequest()` writes the content request onto the probe's
+   connection when `probeLeftCleanConnection()` allows it, instead of closing
+   it and opening a new one.
+8. **Render-free `304` on the miss path, for backends that check conditionals**
+   — the content request is sent without `X-Request-ETag`, so it carries the
+   client's `If-None-Match` to the backend undisturbed. wms, edr and grid-gui
+   answer it with a bodyless `304`, which `readDataResponseHeaders()` forwards
+   (non-`200` responses are not cached). For WMS the `304` costs no render.
 
-Still **not** done: the single-connection conditional protocol, the
-request→ETag index, and the render-free `304` on the miss path
-(`readDataResponseHeaders`, `LowLatencyGatewayStreamer.cpp:683-795`, still
-streams the backend body unconditionally). Server-side HTTP keep-alive is also
-unimplemented and, per *Non-goals*, not needed for this design.
+Still **not** done: the single conditional request (the probe still precedes
+every request), the request→ETag index, conditional handling in timeseries'
+`etag_only()`, and an `ETagFilter` evaluation in the frontend's own miss path
+(it relies on the backend, so a client conditional reaching timeseries, or a
+bare `If-Modified-Since`, gets the full body on a miss).
 
 ## Correctness principles (these constrain the whole design)
 
@@ -166,12 +181,12 @@ connection:
    - no match / no candidate → `200` + **body** + `ETag` → the frontend streams
      it, caches by ETag, and updates its hint.
 
-This is strictly ≥ today in every case: frontend hit stays one connection; miss
-drops from **two connections to one**; and for expensive-ETag plugins the
+This is strictly ≥ today in every case: a frontend hit stays one round-trip; a
+miss drops from **two round-trips to one**; and for expensive-ETag plugins the
 **double render is structurally eliminated** because there is only one request.
 
-Note this needs **no** server-side keep-alive: it is still one request and one
-response per connection, so the existing `Connection: close` model is untouched.
+The design does not depend on backend keep-alive (it is one request and one
+response), but it works unchanged on pooled connections.
 
 **Status-code detail.** The existing probe answers `204 No Content`; a
 conditional match answers `304 Not Modified` (that is what
@@ -193,49 +208,47 @@ The frontend should try, in order:
    not send one. Its key **must** include everything that selects a
    representation — at minimum URI + query string + the `Vary` inputs. Note the
    *variant* dimension is now handled by the content cache itself, which is
-   keyed by `(ETag, encoding)` (`ResponseCache.cpp:15-19`), so the index maps a
-   request to an ETag only and the encoding is resolved at lookup time with the
-   existing identity fallback (`:554-563`). Keeping the index encoding-free is
-   deliberate: it avoids duplicating a decision the backend makes from
-   `Accept-Encoding` + `gzip=1` + `compressLimit`.
+   keyed by `(base ETag, encoding)`, so the index maps a request to a base
+   ETag only and the encoding is resolved at lookup time with the existing
+   identity fallback (`findCachedResponse()`). Keeping the index encoding-free
+   is deliberate: it avoids duplicating a decision the backend makes from
+   `Accept-Encoding` + `compresscodings` + `gzip=1` + `compressLimit`.
 3. **The backend's current ETag** — computed once per request, cheap or
    expensive per plugin.
 
 ### Render-free `304` on the miss path (the high-value WMS case)
 
-Today the client-facing `304` is produced **only on a frontend-cache hit**, in
-`buildCacheResponse()` (`LowLatencyGatewayStreamer.cpp:110`, evaluation at
-`:174`). On the **miss** path (`readDataResponseHeaders`, `:683`) the backend
-body is streamed to the client unconditionally — there is no client-conditional
-check (`:729-786`).
+The frontend itself produces a client-facing `304` **only on a frontend-cache
+hit**, in `buildCacheResponse()`. On the **miss** path (`readDataResponseHeaders()`)
+it does not evaluate the client's conditional; it streams whatever the backend
+answers to the content request.
 
-Consequence today: a client revalidating a tile with `If-None-Match: X`, when
-the frontend does not hold `X` (cold node, evicted, or a different frontend in
-the pool), triggers a **full backend render + full tile transfer** that the
-client discards. For WMS — cheap ETag, constant revalidation — this is the most
-wasteful path in the system. (The backend would already have answered `304`
-without rendering; it is the frontend's probe header that suppresses it.)
+For WMS, edr and grid-gui this already gives a render-free (or at least
+transfer-free) `304`: the content request carries the client's
+`If-None-Match` without the probe header, so the backend answers it (*Already
+done*, item 8). What remains is the cost before that answer — the probe, and
+for edr the render it causes — and the plugins that do not check conditionals
+(timeseries), where a client revalidating against a cold frontend still gets
+the full body.
 
-Fix: when the backend cheaply confirms the client's candidate is current, the
-frontend must answer the client with `304` **with no render and no frontend
-cache entry**. Concretely, teach the miss path to run the same
-`ETagFilter::evaluate()` against the backend's returned ETag and emit
-`304`/`412` accordingly, independent of whether the frontend has bytes cached.
-This reuses the hit-path machinery so both paths share one RFC 7232
-implementation.
+Remaining fix: run the same `ETagFilter::evaluate()` in the miss path against
+the ETag the backend returned, and emit `304`/`412` independent of whether the
+frontend has bytes cached. This reuses the hit-path machinery so both paths
+share one RFC 7232 implementation, and covers backends that do not check
+conditionals themselves.
 
 ### Frontend changes (bulk of the work)
 
 - New **request→ETag index** (bounded, evictable, config + admin stats).
 - `sendAndListen()`: send the candidate as a conditional instead of
-  `X-Request-ETag: true` (`:339`, removal at `:354`); keep sending the legacy
-  probe header during a compatibility window (below).
-- **Merge** `readCacheResponse` (`:468`) and `readDataResponseHeaders` (`:683`)
-  into one handler that switches on the status line: `204`/`304` → serve from
-  cache or emit client `304`; `200` → stream + cache; on the **same** socket.
-  **Delete** the close/reconnect in `sendContentRequest()` (`:619-635`).
-- Keep the `!etagHeader` pass-through branch (`:526-548`) intact — that is the
-  path all non-caching plugins take.
+  `X-Request-ETag: true`; keep sending the legacy probe header during a
+  compatibility window (below).
+- **Merge** `readCacheResponse()` and `readDataResponseHeaders()` into one
+  handler that switches on the status line: `204`/`304` → serve from cache or
+  emit client `304`; `200` → stream + cache. `sendContentRequest()` (already
+  reusing the probe's connection) then disappears.
+- Keep the pass-through of responses without an ETag (`passThroughResponse()`)
+  intact — that is the path all non-caching plugins take.
 - Maintain the index: on a `200` carrying an ETag, record request→ETag after
   caching; on a not-modified reply, refresh freshness.
 - Route the backend ETag through `Spine::HTTP::ETagFilter` on the miss path so
@@ -250,25 +263,24 @@ Most of this is already in place; what remains is small and per-plugin:
   the new frontend conditional as a conditional (i.e. not be suppressed as a
   probe) — which is a spine-level change to the suppression rule, not plugin
   code, unless the negotiation header is inspected locally.
-- **timeseries** / **edr** — `etag_only()` still understands only the binary
-  "ETag-only vs body" (`timeseries/Plugin.cpp:128-152`,
-  `edr/PluginImpl.cpp:155-179`). Extend it to compare the incoming conditional
-  against the computed hash and answer bodyless not-modified. No double render
-  because there is a single request; the saving is the transfer, not the render.
-  The two copies are near-identical — factor the shared logic into spine rather
+- **edr** — `etag_only()` already answers client conditionals with
+  `conditionalResponseStatus()` after rendering. It must accept the new
+  frontend conditional the same way.
+- **timeseries** — `etag_only()` still understands only the binary "ETag-only
+  vs body". Extend it to compare the incoming conditional against the computed
+  hash and answer bodyless not-modified, as edr does. No double render because
+  there is a single request; the saving is the transfer, not the render. The
+  two copies are near-identical — factor the shared logic into spine rather
   than editing both by hand.
-- **grid-gui** — replace its ad-hoc exact-string `If-None-Match` compare
-  (`grid-gui/Plugin.cpp:2253-2255`, and the same pattern at `:2479`, `:2651`)
-  with `conditionalResponseStatus()`. As written it ignores weak/strong
-  comparison, `*`, `If-Match`, and — more importantly — it is **not probe-aware**,
-  so it can answer a frontend probe with `304`. Cleanup, not a blocker.
+- **grid-gui** — done: it uses `conditionalResponseStatus()`, so it is
+  probe-aware and handles weak/strong comparison, `*` and `If-Match`.
 - Each plugin effectively declares itself cheap or expensive; the frontend
   protocol is identical either way, only the backend cost differs.
 
 ### Compatibility
 
 A backend predating the change returns a body the frontend already knows how to
-pass through (the `!etagHeader` branch in `readCacheResponse`). The frontend's
+pass through (`passThroughResponse()`, called from `readCacheResponse()`). The frontend's
 inward conditional **must not** be mistakable for a *client* conditional, or an
 old backend could answer with a spurious `304` that the frontend forwards to a
 client that never asked for one. Two viable mechanisms:
@@ -279,11 +291,11 @@ client that never asked for one. Two viable mechanisms:
    unknown header and simply returns the full body — safe by construction, and
    the frontend can then set the index entry and stop sending the probe to that
    backend. The constant and the evaluation belong next to
-   `request_etag_header` in `spine/HTTP.h:904`.
+   `request_etag_header` in `spine/HTTP.h`.
 2. **Sputnik capability flag** — the broadcast protocol has a **per-service
-   `allowcache` bool** (`BroadcastMessage.pb.h:501-511`) that is currently
-   always broadcast as `false` (`sputnik/Messages.cpp:106`) and never read by
-   the frontend; `BackendService::AllowCache()` exists but is unused. It is a
+   `allowcache` bool** (`BroadcastMessage.proto`) that is currently always
+   broadcast as `false` (`sputnik/Messages.cpp`) and never read by the
+   frontend; `BackendService::AllowCache()` exists but is unused. It is a
    natural carrier for "this handler supports conditional requests". Note the
    broadcast carries **no version field**, so the earlier draft's suggestion to
    "gate on the backend version advertised via Sputnik" is not possible without
@@ -300,27 +312,25 @@ frontend caching at all; the other 13 are pass-through
 
 | Repo / module | Change | Size |
 | --- | --- | --- |
-| `smartmet-plugin-frontend` | Merge probe+fetch handlers, drop the reconnect, request→ETag index, miss-path `ETagFilter`, config + admin stats for the index | **Large** — the bulk of the work |
+| `smartmet-plugin-frontend` | Merge probe+fetch handlers, request→ETag index, miss-path `ETagFilter`, config + admin stats for the index | **Large** — the bulk of the work |
 | `smartmet-library-spine` | Internal conditional-request header constant + helper; make the probe-suppression rule aware of the frontend conditional; shared expensive-ETag helper for timeseries/edr | Small, but **must land first** (version bump + `Requires:` bump in every consumer spec) |
 | `smartmet-plugin-wms` | Effectively none — already computes cheap ETags pre-render and calls `conditionalResponseStatus()` on all 5 paths; possibly recognise the new header | None → tiny |
 | `smartmet-plugin-timeseries` | Teach `etag_only()` to compare an incoming conditional (expensive ETag: saves transfer, not render) | Small |
-| `smartmet-plugin-edr` | Same change as timeseries (duplicated code) | Small |
-| `smartmet-plugin-grid-gui` | Migrate ad-hoc `If-None-Match` compare to `conditionalResponseStatus()`; make it probe-aware | Small, optional |
+| `smartmet-plugin-edr` | Already answers client conditionals in `etag_only()`; accept the new frontend conditional | Tiny |
+| `smartmet-plugin-grid-gui` | None — already uses `conditionalResponseStatus()` | None |
 | `smartmet-engine-sputnik` | **Only if** capability negotiation goes via broadcast (`allowcache` field, or a new version field) | Small, avoidable |
-| `smartmet-server` | **None.** Still one request per connection; compression/zstd already landed. Only touched if keep-alive is later pursued (see `server/docs/HTTP-KeepAlive-Design.md`) | None |
-| Other plugins — `admin`, `autocomplete`, `avi`, `backend`, `cross_section`, `download`, `grid-admin`, `meta`, `q3`, `textgen`, `trajectory`, `wfs` | **None.** No ETag emitted → frontend already classifies them non-cacheable; the merged handler must preserve the `!etagHeader` pass-through | None (regression-test only) |
+| `smartmet-server` | **None.** Keep-alive, compression and per-encoding ETags already landed | None |
+| Other plugins — `admin`, `autocomplete`, `avi`, `backend`, `cross_section`, `download`, `grid-admin`, `meta`, `q3`, `textgen`, `trajectory`, `wfs` | **None.** No ETag emitted → frontend already classifies them non-cacheable; the merged handler must preserve the pass-through (`passThroughResponse()`) | None (regression-test only) |
 
-Ordering: spine → wms (verify) → frontend → timeseries/edr → grid-gui, with a
+Ordering: spine → wms (verify) → frontend → timeseries/edr, with a
 `Requires: smartmet-library-spine >= <new>` bump in each dependent spec.
 
 ## Non-goals
 
-- **Backend keep-alive as the fix.** Keeping connection #1 open and sending the
-  content request on it removes only the *reconnect* — it keeps the extra
-  round-trip and the expensive-ETag double render, and needs backend server-side
-  keep-alive plus a framing change (see the server repo's
-  `docs/HTTP-KeepAlive-Design.md`, still unimplemented). Strictly inferior for
-  this problem; only a fallback if touching backend plugins is off the table.
+- **Backend keep-alive as the fix.** This has been implemented (the content
+  request reuses the probe's connection) and removed the *reconnect*, but it
+  keeps the extra round-trip and the expensive-ETag double render, which only
+  the single conditional request removes.
 - **Replacing revalidation with longer TTLs** — precluded by correctness
   principle 1.
 - **Compressing streamed/chunked replies** — settled separately when zstd
@@ -337,12 +347,12 @@ Ordering: spine → wms (verify) → frontend → timeseries/edr → grid-gui, w
 2. **Cheap-ETag omitting generation identity** — silently serves pre-run data
    (correctness principle 4). Enforce that only plugins that can enumerate all
    inputs *including upstream data version* opt into the cheap path. WMS's
-   body-hash fallback (`wms/Plugin.cpp:496,540`) must not be mistaken for the
+   body-hash fallback (`wms/Plugin.cpp`) must not be mistaken for the
    cheap path.
 3. **Encoding-variant resolution** — the frontend cannot predict the backend's
-   encoding choice (`Accept-Encoding` + `gzip=1` + `compressLimit`). Keep the
-   `(etag, encoding)` lookup with identity fallback (`:554-563`); never key the
-   request→ETag index by encoding.
+   encoding choice (`Accept-Encoding` + `compresscodings` + `gzip=1` +
+   `compressLimit`). Keep the `(etag, encoding)` lookup with identity fallback
+   (`findCachedResponse()`); never key the request→ETag index by encoding.
 4. **Streaming classification** — `Proxy::HTTPForward` peeks the first 4096
    bytes to detect backend deny/high-load (`Proxy.cpp`); the merged handler must
    still classify `204`/`304` vs `200` vs error before committing to stream.
@@ -352,8 +362,8 @@ Ordering: spine → wms (verify) → frontend → timeseries/edr → grid-gui, w
 
 ## Testing
 
-- Miss path uses **one** backend connection (assert via backend connection
-  count / logs), not two.
+- Miss path uses **one** backend request (assert via backend access logs), not
+  two.
 - Expensive-ETag plugin (timeseries): a cold frontend miss renders **once**, not
   twice.
 - WMS client revalidation against a **cold** frontend with unchanged data →

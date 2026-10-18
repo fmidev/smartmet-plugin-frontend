@@ -11,7 +11,7 @@ Related documents:
   framing, backend connection reuse, the backend timeout, high-load retirement, and the
   test programs.
 * [Conditional-Backend-Request-Design.md](Conditional-Backend-Request-Design.md): a
-  proposal (partly prepared, not implemented) for replacing the ETag probe with one
+  proposal (partly implemented) for replacing the ETag probe with one
   conditional request.
 * The server [developer guide](https://github.com/fmidev/smartmet-server/blob/master/docs/developer-guide.md)
   (connections, reply paths, compression) and the spine
