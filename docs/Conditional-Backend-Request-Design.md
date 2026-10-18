@@ -96,11 +96,10 @@ These are in master; the rest of this document is written against this state.
      `wms/wms/Handler.cpp`, `wms/wmts/Handler.cpp`, `wms/tiles/Handler.cpp`);
    - **edr** — `etag_only()` in `edr/PluginImpl.cpp` (after rendering, since the
      ETag is a body hash), plus its metadata documents;
+   - **timeseries** — `etag_only()` in `timeseries/Plugin.cpp`, the same way as
+     edr (after rendering; the saving is the transfer, not the render);
    - **grid-gui** — its former exact-string `If-None-Match` comparison was
      replaced with `conditionalResponseStatus()`.
-
-   **timeseries** is the exception: its `etag_only()` only answers the probe and
-   ignores client conditionals, so it always sends the body.
 4. **Frontend cache-hit path uses `ETagFilter`** — `buildCacheResponse()`
    evaluates the client's preconditions, emits `304`/`412` (a `304` carrying
    `matchingETag()`), and always advertises the `ETag` (coded with the served
@@ -137,10 +136,9 @@ These are in master; the rest of this document is written against this state.
    (non-`200` responses are not cached). For WMS the `304` costs no render.
 
 Still **not** done: the single conditional request (the probe still precedes
-every request), the request→ETag index, conditional handling in timeseries'
-`etag_only()`, and an `ETagFilter` evaluation in the frontend's own miss path
-(it relies on the backend, so a client conditional reaching timeseries, or a
-bare `If-Modified-Since`, gets the full body on a miss).
+every request), the request→ETag index, and an `ETagFilter` evaluation in the
+frontend's own miss path (it relies on the backend, so a bare
+`If-Modified-Since` gets the full body on a miss).
 
 ## Correctness principles (these constrain the whole design)
 
@@ -223,13 +221,11 @@ hit**, in `buildCacheResponse()`. On the **miss** path (`readDataResponseHeaders
 it does not evaluate the client's conditional; it streams whatever the backend
 answers to the content request.
 
-For WMS, edr and grid-gui this already gives a render-free (or at least
-transfer-free) `304`: the content request carries the client's
+For WMS, edr, timeseries and grid-gui this already gives a render-free (or at
+least transfer-free) `304`: the content request carries the client's
 `If-None-Match` without the probe header, so the backend answers it (*Already
 done*, item 8). What remains is the cost before that answer — the probe, and
-for edr the render it causes — and the plugins that do not check conditionals
-(timeseries), where a client revalidating against a cold frontend still gets
-the full body.
+for edr and timeseries the render it causes.
 
 Remaining fix: run the same `ETagFilter::evaluate()` in the miss path against
 the ETag the backend returned, and emit `304`/`412` independent of whether the
@@ -266,12 +262,10 @@ Most of this is already in place; what remains is small and per-plugin:
 - **edr** — `etag_only()` already answers client conditionals with
   `conditionalResponseStatus()` after rendering. It must accept the new
   frontend conditional the same way.
-- **timeseries** — `etag_only()` still understands only the binary "ETag-only
-  vs body". Extend it to compare the incoming conditional against the computed
-  hash and answer bodyless not-modified, as edr does. No double render because
-  there is a single request; the saving is the transfer, not the render. The
-  two copies are near-identical — factor the shared logic into spine rather
-  than editing both by hand.
+- **timeseries** — `etag_only()` answers client conditionals with
+  `conditionalResponseStatus()` after rendering, like edr. It must accept the
+  new frontend conditional the same way. The two copies are near-identical —
+  factor the shared logic into spine rather than editing both by hand.
 - **grid-gui** — done: it uses `conditionalResponseStatus()`, so it is
   probe-aware and handles weak/strong comparison, `*` and `If-Match`.
 - Each plugin effectively declares itself cheap or expensive; the frontend
@@ -315,7 +309,7 @@ frontend caching at all; the other 13 are pass-through
 | `smartmet-plugin-frontend` | Merge probe+fetch handlers, request→ETag index, miss-path `ETagFilter`, config + admin stats for the index | **Large** — the bulk of the work |
 | `smartmet-library-spine` | Internal conditional-request header constant + helper; make the probe-suppression rule aware of the frontend conditional; shared expensive-ETag helper for timeseries/edr | Small, but **must land first** (version bump + `Requires:` bump in every consumer spec) |
 | `smartmet-plugin-wms` | Effectively none — already computes cheap ETags pre-render and calls `conditionalResponseStatus()` on all 5 paths; possibly recognise the new header | None → tiny |
-| `smartmet-plugin-timeseries` | Teach `etag_only()` to compare an incoming conditional (expensive ETag: saves transfer, not render) | Small |
+| `smartmet-plugin-timeseries` | Already answers client conditionals in `etag_only()`; accept the new frontend conditional | Tiny |
 | `smartmet-plugin-edr` | Already answers client conditionals in `etag_only()`; accept the new frontend conditional | Tiny |
 | `smartmet-plugin-grid-gui` | None — already uses `conditionalResponseStatus()` | None |
 | `smartmet-engine-sputnik` | **Only if** capability negotiation goes via broadcast (`allowcache` field, or a new version field) | Small, avoidable |
