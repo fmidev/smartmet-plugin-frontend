@@ -90,6 +90,17 @@ namespace Plugin
 namespace Frontend
 {
 
+void Plugin::reportPaused(Spine::HTTP::Response &theResponse)
+{
+  auto deadline = pauseDeadLine();
+  if (deadline == PAUSED_FOREVER)
+    theResponse.setContent("Frontend Paused\n");
+  else
+    theResponse.setContent("Frontend Paused until " +
+                           format_deadline(Fmi::date_time::from_time_t(deadline)));
+  theResponse.setStatus(Spine::HTTP::Status::service_unavailable);
+}
+
 // ----------------------------------------------------------------------
 /*!
  * \brief Reply to / requests
@@ -111,11 +122,8 @@ void Plugin::baseContentHandler(const Spine::Reactor& /* theReactor */,
 
     if (deadline == NOT_PAUSED)
       theResponse.setContent("SmartMet Server\n");
-    else if (deadline == PAUSED_FOREVER)
-      theResponse.setContent("Frontend Paused\n");
     else
-      theResponse.setContent("Frontend Paused until " +
-                             format_deadline(Fmi::date_time::from_time_t(deadline)));
+      reportPaused(theResponse);
   }
   catch (...)
   {
@@ -325,6 +333,12 @@ void Plugin::requestNoMatchInfo(Spine::Reactor& theReactor,
 {
   try
   {
+    if (pauseDeadLine())
+    {
+      reportPaused(theResponse);
+      return;
+    }
+
     // Get the info request name from the query parameters
     std::string infoRequestName = Spine::optional_string(theRequest.getParameter("what"), "");
 
