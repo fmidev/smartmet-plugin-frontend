@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.19
+Version: 26.10.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.10.16
-BuildRequires: smartmet-library-spine-devel >= 26.10.19-2
+BuildRequires: smartmet-library-spine-devel >= 26.10.25-3
 BuildRequires: smartmet-library-grid-files-devel >= 26.10.16
 BuildRequires: smartmet-engine-sputnik-devel >= 26.10.16
 BuildRequires: gdal312-devel
@@ -36,7 +36,7 @@ Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.10.17
 Requires: smartmet-server >= 26.10.17
 Requires: smartmet-engine-sputnik >= 26.10.16
-Requires: smartmet-library-spine >= 26.10.19-2
+Requires: smartmet-library-spine >= 26.10.25-3
 Requires: smartmet-swagger-ui
 Requires: smartmet-library-timeseries >= 26.10.16
 Requires: smartmet-library-grid-files >= 26.10.17
@@ -54,8 +54,8 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.10.16
-#TestRequires: smartmet-library-spine-devel >= 26.10.19-2
-#TestRequires: smartmet-library-spine >= 26.10.19-2
+#TestRequires: smartmet-library-spine-devel >= 26.10.25-3
+#TestRequires: smartmet-library-spine >= 26.10.25-3
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames
@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Sun Oct 25 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.25-1.fmi
+- Rebuilt for the smartmet-library-spine 26.10.25-3 catalog changes (private data explorer)
+
 * Mon Oct 19 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.19-1.fmi
 - Rebuilt for the smartmet-library-spine 26.10.19-2 catalog changes (basemap sources)
 
