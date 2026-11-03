@@ -727,13 +727,18 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     }
     else
     {
-      if (!theReactor->addContentHandler(this,
-                                        "/admin",
-                                         [this](Spine::Reactor &theReactor,
-                                                const Spine::HTTP::Request &theRequest,
-                                                Spine::HTTP::Response &theResponse) {
-                                           callRequestHandler(theReactor, theRequest, theResponse);
-                                         }))
+      // Register as a PRIVATE handler so it inherits the default private-network IP
+      // filter (like the built-in Spine /admin). A plain content handler would be
+      // public with no filter, exposing Private admin requests (e.g. the active
+      // requests API-key listing) to any client when admin.uri is left empty.
+      if (!theReactor->addPrivateContentHandler(
+              this,
+              "/admin",
+              [this](Spine::Reactor &theReactor,
+                     const Spine::HTTP::Request &theRequest,
+                     Spine::HTTP::Response &theResponse) {
+                callRequestHandler(theReactor, theRequest, theResponse);
+              }))
         throw Fmi::Exception(BCP, "Failed to register admin content handler");
     }
 

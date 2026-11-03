@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.11.4
+Version: 26.11.5
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Nov 5 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.5-1.fmi
+- Register the fallback /admin handler as private when admin.uri is empty
+
 * Wed Nov  4 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.4-1.fmi
 - Repackaged due to a broken debuginfo build
 
