@@ -2,7 +2,7 @@
 %define SPECNAME smartmet-plugin-%{DIRNAME}
 Summary: SmartMet frontend plugin
 Name: %{SPECNAME}
-Version: 26.10.25
+Version: 26.11.4
 Release: 1%{?dist}.fmi
 License: MIT
 Group: SmartMet/Plugins
@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Nov  4 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.11.4-1.fmi
+- Repackaged due to a broken debuginfo build
+
 * Sun Oct 25 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.25-1.fmi
 - Rebuilt for the smartmet-library-spine 26.10.25-3 catalog changes (private data explorer)
 
