@@ -1,5 +1,6 @@
 #include "LowLatencyGatewayStreamer.h"
 #include "Proxy.h"
+#include <boost/algorithm/string.hpp>
 #include <fmt/format.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
