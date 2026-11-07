@@ -299,6 +299,10 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
     // has time to complete instead of the whole process being SIGKILLed regardless.
     int shutdownGracePeriodInSeconds = 10;
 
+    // How long a client may leave a full response buffer unread before the
+    // backend exchange is aborted and the buffered data released
+    int clientStallTimeoutInSeconds = 120;
+
     // Backend connections are kept open for the next request instead of being
     // closed after every response. The idle timeout must stay below the
     // backend's own ("keepalive.timeout" in smartmet-server, 30 s by default),
@@ -364,6 +368,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
       config.lookupValue("backend.timeout", backendTimeoutInSeconds);
       config.lookupValue("backend.threads", backendThreadCount);
       config.lookupValue("backend.shutdown_grace_period", shutdownGracePeriodInSeconds);
+      config.lookupValue("backend.client_stall_timeout", clientStallTimeoutInSeconds);
       config.lookupValue("backend.keepalive.enabled", backendKeepAlive);
       config.lookupValue("backend.keepalive.idle_timeout", backendIdleTimeoutInSeconds);
       config.lookupValue("backend.keepalive.max_idle_connections", maxIdleConnectionsPerBackend);
@@ -392,6 +397,7 @@ HTTP::HTTP(Spine::Reactor *theReactor, const char *theConfig)
                              backendKeepAlive,
                              static_cast<std::size_t>(std::max(0, maxIdleConnectionsPerBackend)),
                              backendIdleTimeoutInSeconds);
+    itsProxy->setClientStallTimeout(clientStallTimeoutInSeconds);
 
     // Start the "Catcher in the Rye" process in SmartMet core. Must be registered only
     // after itsProxy is fully constructed: the handler dereferences itsProxy, and the

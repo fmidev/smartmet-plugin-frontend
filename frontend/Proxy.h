@@ -88,6 +88,11 @@ class Proxy : public std::enable_shared_from_this<Proxy>
 
   void shutdown();
 
+  // How long a response may sit with a full client buffer before the client is
+  // considered stalled and the backend exchange is aborted
+  void setClientStallTimeout(int theSeconds) { itsClientStallTimeoutInSeconds = theSeconds; }
+  int clientStallTimeoutInSeconds() const { return itsClientStallTimeoutInSeconds; }
+
   // True once shutdown() has been called. Checked by HTTP::transport() so no new
   // LowLatencyGatewayStreamer is started after shutdown begins draining existing ones.
   bool isShuttingDown() const noexcept { return itsShuttingDown; }
@@ -117,6 +122,8 @@ class Proxy : public std::enable_shared_from_this<Proxy>
   // the response lost either way. Aborting well within that budget lets shutdown complete
   // cleanly and lets the client see an error promptly instead of a silently dropped connection.
   int itsShutdownGracePeriodInSeconds;
+
+  int itsClientStallTimeoutInSeconds = 120;
 
   std::atomic<bool> itsShuttingDown{false};
 

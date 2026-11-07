@@ -182,7 +182,8 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   void extendBackendDeadline();
 
   // Wait for the current deadline. Needed at the start, after handleTimeout()
-  // finds the deadline has moved, and after the buffer-full path cancels it.
+  // finds the deadline has moved, and when the buffer-full path switches to the
+  // client stall deadline and back.
   void armTimeoutTimer();
 
   // Function to handle errors in backend communication

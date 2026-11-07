@@ -30,6 +30,7 @@ backend:
 	timeout			= 600;	# seconds to wait for a backend response
 	threads			= 20;	# backend I/O threads
 	shutdown_grace_period	= 10;	# seconds to let a stream finish at shutdown
+	client_stall_timeout	= 120;	# seconds a client may leave a full response buffer unread
 
 	# Backend connections are kept open for the next request instead of being
 	# closed after every response. The frontend re-frames responses for the

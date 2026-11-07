@@ -904,7 +904,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminCustomRequestHandler(
         this,
         "qengine",
-        AdminRequestAccess::Public,
+        AdminRequestAccess::Private,
         std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
         "Available querydata"))
   {
@@ -914,7 +914,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminCustomRequestHandler(
         this,
         "gridgenerations",
-        AdminRequestAccess::Public,
+        AdminRequestAccess::Private,
         std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
         "Grid producers"))
   {
@@ -925,7 +925,7 @@ void Frontend::Plugin::registerAdminRequests(Spine::Reactor& theReactor)
   if (!theReactor.addAdminCustomRequestHandler(
         this,
         "gridgenerationsqd",
-        AdminRequestAccess::Public,
+        AdminRequestAccess::Private,
         std::bind(&Plugin::requestBackendInfoSummary, this, p::_2, p::_3),
         "Grid newbase generations"))
   {

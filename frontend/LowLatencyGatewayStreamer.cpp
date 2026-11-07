@@ -965,8 +965,8 @@ std::string LowLatencyGatewayStreamer::getChunk()
                                     std::size_t bytes_transferred)
           { me->readDataResponse(err, bytes_transferred); });
 
-      // Reset timeout timer. It was cancelled outright when the buffer filled up,
-      // so this one has to be re-armed and not merely pushed back.
+      // Reset timeout timer. It was armed with the client stall deadline when the
+      // buffer filled up, so this one has to be re-armed and not merely pushed back.
       extendBackendDeadline();
       armTimeoutTimer();
     }
@@ -1438,9 +1438,13 @@ void LowLatencyGatewayStreamer::readDataResponse(const boost::system::error_code
       if (itsClientDataBuffer.size() > proxy_max_buffer_size)
       {
         // Too much data in buffer
-        // Signal the consumer thread to schedule the next read when buffer is extracted
+        // Signal the consumer thread to schedule the next read when buffer is extracted.
+        // The backend is paused meanwhile, so the deadline now limits how long the
+        // client may stall before the buffered data is released.
         itsBackendBufferFull = true;
-        itsTimeoutTimer->cancel();
+        itsDeadline = std::chrono::steady_clock::now() +
+                      std::chrono::seconds(itsProxy->clientStallTimeoutInSeconds());
+        armTimeoutTimer();
         return;
       }
       // Go back to listen the socket
@@ -1500,30 +1504,41 @@ void LowLatencyGatewayStreamer::handleTimeout(const boost::system::error_code& e
     if (itsGatewayStatus != GatewayStatus::ONGOING)
       return;  // Finished between the timer firing and this handler running
 
-    if (itsBackendBufferFull)
-    {
-      // The exchange is deliberately paused while the client drains the buffer:
-      // readDataResponse() cancelled the timer, but this firing was already
-      // dequeued and would re-arm to a deadline nothing is extending, failing a
-      // healthy transfer to a slow client. getChunk() re-arms both the deadline
-      // and the timer when reading resumes.
-      return;
-    }
-
     if (std::chrono::steady_clock::now() < itsDeadline)
     {
-      // The backend has been heard from since this wait was armed, so the
-      // deadline moved. Wait for the new one instead of firing.
+      // The backend has been heard from since this wait was armed, or the client
+      // buffer filled up and the deadline became the client stall deadline.
+      // Wait for the new one instead of firing.
       armTimeoutTimer();
       return;
     }
 
-    std::cout << fmt::format("{} Connection to backend at {}:{} timed out in {} seconds",
-                             Spine::log_time_str(),
-                             itsIP,
-                             itsPort,
-                             itsBackendTimeoutInSeconds)
-              << std::endl;
+    if (itsBackendBufferFull)
+    {
+      // The client has not drained the full buffer within the stall timeout.
+      // Release the buffered data instead of holding it as long as the client
+      // keeps the connection open.
+      std::cout << fmt::format(
+                       "{} Client stalled for {} seconds reading response from backend at {}:{}",
+                       Spine::log_time_str(),
+                       itsProxy->clientStallTimeoutInSeconds(),
+                       itsIP,
+                       itsPort)
+                << std::endl;
+
+      itsBackendBufferFull = false;
+      std::string().swap(itsClientDataBuffer);
+      std::string().swap(itsCachedContent);
+    }
+    else
+    {
+      std::cout << fmt::format("{} Connection to backend at {}:{} timed out in {} seconds",
+                               Spine::log_time_str(),
+                               itsIP,
+                               itsPort,
+                               itsBackendTimeoutInSeconds)
+                << std::endl;
+    }
 
     itsHasTimedOut = true;
     itsResponseIsCacheable = false;
