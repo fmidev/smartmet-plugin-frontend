@@ -29,10 +29,8 @@ BuildRequires: smartmet-library-grid-files-devel >= 26.10.16
 BuildRequires: smartmet-engine-sputnik-devel >= 26.10.16
 BuildRequires: gdal312-devel
 BuildRequires: jsoncpp-devel
-BuildRequires: protobuf-devel
 BuildRequires: smartmet-library-macgyver-devel >= 26.10.16
 BuildRequires: jemalloc
-Requires: protobuf
 Requires: smartmet-library-macgyver >= 26.10.17
 Requires: smartmet-server >= 26.10.17
 Requires: smartmet-engine-sputnik >= 26.10.16
