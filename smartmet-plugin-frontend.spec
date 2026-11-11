@@ -24,7 +24,7 @@ BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: smartmet-library-timeseries-devel >= 26.10.16
-BuildRequires: smartmet-library-spine-devel >= 26.11.6-2
+BuildRequires: smartmet-library-spine-devel >= 26.11.11
 BuildRequires: smartmet-library-grid-files-devel >= 26.10.16
 BuildRequires: smartmet-engine-sputnik-devel >= 26.10.16
 BuildRequires: gdal312-devel
@@ -34,7 +34,7 @@ BuildRequires: jemalloc
 Requires: smartmet-library-macgyver >= 26.10.17
 Requires: smartmet-server >= 26.10.17
 Requires: smartmet-engine-sputnik >= 26.10.16
-Requires: smartmet-library-spine >= 26.11.6-2
+Requires: smartmet-library-spine >= 26.11.11
 Requires: smartmet-swagger-ui
 Requires: smartmet-library-timeseries >= 26.10.16
 Requires: smartmet-library-grid-files >= 26.10.17
@@ -52,8 +52,8 @@ Requires(postun): systemd
 %endif
 
 #TestRequires: smartmet-library-macgyver-devel >= 26.10.16
-#TestRequires: smartmet-library-spine-devel >= 26.11.6-2
-#TestRequires: smartmet-library-spine >= 26.11.6-2
+#TestRequires: smartmet-library-spine-devel >= 26.11.11
+#TestRequires: smartmet-library-spine >= 26.11.11
 #TestRequires: smartmet-engine-querydata
 #TestRequires: smartmet-engine-gis
 #TestRequires: smartmet-engine-geonames

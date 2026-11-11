@@ -83,7 +83,7 @@ class Plugin : public SmartMetPlugin
   {
     if (!itsReactor->addContentHandler(
             this,
-            "/denytest",
+            Spine::Reactor::HandlerOptions("/denytest"),
             [this](Spine::Reactor& theReactor,
                    const Spine::HTTP::Request& theRequest,
                    Spine::HTTP::Response& theResponse)
@@ -96,7 +96,7 @@ class Plugin : public SmartMetPlugin
     // both backends have to answer it whichever of them the frontend picks.
     if (!itsReactor->addContentHandler(
             this,
-            "/streamtest",
+            Spine::Reactor::HandlerOptions("/streamtest"),
             [this](Spine::Reactor& theReactor,
                    const Spine::HTTP::Request& theRequest,
                    Spine::HTTP::Response& theResponse)

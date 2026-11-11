@@ -731,9 +731,9 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
       // filter (like the built-in Spine /admin). A plain content handler would be
       // public with no filter, exposing Private admin requests (e.g. the active
       // requests API-key listing) to any client when admin.uri is left empty.
-      if (!theReactor->addPrivateContentHandler(
+      if (!theReactor->addContentHandler(
               this,
-              "/admin",
+              Spine::Reactor::HandlerOptions("/admin").Private(),
               [this](Spine::Reactor &theReactor,
                      const Spine::HTTP::Request &theRequest,
                      Spine::HTTP::Response &theResponse) {
@@ -743,7 +743,7 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
     }
 
     if (!theReactor->addContentHandler(this,
-                                       "/",
+                                       Spine::Reactor::HandlerOptions("/"),
                                        [this](Spine::Reactor &theReactor,
                                               const Spine::HTTP::Request &theRequest,
                                               Spine::HTTP::Response &theResponse) {
@@ -765,20 +765,22 @@ Plugin::Plugin(Spine::Reactor *theReactor, const char *theConfig)
       { itsApiCatalog->handle(theRequest, theResponse); };
 
       for (const char* uri : {"/api", "/.well-known/api-catalog"})
-        if (!theReactor->addContentHandler(this, uri, catalog_handler))
+        if (!theReactor->addContentHandler(this, Spine::Reactor::HandlerOptions(uri), catalog_handler))
           throw Fmi::Exception(
               BCP, std::string("Failed to register the API catalog handler for ") + uri);
       if (itsApiCatalog->settings().openapi.ui &&
-          !theReactor->addContentHandler(this, "/api/docs", catalog_handler, {}, true))
+          !theReactor->addContentHandler(
+              this, Spine::Reactor::HandlerOptions("/api/docs").IsPrefix(), catalog_handler))
         throw Fmi::Exception(BCP, "Failed to register the API documentation handler");
       if (itsApiCatalog->settings().explorer &&
-          !theReactor->addContentHandler(this, "/api/explorer", catalog_handler, {}, true))
+          !theReactor->addContentHandler(
+              this, Spine::Reactor::HandlerOptions("/api/explorer").IsPrefix(), catalog_handler))
         throw Fmi::Exception(BCP, "Failed to register the data explorer handler");
     }
 
 #ifndef NDEBUG
     if (!theReactor->addContentHandler(this,
-                                       "/sleep",
+                                       Spine::Reactor::HandlerOptions("/sleep"),
                                        [this](Spine::Reactor &theReactor,
                                               const Spine::HTTP::Request &theRequest,
                                               Spine::HTTP::Response &theResponse)
