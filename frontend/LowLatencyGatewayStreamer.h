@@ -275,7 +275,7 @@ class LowLatencyGatewayStreamer : public Spine::HTTP::ContentStreamer,
   // This buffer will go to the frontend cache
   std::string itsCachedContent;
 
-  // Metdata related to the cached response
+  // Metadata related to the cached response
   ResponseCache::CachedResponseMetaData itsBackendMetadata;
 
   // Gateway stream status

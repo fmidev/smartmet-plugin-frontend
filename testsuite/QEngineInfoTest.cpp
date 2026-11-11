@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(parse_info_qengine_response_3)
   responses.emplace_back(read_response("data/q03.json", item_reader, "iso"));
 
   const auto ot1 = extract_origin_times(*responses[0], producer);
-  // 2 items editted away in q02.json for DEVMOS
+  // 2 items edited away in q02.json for DEVMOS
   const auto ot2 = extract_origin_times(*responses[1], producer);
   const auto ot3 = extract_origin_times(*responses[2], producer);
   BOOST_CHECK_EQUAL(ot1.size(), 5);

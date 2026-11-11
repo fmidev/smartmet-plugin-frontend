@@ -1109,7 +1109,7 @@ void LowLatencyGatewayStreamer::readCacheResponse(const boost::system::error_cod
       }
       case Spine::HTTP::ParsingStatus::COMPLETE:
       {
-        // Successfull parse. Interim 1xx responses were already discarded above.
+        // Successful parse. Interim 1xx responses were already discarded above.
         auto&& responsePtr = std::get<1>(ret);
 
         // See if backend responded with ETag

@@ -481,7 +481,7 @@ int run_test_cluster()
 
         wait_for_ready(frontend_port, "Frontend");
 
-        // Unfortunetely we must additionally wait for communication between frontend and backends
+        // Unfortunately we must additionally wait for communication between frontend and backends
         // before we can start testing. Otherwise frontend will not be able to handle requests properly
         // and tests will fail.
         std::this_thread::sleep_for(std::chrono::seconds(4));

@@ -53,7 +53,7 @@ bool backend_resource(const Spine::HTTP::Request &theRequest,
     {
       // Something unexpected happened.
       std::cout << fmt::format(
-                       "{} Request resource '{}' does not beging with either of '{}' and '{}'",
+                       "{} Request resource '{}' does not begin with either of '{}' and '{}'",
                        Spine::log_time_str(),
                        theRequest.getResource(),
                        theService.URI(),

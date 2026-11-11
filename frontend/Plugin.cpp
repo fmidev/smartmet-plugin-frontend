@@ -402,7 +402,7 @@ try
   const std::string timeFormat = Spine::optional_string(theRequest.getParameter("timeformat"), "sql");
 
   //---------------------------------------------------------------------------------
-  // Get all backends that provide the requested info and erase dumplicated
+  // Get all backends that provide the requested info and erase duplicated
   //---------------------------------------------------------------------------------
   auto sputnik = itsReactor->getEngine<Engine::Sputnik::Engine>("Sputnik", nullptr);
   auto backendList = sputnik->getInfoRequestBackendList(what);
