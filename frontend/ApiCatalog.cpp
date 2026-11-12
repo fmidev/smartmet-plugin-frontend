@@ -1,5 +1,4 @@
 #include "ApiCatalog.h"
-#include <boost/thread.hpp>
 #include <fmt/format.h>
 #include <json/reader.h>
 #include <macgyver/Exception.h>

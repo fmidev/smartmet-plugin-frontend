@@ -1,7 +1,6 @@
 #include "HTTP.h"
 #include "Proxy.h"
 #include <boost/algorithm/string.hpp>
-#include <boost/bimap.hpp>
 #include <engines/sputnik/BackendServer.h>
 #include <engines/sputnik/BackendService.h>
 #include <engines/sputnik/Engine.h>
