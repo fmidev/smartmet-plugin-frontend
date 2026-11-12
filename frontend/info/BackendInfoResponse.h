@@ -1,14 +1,20 @@
 #pragma once
 
 #include "BackendInfoRec.h"
-#include "BackendInfoFilter.h"
+#include <json/json.h>
+#include <spine/Table.h>
+#include <cstddef>
 #include <functional>
-#include <optional>
+#include <map>
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
-#include <macgyver/DateTime.h>
-#include <spine/Table.h>
-#include <json/json.h>
+
+namespace SmartMet::Plugin::Frontend
+{
+class BackendInfoFilter;
+}  // namespace SmartMet::Plugin::Frontend
 
 namespace SmartMet
 {

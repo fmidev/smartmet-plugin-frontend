@@ -18,23 +18,31 @@
  */
 
 #include "TestHarness.h"
-
 #include <boost/algorithm/string.hpp>
 #include <macgyver/AnsiEscapeCodes.h>
 #include <macgyver/Exception.h>
-#include <signal.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h>
+#include <algorithm>
 #include <chrono>
+#include <csignal>
+#include <cstdio>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <iostream>
 #include <map>
-#include <sstream>
+#include <ratio>
 #include <set>
+#include <signal.h>
+#include <sstream>
 #include <string>
 #include <thread>
+#include <tuple>
+#include <unistd.h>
+#include <utility>
 #include <vector>
 
 namespace ba = boost::algorithm;

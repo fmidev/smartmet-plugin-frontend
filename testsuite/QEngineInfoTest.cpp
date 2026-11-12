@@ -1,3 +1,4 @@
+#include "../frontend/info/BackendInfoFilter.h"
 #include "../frontend/info/BackendInfoResponse.h"
 #include "../frontend/info/QEngineInfoRec.h"
 #include <boost/test/included/unit_test.hpp>

@@ -1,4 +1,6 @@
 #include "ResponseCache.h"
+#include <boost/bimap.hpp>
+#include <optional>
 
 namespace SmartMet
 {

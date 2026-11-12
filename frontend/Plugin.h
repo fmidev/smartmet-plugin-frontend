@@ -9,15 +9,29 @@
 #include "ApiCatalog.h"
 #include "HTTP.h"
 #include <macgyver/CacheStats.h>
-#include <spine/HTTP.h>
-#include <spine/Reactor.h>
+#include <macgyver/DateTime.h>
 #include <spine/SmartMetPlugin.h>
 #include <spine/Table.h>
 #include <atomic>
 #include <ctime>
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
+
+namespace SmartMet::Engine::Sputnik
+{
+class Engine;
+}  // namespace SmartMet::Engine::Sputnik
+namespace SmartMet::Spine::HTTP
+{
+class Request;
+class Response;
+}  // namespace SmartMet::Spine::HTTP
+namespace SmartMet::Spine
+{
+class Reactor;
+}  // namespace SmartMet::Spine
 
 namespace SmartMet
 {

@@ -2,21 +2,25 @@
 
 #include "BackendConnectionPool.h"
 #include "ResponseCache.h"
-
-#include <atomic>
 #include <boost/asio.hpp>
-#include <filesystem>
 #include <boost/functional/hash.hpp>
-#include <memory>
-#include <vector>
-#include <boost/thread/condition.hpp>
-#include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
+#include <atomic>
+#include <cstddef>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <spine/HTTP.h>
-#include <spine/Reactor.h>
-
-#include <macgyver/Cache.h>
+namespace SmartMet::Spine::HTTP
+{
+class Request;
+class Response;
+}  // namespace SmartMet::Spine::HTTP
+namespace SmartMet::Spine
+{
+class Reactor;
+}  // namespace SmartMet::Spine
 
 namespace SmartMet
 {

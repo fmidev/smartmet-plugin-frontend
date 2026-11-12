@@ -1,6 +1,9 @@
 #pragma once
 
 #include "BackendInfoRec.h"
+#include <json/value.h>
+#include <optional>
+#include <string>
 
 namespace SmartMet
 {

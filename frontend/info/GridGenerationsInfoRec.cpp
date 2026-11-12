@@ -1,7 +1,12 @@
 #include "GridGenerationsInfoRec.h"
-
+#include "BackendInfoRec.h"
 #include <macgyver/Exception.h>
 #include <macgyver/Join.h>
+#include <macgyver/StringConversion.h>
+#include <macgyver/TimeFormatter.h>
+#include <iostream>
+#include <memory>
+#include <typeinfo>
 
 using namespace SmartMet::Plugin::Frontend;
 using namespace std::string_literals;

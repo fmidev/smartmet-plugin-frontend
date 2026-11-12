@@ -1,6 +1,11 @@
 #pragma once
 
 #include "BackendInfoRec.h"
+#include <json/value.h>
+#include <macgyver/DateTime.h>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 namespace SmartMet
 {

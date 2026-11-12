@@ -1,17 +1,25 @@
 #pragma once
 
-#include "BackendInfoResponse.h"
 #include "BackendInfoFilter.h"
+#include "BackendInfoResponse.h"
+#include <engines/sputnik/Services.h>
+#include <json/json.h>
+#include <spine/HTTP.h>
+#include <spine/Table.h>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
-#include <macgyver/DateTime.h>
-#include <spine/HTTP.h>
-#include <spine/Reactor.h>
-#include <spine/Table.h>
-#include <engines/sputnik/Engine.h>
-#include <json/json.h>
+
+namespace SmartMet::Plugin::Frontend
+{
+class BackendInfoRec;
+}  // namespace SmartMet::Plugin::Frontend
+namespace SmartMet::Spine
+{
+class Reactor;
+}  // namespace SmartMet::Spine
 
 namespace SmartMet
 {

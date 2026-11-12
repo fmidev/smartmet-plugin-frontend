@@ -1,9 +1,13 @@
 #pragma once
 
-#include <filesystem>
 #include <macgyver/Cache.h>
+#include <macgyver/CacheStats.h>
 #include <spine/SmartMetCache.h>
+#include <cstddef>
+#include <filesystem>
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace SmartMet
 {

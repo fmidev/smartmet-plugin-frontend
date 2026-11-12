@@ -1,7 +1,9 @@
 #include "GridParametersInfoRec.h"
-
+#include "BackendInfoRec.h"
 #include <macgyver/Exception.h>
-#include <macgyver/Join.h>
+#include <macgyver/StringConversion.h>
+#include <iostream>
+#include <vector>
 
 using namespace SmartMet::Plugin::Frontend;
 using namespace std::string_literals;

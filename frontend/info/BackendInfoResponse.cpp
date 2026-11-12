@@ -1,11 +1,12 @@
 #include "BackendInfoResponse.h"
-#include <macgyver/Exception.h>
-#include <macgyver/Join.h>
-#include <macgyver/StringConversion.h>
-#include <macgyver/TimeFormatter.h>
-#include <macgyver/TimeParser.h>
+#include "BackendInfoFilter.h"
+#include "BackendInfoRec.h"
 #include <boost/algorithm/string.hpp>
+#include <macgyver/Exception.h>
 #include <algorithm>
+#include <iostream>
+#include <iterator>
+#include <utility>
 
 using namespace SmartMet::Plugin::Frontend;
 

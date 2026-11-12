@@ -1,12 +1,19 @@
 #pragma once
 
-#include <vector>
-#include <string>
 #include <json/value.h>
-#include <optional>
 #include <macgyver/DateTime.h>
-#include <macgyver/TimeFormatter.h>
-#include <macgyver/TypeTraits.h>
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+namespace Fmi
+{
+class TimeFormatter;
+}  // namespace Fmi
 
 namespace SmartMet
 {

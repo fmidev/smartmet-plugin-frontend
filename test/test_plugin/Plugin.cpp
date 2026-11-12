@@ -1,8 +1,12 @@
+#include <macgyver/Exception.h>
+#include <spine/HTTP.h>
 #include <spine/Reactor.h>
+#include <spine/SmartMet.h>
 #include <spine/SmartMetPlugin.h>
+#include <cstddef>
 #include <libconfig.h++>
 #include <memory>
-#include <stdexcept>
+#include <optional>
 #include <string>
 
 namespace SmartMet

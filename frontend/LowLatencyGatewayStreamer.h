@@ -3,9 +3,20 @@
 #include "ChunkedBodyDecoder.h"
 #include "ResponseCache.h"
 #include <boost/asio.hpp>
+#include <boost/thread.hpp>
 #include <spine/HTTP.h>
-#include <spine/Reactor.h>
+#include <array>
+#include <chrono>
+#include <cstddef>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace SmartMet::Spine
+{
+class Reactor;
+}  // namespace SmartMet::Spine
 
 namespace SmartMet
 {

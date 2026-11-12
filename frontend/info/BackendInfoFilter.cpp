@@ -1,4 +1,6 @@
 #include "BackendInfoFilter.h"
+#include "BackendInfoRec.h"
+#include <utility>
 
 using namespace SmartMet::Plugin::Frontend;
 

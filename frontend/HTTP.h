@@ -1,12 +1,21 @@
 #pragma once
-#include <engines/sputnik/Engine.h>
-#include <spine/ConfigBase.h>
-#include <spine/HTTP.h>
-#include <spine/Reactor.h>
-
-#include <memory>
-
 #include "Proxy.h"
+#include <memory>
+#include <string>
+
+namespace SmartMet::Engine::Sputnik
+{
+class Engine;
+}  // namespace SmartMet::Engine::Sputnik
+namespace SmartMet::Spine::HTTP
+{
+class Request;
+class Response;
+}  // namespace SmartMet::Spine::HTTP
+namespace SmartMet::Spine
+{
+class Reactor;
+}  // namespace SmartMet::Spine
 
 namespace SmartMet
 {

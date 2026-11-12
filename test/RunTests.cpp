@@ -1,24 +1,26 @@
 #include "TestHarness.h"
-
-#include <iostream>
-#include <iomanip>
-#include <filesystem>
-#include <vector>
-#include <string>
-#include <stdexcept>
-#include <algorithm>
-#include <fstream>
-#include <sstream>
-#include <thread>
-#include <chrono>
-#include <dtl/dtl.hpp>
 #include <boost/algorithm/string.hpp>
+#include <dtl/dtl.hpp>
 #include <macgyver/AnsiEscapeCodes.h>
 #include <macgyver/Exception.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <exception>
+#include <filesystem>
+#include <fstream>
 #include <getopt.h>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <unistd.h>
+#include <utility>
+#include <vector>
 
 namespace ba = boost::algorithm;
 

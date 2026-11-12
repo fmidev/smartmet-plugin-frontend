@@ -2,6 +2,7 @@
 
 #include "../frontend/ChunkedBodyDecoder.h"
 #include <boost/test/included/unit_test.hpp>
+#include <cstddef>
 #include <string>
 
 using SmartMet::ChunkedBodyDecoder;

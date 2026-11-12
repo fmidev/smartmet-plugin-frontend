@@ -2,18 +2,18 @@
 #include "LowLatencyGatewayStreamer.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/thread.hpp>
 #include <fmt/format.h>
 #include <macgyver/Exception.h>
 #include <macgyver/ThreadName.h>
-#include <macgyver/TimeFormatter.h>
 #include <spine/Convenience.h>
+#include <spine/HTTP.h>
+#include <spine/Reactor.h>
 #include <algorithm>
 #include <iostream>
 #include <memory>
-#include <sstream>
+#include <optional>
 #include <string>
+#include <utility>
 
 namespace SmartMet
 {

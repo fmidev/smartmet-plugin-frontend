@@ -1,9 +1,13 @@
 #pragma once
 
-#include <vector>
-#include <string>
 #include <optional>
-#include "BackendInfoRec.h"
+#include <string>
+#include <vector>
+
+namespace SmartMet::Plugin::Frontend
+{
+class BackendInfoRec;
+}  // namespace SmartMet::Plugin::Frontend
 
 namespace SmartMet
 {

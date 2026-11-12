@@ -1,10 +1,9 @@
 #include "BackendInfoRec.h"
+#include <boost/algorithm/string.hpp>
 #include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <macgyver/TimeFormatter.h>
 #include <macgyver/TimeParser.h>
-#include <boost/algorithm/string.hpp>
-#include <algorithm>
 
 using namespace SmartMet::Plugin::Frontend;
 

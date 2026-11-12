@@ -1,11 +1,16 @@
 #include "LowLatencyGatewayStreamer.h"
+#include "BackendConnectionPool.h"
 #include "Proxy.h"
 #include <boost/algorithm/string.hpp>
 #include <fmt/format.h>
+#include <macgyver/DateTime.h>
+#include <macgyver/Exception.h>
 #include <macgyver/StringConversion.h>
 #include <spine/Convenience.h>
+#include <spine/Reactor.h>
+#include <algorithm>
 #include <iostream>
-#include <sstream>
+#include <optional>
 #include <string>
 #include <tuple>
 

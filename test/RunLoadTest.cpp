@@ -27,22 +27,27 @@
  */
 
 #include "TestHarness.h"
-
 #include <macgyver/Exception.h>
+#include <sys/types.h>
 #include <sys/wait.h>
-#include <unistd.h>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <cmath>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
+#include <ratio>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
+#include <tuple>
+#include <unistd.h>
+#include <utility>
 #include <vector>
 
 using namespace TestHarness;

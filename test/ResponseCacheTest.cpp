@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <unistd.h>
+#include <utility>
 
 using SmartMet::ResponseCache;
 

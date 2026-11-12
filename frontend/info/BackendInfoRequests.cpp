@@ -1,19 +1,29 @@
 #include "BackendInfoRequests.h"
-#include "QEngineInfoRec.h"
+#include "BackendInfoFilter.h"
+#include "BackendInfoResponse.h"
 #include "GridGenerationsInfoRec.h"
 #include "GridParametersInfoRec.h"
+#include "QEngineInfoRec.h"
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/thread.hpp>
+#include <fmt/format.h>
+#include <json/reader.h>
 #include <macgyver/Exception.h>
 #include <macgyver/TimeFormatter.h>
 #include <spine/HTTP.h>
-#include <spine/Reactor.h>
-#include <spine/Table.h>
 #include <spine/TcpMultiQuery.h>
-#include <engines/sputnik/Engine.h>
-#include <fmt/format.h>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/thread.hpp>
+#include <iostream>
+#include <iterator>
+#include <map>
+#include <sstream>
+#include <utility>
+
+namespace SmartMet::Plugin::Frontend
+{
+class BackendInfoRec;
+}  // namespace SmartMet::Plugin::Frontend
 
 using namespace SmartMet::Plugin::Frontend;
 using namespace std::string_literals;

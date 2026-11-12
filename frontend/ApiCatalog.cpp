@@ -1,11 +1,15 @@
 #include "ApiCatalog.h"
+#include <boost/thread.hpp>
 #include <fmt/format.h>
+#include <json/reader.h>
 #include <macgyver/Exception.h>
-#include <spine/Convenience.h>
+#include <spine/HTTP.h>
 #include <spine/TcpMultiQuery.h>
 #include <algorithm>
 #include <iostream>
+#include <list>
 #include <map>
+#include <memory>
 #include <sstream>
 
 namespace SmartMet

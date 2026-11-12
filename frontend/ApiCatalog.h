@@ -12,7 +12,6 @@
 #pragma once
 
 #include <engines/sputnik/Engine.h>
-#include <spine/HTTP.h>
 #include <spine/OpenApi.h>
 #include <chrono>
 #include <functional>
@@ -21,6 +20,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+namespace SmartMet::Spine::HTTP
+{
+class Request;
+class Response;
+}  // namespace SmartMet::Spine::HTTP
 
 namespace SmartMet
 {
